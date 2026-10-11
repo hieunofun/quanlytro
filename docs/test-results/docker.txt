@@ -1,0 +1,5 @@
+Docker Compose build: PASS
+health: UP
+seed-demo: PASS
+verify-demo: PASS; water 8 m3; total 3690000; paid 2000000; balance 1690000; PDF exported
+Isolated project: hostel-v1-verify; ports 18080/55433

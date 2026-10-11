@@ -1,0 +1,36 @@
+{
+  "existing_checkout_backfill": {
+    "status": 200,
+    "utilities": 110000.0,
+    "refund": 1460000.0
+  },
+  "incoming_electricity": {
+    "status": 200,
+    "consumption": 5.0
+  },
+  "incoming_water": {
+    "status": 200,
+    "consumption": 1.0
+  },
+  "incoming_invoice": {
+    "status": "ISSUED",
+    "total": 1669500.0
+  },
+  "repeat_departure": {
+    "status": 400,
+    "response": {
+      "message": "Thành viên đã được ghi nhận rời phòng"
+    }
+  },
+  "capacity_after_departure": {
+    "status": 200
+  },
+  "concurrent_upload": {
+    "statuses": [
+      200,
+      200
+    ],
+    "links_before": 1,
+    "links_after": 3
+  }
+}

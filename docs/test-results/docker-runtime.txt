@@ -1,0 +1,3 @@
+NAME                     IMAGE                  COMMAND                  SERVICE   CREATED          STATUS                    PORTS
+hostel-v1-verify-app-1   hostel-v1-verify-app   "java -jar app.jar"      app       47 seconds ago   Up 39 seconds             127.0.0.1:18080->8080/tcp
+hostel-v1-verify-db-1    postgres:16-alpine     "docker-entrypoint.s…"   db        6 minutes ago    Up 46 seconds (healthy)   127.0.0.1:55433->5432/tcp

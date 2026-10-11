@@ -1,0 +1,6 @@
+.runtime
+target
+submission
+frontend/node_modules
+.env
+.git

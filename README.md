@@ -65,6 +65,7 @@ Phát triển giao diện: `cd frontend`, `npm ci`, `npm run dev`. Vite chuyển
 
 ## Hồ sơ bàn giao
 
+- [Thiết kế CSDL trên dbdiagram.io — 16 bảng, SQL, DBML, PDF và PNG](docs/DATABASE.md)
 - [Kịch bản demo](docs/DEMO.md)
 - [Tài liệu API](docs/API.md)
 - [Báo cáo kỹ thuật](docs/REPORT.md)

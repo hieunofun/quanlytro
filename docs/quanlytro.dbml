@@ -1,0 +1,267 @@
+// Thi?t k? 16 b?ng theo b?n dbdiagram.io do nh?m cung c?p.
+// Ngu?n: docs/quanlytro.sql; ph?m vi v? ch?nh l?ch backend: docs/DATABASE.md.
+Project QuanLyNhaTro {
+  database_type: 'PostgreSQL'
+}
+
+Table "users" {
+  "id" BIGINT [pk, not null, increment]
+  "username" varchar(50) [unique, not null]
+  "password_hash" varchar(255) [not null]
+  "full_name" varchar(100) [not null]
+  "phone" varchar(20) [unique, not null]
+  "email" varchar(100) [unique]
+  "role" varchar(20) [not null, note: 'ADMIN | STAFF | TENANT']
+  "status" varchar(20) [not null, default: 'ACTIVE', note: 'ACTIVE | INACTIVE | LOCKED']
+  "failed_attempts" integer [not null, default: 0]
+  "locked_until" timestamptz
+  "created_at" timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  "updated_at" timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table "employee_assignments" {
+  "id" BIGINT [pk, not null, increment]
+  "user_id" bigint [not null]
+  "property_id" bigint [not null]
+  "assigned_at" timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  "is_active" boolean [not null, default: true]
+
+  Indexes {
+    (user_id, property_id) [unique]
+  }
+}
+
+Table "properties" {
+  "id" BIGINT [pk, not null, increment]
+  "property_code" varchar(30) [unique, not null]
+  "name" varchar(150) [not null]
+  "address" text [not null]
+  "description" text
+  "status" varchar(20) [not null, default: 'ACTIVE', note: 'ACTIVE | INACTIVE']
+  "meter_cutoff_day" integer [not null, default: 28]
+  "invoice_issue_day" integer [not null, default: 1]
+  "late_fee_enabled" boolean [not null, default: false]
+  "late_fee_percentage" numeric(5,2) [not null, default: 0]
+  "created_at" timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  "updated_at" timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table "rooms" {
+  "id" BIGINT [pk, not null, increment]
+  "property_id" bigint [not null]
+  "floor_number" integer [not null, default: 1, note: 'Gộp từ bảng floors']
+  "room_code" varchar(30) [not null]
+  "base_price" numeric(12,2) [not null]
+  "max_occupants" integer [not null, default: 2]
+  "area_sqm" numeric(6,2)
+  "status" varchar(20) [not null, default: 'AVAILABLE', note: 'AVAILABLE | RENTED | MAINTENANCE']
+  "amenities" text [not null, default: '']
+  "internal_note" text [not null, default: '']
+  "created_at" timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  "updated_at" timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  Indexes {
+    (property_id, room_code) [unique]
+  }
+}
+
+Table "tenant_profiles" {
+  "id" BIGINT [pk, not null, increment]
+  "user_id" bigint [unique]
+  "full_name" varchar(100) [not null]
+  "identity_number" varchar(20) [not null]
+  "phone" varchar(20) [not null]
+  "email" varchar(100)
+  "date_of_birth" date
+  "hometown" varchar(150)
+  "created_at" timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  "updated_at" timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table "contracts" {
+  "id" BIGINT [pk, not null, increment]
+  "contract_code" varchar(50) [unique, not null]
+  "room_id" bigint [not null]
+  "primary_tenant_id" bigint [not null]
+  "start_date" date [not null]
+  "end_date" date [not null]
+  "actual_checkout_date" date
+  "rental_price" numeric(12,2) [not null]
+  "deposit_amount" numeric(12,2) [not null, default: 0]
+  "payment_cycle_day" integer [not null, default: 5]
+  "initial_electric_index" numeric(10,2) [not null]
+  "initial_water_index" numeric(10,2) [not null]
+  "status" varchar(20) [not null, default: 'ACTIVE', note: 'PENDING | ACTIVE | EXPIRED | TERMINATED']
+  "terms" text [not null, default: '']
+  "violation_note" text
+  "created_at" timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  "updated_at" timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table "contract_members" {
+  "id" BIGINT [pk, not null, increment]
+  "contract_id" bigint [not null]
+  "full_name" varchar(100) [not null]
+  "identity_number" varchar(20)
+  "phone" varchar(20)
+  "relationship" varchar(50)
+  "effective_from" date [not null, note: 'Tính ngày-người cho phí PER_PERSON']
+  "effective_to" date
+  "created_at" timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table "service_items" {
+  "id" BIGINT [pk, not null, increment]
+  "service_code" varchar(30) [unique, not null]
+  "name" varchar(100) [not null]
+  "service_type" varchar(30) [not null, note: 'ELECTRICITY | WATER | FIXED_SERVICE']
+  "calculation_type" varchar(30) [not null, note: 'METER_BASED | PER_PERSON | PER_ROOM']
+  "unit_name" varchar(30) [not null]
+  "is_mandatory" boolean [not null, default: true]
+}
+
+Table "service_price_configs" {
+  "id" BIGINT [pk, not null, increment]
+  "property_id" bigint [not null]
+  "service_item_id" bigint [not null]
+  "unit_price" numeric(12,2) [not null]
+  "effective_from" date [not null, note: 'Đơn giá áp dụng tại ngày đầu kỳ']
+  "created_at" timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  Indexes {
+    (property_id, service_item_id, effective_from) [unique]
+  }
+}
+
+Table "meter_readings" {
+  "id" BIGINT [pk, not null, increment]
+  "room_id" bigint [not null]
+  "contract_id" bigint [not null]
+  "billing_period" varchar(7) [not null, note: 'YYYY-MM']
+  "meter_type" varchar(20) [not null, note: 'ELECTRICITY | WATER']
+  "old_index" numeric(10,2) [not null]
+  "new_index" numeric(10,2) [not null]
+  "consumption" numeric(10,2) [not null]
+  "reading_date" date [not null]
+  "has_anomaly" boolean [not null, default: false]
+  "created_at" timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  Indexes {
+    (contract_id, billing_period, meter_type) [unique]
+  }
+}
+
+Table "consumption_alerts" {
+  "id" BIGINT [pk, not null, increment]
+  "meter_reading_id" bigint [not null]
+  "meter_type" varchar(20) [not null, note: 'ELECTRICITY | WATER']
+  "baseline_average" numeric(10,2) [not null]
+  "current_consumption" numeric(10,2) [not null]
+  "percentage_increase" numeric(6,2) [not null]
+  "applied_threshold_percentage" numeric(5,2) [not null]
+  "alert_severity" varchar(20) [not null, default: 'WARNING', note: 'WARNING | CRITICAL']
+  "status" varchar(20) [not null, default: 'PENDING', note: 'PENDING (Chặn phát hành HĐ) | CONFIRMED | DISMISSED']
+  "note" text
+  "created_at" timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table "invoices" {
+  "id" BIGINT [pk, not null, increment]
+  "invoice_code" varchar(50) [unique, not null]
+  "contract_id" bigint [not null]
+  "billing_period" varchar(7) [not null, note: 'YYYY-MM']
+  "issue_date" date [not null]
+  "due_date" date [not null]
+  "total_amount" numeric(12,2) [not null, default: 0]
+  "paid_amount" numeric(12,2) [not null, default: 0]
+  "balance_due" numeric(12,2) [not null, default: 0]
+  "payment_status" varchar(20) [not null, default: 'UNPAID', note: 'UNPAID | PARTIALLY_PAID | PAID']
+  "status" varchar(20) [not null, default: 'DRAFT', note: 'DRAFT | ISSUED | CANCELLED']
+  "has_anomaly_alert" boolean [not null, default: false]
+  "is_settlement" boolean [not null, default: false, note: 'Hóa đơn kỳ cuối khi trả phòng']
+  "note" text
+  "created_at" timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  "updated_at" timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  Indexes {
+    (contract_id, billing_period) [unique]
+  }
+}
+
+Table "invoice_items" {
+  "id" BIGINT [pk, not null, increment]
+  "invoice_id" bigint [not null]
+  "service_item_id" bigint
+  "item_name_snapshot" varchar(100) [not null]
+  "unit_price_snapshot" numeric(12,2) [not null]
+  "quantity" numeric(10,2) [not null]
+  "old_index_snapshot" numeric(10,2)
+  "new_index_snapshot" numeric(10,2)
+  "subtotal" numeric(12,2) [not null]
+  "formula_description" varchar(255) [note: 'Lưu công thức tính snapshot']
+}
+
+Table "payment_transactions" {
+  "id" BIGINT [pk, not null, increment]
+  "invoice_id" bigint [not null]
+  "transaction_code" varchar(50) [unique, not null]
+  "amount" numeric(12,2) [not null]
+  "payment_method" varchar(30) [not null, default: 'CASH', note: 'CASH | BANK_TRANSFER_MANUAL | DEPOSIT_OFFSET | OTHER']
+  "payment_date" timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  "notes" text
+}
+
+Table "checkout_records" {
+  "id" BIGINT [pk, not null, increment]
+  "contract_id" bigint [unique, not null]
+  "checkout_date" date [not null]
+  "final_electric_index" numeric(10,2) [not null]
+  "final_water_index" numeric(10,2) [not null]
+  "final_utility_amount" numeric(12,2) [not null, default: 0]
+  "damage_amount" numeric(12,2) [not null, default: 0]
+  "unpaid_invoices_amount" numeric(12,2) [not null, default: 0]
+  "initial_deposit" numeric(12,2) [not null]
+  "actual_refund_amount" numeric(12,2) [not null, default: 0, note: 'Số âm là số khách còn phải trả thêm']
+  "status" varchar(20) [not null, default: 'COMPLETED', note: 'PENDING | COMPLETED']
+  "notes" text
+  "created_at" timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table "maintenance_requests" {
+  "id" BIGINT [pk, not null, increment]
+  "property_id" bigint [not null]
+  "room_id" bigint
+  "contract_id" bigint
+  "title" varchar(150) [not null]
+  "description" text [not null]
+  "category" varchar(50) [not null, default: 'OTHER']
+  "priority" varchar(20) [not null, note: 'URGENT | NORMAL | LOW']
+  "status" varchar(20) [not null, default: 'NEW', note: 'NEW | ACCEPTED | IN_PROGRESS | COMPLETED']
+  "image_urls" text [not null, default: '']
+  "expected_date" date [not null]
+  "actual_cost" numeric(12,2) [not null, default: 0]
+  "progress_note" text
+  "created_at" timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  "updated_at" timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Ref: employee_assignments.user_id > users.id [delete: cascade]
+Ref: employee_assignments.property_id > properties.id [delete: cascade]
+Ref: users.id - tenant_profiles.user_id [delete: set null]
+Ref: rooms.property_id > properties.id [delete: restrict]
+Ref: contracts.room_id > rooms.id [delete: restrict]
+Ref: contracts.primary_tenant_id > tenant_profiles.id [delete: restrict]
+Ref: contract_members.contract_id > contracts.id [delete: cascade]
+Ref: service_price_configs.property_id > properties.id [delete: restrict]
+Ref: service_price_configs.service_item_id > service_items.id [delete: restrict]
+Ref: meter_readings.room_id > rooms.id [delete: restrict]
+Ref: meter_readings.contract_id > contracts.id [delete: restrict]
+Ref: consumption_alerts.meter_reading_id > meter_readings.id [delete: cascade]
+Ref: invoices.contract_id > contracts.id [delete: restrict]
+Ref: invoice_items.invoice_id > invoices.id [delete: cascade]
+Ref: invoice_items.service_item_id > service_items.id [delete: set null]
+Ref: payment_transactions.invoice_id > invoices.id [delete: restrict]
+Ref: contracts.id - checkout_records.contract_id [delete: restrict]
+Ref: maintenance_requests.property_id > properties.id
+Ref: maintenance_requests.room_id > rooms.id
+Ref: maintenance_requests.contract_id > contracts.id

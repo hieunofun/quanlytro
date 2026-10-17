@@ -1,0 +1,12 @@
+flowchart TD
+    A([Quản lý chọn hợp đồng và ngày trả]) --> B{Có quyền, hợp đồng/ngày hợp lệ,<br/>chưa có bản quyết toán?}
+    B -->|Không| C[Dừng; thông báo lý do]
+    B -->|Có| D[Chốt chỉ số; hoàn tất hóa đơn<br/>các kỳ đã ở và kỳ cuối]
+    D --> E{Đủ hóa đơn phát hành,<br/>ngày và chỉ số cuối khớp,<br/>không còn cảnh báo PENDING?}
+    E -->|Không| F[Dừng; yêu cầu bổ sung hoặc kiểm tra;<br/>không sửa trực tiếp hóa đơn đã phát hành]
+    E -->|Có| G[Tính số quyết toán =<br/>cọc - thiệt hại - công nợ chưa thanh toán]
+    G --> H{Số quyết toán >= 0?}
+    H -->|Có| I[Số dương: hoàn tiền;<br/>bằng 0: không hoàn, không thu thêm]
+    H -->|Không| J[Ghi nhận khoản người thuê phải trả thêm;<br/>giữ lại công nợ chưa thanh toán]
+    I --> K([Thực hiện thống nhất: lưu quyết toán,<br/>ghi giao dịch cấn cọc, cập nhật hợp đồng và phòng])
+    J --> K

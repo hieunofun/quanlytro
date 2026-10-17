@@ -1,0 +1,20 @@
+digraph ERD {
+graph [rankdir=LR, bgcolor="white", pad="0.25", nodesep="0.5", ranksep="1.05", splines=polyline, fontname="Arial"];
+node [shape=plain, fontname="Arial"];
+edge [fontname="Arial", fontsize=10, color="#6B7280", arrowsize=0.6];
+users [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#CBD5E1"><TR><TD BGCOLOR="#E9EEF3"><B>users</B></TD></TR><TR><TD PORT="id" ALIGN="LEFT"><FONT POINT-SIZE="12">PK id</FONT></TD></TR><TR><TD PORT="status" ALIGN="LEFT"><FONT POINT-SIZE="12">status</FONT></TD></TR></TABLE>>];
+tenant_profiles [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#CBD5E1"><TR><TD BGCOLOR="#E9EEF3"><B>tenant_profiles</B></TD></TR><TR><TD PORT="id" ALIGN="LEFT"><FONT POINT-SIZE="12">PK id</FONT></TD></TR><TR><TD PORT="user_id" ALIGN="LEFT"><FONT POINT-SIZE="12">FK user_id</FONT></TD></TR></TABLE>>];
+properties [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#CBD5E1"><TR><TD BGCOLOR="#E9EEF3"><B>properties</B></TD></TR><TR><TD PORT="id" ALIGN="LEFT"><FONT POINT-SIZE="12">PK id</FONT></TD></TR><TR><TD PORT="status" ALIGN="LEFT"><FONT POINT-SIZE="12">status</FONT></TD></TR></TABLE>>];
+rooms [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#CBD5E1"><TR><TD BGCOLOR="#E9EEF3"><B>rooms</B></TD></TR><TR><TD PORT="id" ALIGN="LEFT"><FONT POINT-SIZE="12">PK id</FONT></TD></TR><TR><TD PORT="property_id" ALIGN="LEFT"><FONT POINT-SIZE="12">FK property_id</FONT></TD></TR></TABLE>>];
+contracts [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#CBD5E1"><TR><TD BGCOLOR="#E9EEF3"><B>contracts</B></TD></TR><TR><TD PORT="id" ALIGN="LEFT"><FONT POINT-SIZE="12">PK id</FONT></TD></TR><TR><TD PORT="room_id" ALIGN="LEFT"><FONT POINT-SIZE="12">FK room_id</FONT></TD></TR><TR><TD PORT="primary_tenant_id" ALIGN="LEFT"><FONT POINT-SIZE="12">FK primary_tenant_id</FONT></TD></TR><TR><TD PORT="start_date" ALIGN="LEFT"><FONT POINT-SIZE="12">start_date</FONT></TD></TR><TR><TD PORT="end_date" ALIGN="LEFT"><FONT POINT-SIZE="12">end_date</FONT></TD></TR><TR><TD PORT="status" ALIGN="LEFT"><FONT POINT-SIZE="12">status</FONT></TD></TR></TABLE>>];
+contract_members [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#CBD5E1"><TR><TD BGCOLOR="#E9EEF3"><B>contract_members</B></TD></TR><TR><TD PORT="id" ALIGN="LEFT"><FONT POINT-SIZE="12">PK id</FONT></TD></TR><TR><TD PORT="contract_id" ALIGN="LEFT"><FONT POINT-SIZE="12">FK contract_id</FONT></TD></TR><TR><TD PORT="tenant_id" ALIGN="LEFT"><FONT POINT-SIZE="12">FK tenant_id</FONT></TD></TR><TR><TD PORT="effective_from" ALIGN="LEFT"><FONT POINT-SIZE="12">effective_from</FONT></TD></TR></TABLE>>];
+employee_assignments [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#CBD5E1"><TR><TD BGCOLOR="#E9EEF3"><B>employee_assignments</B></TD></TR><TR><TD PORT="id" ALIGN="LEFT"><FONT POINT-SIZE="12">PK id</FONT></TD></TR><TR><TD PORT="user_id" ALIGN="LEFT"><FONT POINT-SIZE="12">FK user_id</FONT></TD></TR><TR><TD PORT="property_id" ALIGN="LEFT"><FONT POINT-SIZE="12">FK property_id</FONT></TD></TR></TABLE>>];
+contracts:id -> contract_members:contract_id [dir=both, arrowtail=tee, arrowhead=crow];
+tenant_profiles:id -> contract_members:tenant_id [dir=both, arrowtail=tee, arrowhead=crow];
+tenant_profiles:id -> contracts:primary_tenant_id [dir=both, arrowtail=tee, arrowhead=crow];
+rooms:id -> contracts:room_id [dir=both, arrowtail=tee, arrowhead=crow];
+properties:id -> employee_assignments:property_id [dir=both, arrowtail=tee, arrowhead=crow];
+users:id -> employee_assignments:user_id [dir=both, arrowtail=tee, arrowhead=crow];
+properties:id -> rooms:property_id [dir=both, arrowtail=tee, arrowhead=crow];
+users:id -> tenant_profiles:user_id [dir=both, arrowtail=tee, arrowhead=tee];
+}

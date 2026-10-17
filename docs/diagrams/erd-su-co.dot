@@ -1,0 +1,14 @@
+digraph ERD {
+graph [rankdir=LR, bgcolor="white", pad="0.25", nodesep="0.5", ranksep="1.05", splines=polyline, fontname="Arial"];
+node [shape=plain, fontname="Arial"];
+edge [fontname="Arial", fontsize=10, color="#6B7280", arrowsize=0.6];
+users [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#CBD5E1"><TR><TD BGCOLOR="#E9EEF3"><B>users</B></TD></TR><TR><TD PORT="id" ALIGN="LEFT"><FONT POINT-SIZE="12">PK id</FONT></TD></TR><TR><TD PORT="status" ALIGN="LEFT"><FONT POINT-SIZE="12">status</FONT></TD></TR></TABLE>>];
+contracts [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#CBD5E1"><TR><TD BGCOLOR="#E9EEF3"><B>contracts</B></TD></TR><TR><TD PORT="id" ALIGN="LEFT"><FONT POINT-SIZE="12">PK id</FONT></TD></TR><TR><TD PORT="room_id" ALIGN="LEFT"><FONT POINT-SIZE="12">FK room_id</FONT></TD></TR><TR><TD PORT="primary_tenant_id" ALIGN="LEFT"><FONT POINT-SIZE="12">FK primary_tenant_id</FONT></TD></TR><TR><TD PORT="start_date" ALIGN="LEFT"><FONT POINT-SIZE="12">start_date</FONT></TD></TR><TR><TD PORT="end_date" ALIGN="LEFT"><FONT POINT-SIZE="12">end_date</FONT></TD></TR><TR><TD PORT="status" ALIGN="LEFT"><FONT POINT-SIZE="12">status</FONT></TD></TR></TABLE>>];
+maintenance_requests [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#CBD5E1"><TR><TD BGCOLOR="#E9EEF3"><B>maintenance_requests</B></TD></TR><TR><TD PORT="id" ALIGN="LEFT"><FONT POINT-SIZE="12">PK id</FONT></TD></TR><TR><TD PORT="contract_id" ALIGN="LEFT"><FONT POINT-SIZE="12">FK contract_id</FONT></TD></TR><TR><TD PORT="submitted_by" ALIGN="LEFT"><FONT POINT-SIZE="12">FK submitted_by</FONT></TD></TR><TR><TD PORT="assigned_to" ALIGN="LEFT"><FONT POINT-SIZE="12">FK assigned_to</FONT></TD></TR><TR><TD PORT="status" ALIGN="LEFT"><FONT POINT-SIZE="12">status</FONT></TD></TR></TABLE>>];
+maintenance_images [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7" COLOR="#CBD5E1"><TR><TD BGCOLOR="#E9EEF3"><B>maintenance_images</B></TD></TR><TR><TD PORT="id" ALIGN="LEFT"><FONT POINT-SIZE="12">PK id</FONT></TD></TR><TR><TD PORT="maintenance_request_id" ALIGN="LEFT"><FONT POINT-SIZE="12">FK maintenance_request_id</FONT></TD></TR><TR><TD PORT="url" ALIGN="LEFT"><FONT POINT-SIZE="12">url</FONT></TD></TR><TR><TD PORT="uploaded_by" ALIGN="LEFT"><FONT POINT-SIZE="12">FK uploaded_by</FONT></TD></TR></TABLE>>];
+maintenance_requests:id -> maintenance_images:maintenance_request_id [dir=both, arrowtail=tee, arrowhead=crow];
+users:id -> maintenance_images:uploaded_by [dir=both, arrowtail=tee, arrowhead=crow];
+users:id -> maintenance_requests:assigned_to [dir=both, arrowtail=tee, arrowhead=crow];
+contracts:id -> maintenance_requests:contract_id [dir=both, arrowtail=tee, arrowhead=crow];
+users:id -> maintenance_requests:submitted_by [dir=both, arrowtail=tee, arrowhead=crow];
+}

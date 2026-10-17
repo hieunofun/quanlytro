@@ -1,0 +1,14 @@
+flowchart TD
+    A([Quản lý chọn hợp đồng và kỳ]) --> B{Kỳ hợp lệ, chưa có hóa đơn,<br/>đủ đơn giá và chỉ số hợp lệ?}
+    B -->|Không| C[Dừng; thông báo dữ liệu cần bổ sung hoặc sửa]
+    B -->|Có| D[Tính các khoản thu;<br/>lưu hóa đơn NHÁP và snapshot]
+    D --> E{Còn cảnh báo PENDING?}
+    E -->|Có| F[Quản lý kiểm tra cảnh báo]
+    F --> G{Chỉ số nhập đúng?}
+    G -->|Đúng| H[Xác nhận các cảnh báo đã kiểm tra]
+    H --> E
+    G -->|Sai| I[Xóa nháp; sửa chỉ số cuối hợp lệ;<br/>đánh giá lại và lập lại hóa đơn]
+    I --> B
+    E -->|Không| J{Đã đến ngày phát hành?}
+    J -->|Chưa| K[Giữ nháp; chờ đến ngày và kiểm tra lại]
+    J -->|Rồi| L([Phát hành ISSUED;<br/>giữ nguyên snapshot; người thuê được xem])

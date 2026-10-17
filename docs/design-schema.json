@@ -1,0 +1,3784 @@
+{
+  "columns": [
+    {
+      "table_name": "checkout_records",
+      "name": "id",
+      "position": 1,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "d",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "checkout_records",
+      "name": "contract_id",
+      "position": 2,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "checkout_records",
+      "name": "deposit_snapshot",
+      "position": 3,
+      "type": "numeric(12,2)",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "checkout_records",
+      "name": "outstanding_snapshot",
+      "position": 4,
+      "type": "numeric(14,2)",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "checkout_records",
+      "name": "damage_amount",
+      "position": 5,
+      "type": "numeric(12,2)",
+      "not_null": true,
+      "identity": "",
+      "default_value": "0",
+      "note": null
+    },
+    {
+      "table_name": "checkout_records",
+      "name": "settled_by",
+      "position": 6,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "checkout_records",
+      "name": "settled_at",
+      "position": 7,
+      "type": "timestamp with time zone",
+      "not_null": true,
+      "identity": "",
+      "default_value": "CURRENT_TIMESTAMP",
+      "note": null
+    },
+    {
+      "table_name": "checkout_records",
+      "name": "notes",
+      "position": 8,
+      "type": "text",
+      "not_null": false,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "consumption_alerts",
+      "name": "id",
+      "position": 1,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "d",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "consumption_alerts",
+      "name": "meter_reading_id",
+      "position": 2,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "consumption_alerts",
+      "name": "baseline_average",
+      "position": 3,
+      "type": "numeric(12,2)",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "consumption_alerts",
+      "name": "applied_threshold_percentage",
+      "position": 4,
+      "type": "numeric(7,2)",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "consumption_alerts",
+      "name": "history_months",
+      "position": 5,
+      "type": "smallint",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "consumption_alerts",
+      "name": "status",
+      "position": 6,
+      "type": "character varying(20)",
+      "not_null": true,
+      "identity": "",
+      "default_value": "'PENDING'::character varying",
+      "note": null
+    },
+    {
+      "table_name": "consumption_alerts",
+      "name": "checked_by",
+      "position": 7,
+      "type": "bigint",
+      "not_null": false,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "consumption_alerts",
+      "name": "checked_at",
+      "position": 8,
+      "type": "timestamp with time zone",
+      "not_null": false,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "consumption_alerts",
+      "name": "note",
+      "position": 9,
+      "type": "text",
+      "not_null": false,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "consumption_alerts",
+      "name": "created_at",
+      "position": 10,
+      "type": "timestamp with time zone",
+      "not_null": true,
+      "identity": "",
+      "default_value": "CURRENT_TIMESTAMP",
+      "note": null
+    },
+    {
+      "table_name": "contract_members",
+      "name": "id",
+      "position": 1,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "d",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "contract_members",
+      "name": "contract_id",
+      "position": 2,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "contract_members",
+      "name": "tenant_id",
+      "position": 3,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "contract_members",
+      "name": "relationship",
+      "position": 4,
+      "type": "character varying(50)",
+      "not_null": false,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "contract_members",
+      "name": "effective_from",
+      "position": 5,
+      "type": "date",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "contract_members",
+      "name": "effective_to",
+      "position": 6,
+      "type": "date",
+      "not_null": false,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "contracts",
+      "name": "id",
+      "position": 1,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "d",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "contracts",
+      "name": "contract_code",
+      "position": 2,
+      "type": "character varying(50)",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "contracts",
+      "name": "room_id",
+      "position": 3,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "contracts",
+      "name": "primary_tenant_id",
+      "position": 4,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "contracts",
+      "name": "start_date",
+      "position": 5,
+      "type": "date",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "contracts",
+      "name": "end_date",
+      "position": 6,
+      "type": "date",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "contracts",
+      "name": "actual_checkout_date",
+      "position": 7,
+      "type": "date",
+      "not_null": false,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "contracts",
+      "name": "rental_price",
+      "position": 8,
+      "type": "numeric(12,2)",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "contracts",
+      "name": "deposit_amount",
+      "position": 9,
+      "type": "numeric(12,2)",
+      "not_null": true,
+      "identity": "",
+      "default_value": "0",
+      "note": null
+    },
+    {
+      "table_name": "contracts",
+      "name": "payment_cycle_day",
+      "position": 10,
+      "type": "smallint",
+      "not_null": true,
+      "identity": "",
+      "default_value": "5",
+      "note": null
+    },
+    {
+      "table_name": "contracts",
+      "name": "status",
+      "position": 11,
+      "type": "character varying(20)",
+      "not_null": true,
+      "identity": "",
+      "default_value": "'ACTIVE'::character varying",
+      "note": null
+    },
+    {
+      "table_name": "contracts",
+      "name": "terms",
+      "position": 12,
+      "type": "text",
+      "not_null": true,
+      "identity": "",
+      "default_value": "''::text",
+      "note": null
+    },
+    {
+      "table_name": "contracts",
+      "name": "created_at",
+      "position": 13,
+      "type": "timestamp with time zone",
+      "not_null": true,
+      "identity": "",
+      "default_value": "CURRENT_TIMESTAMP",
+      "note": null
+    },
+    {
+      "table_name": "employee_assignments",
+      "name": "id",
+      "position": 1,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "d",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "employee_assignments",
+      "name": "user_id",
+      "position": 2,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "employee_assignments",
+      "name": "property_id",
+      "position": 3,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "employee_assignments",
+      "name": "assigned_at",
+      "position": 4,
+      "type": "timestamp with time zone",
+      "not_null": true,
+      "identity": "",
+      "default_value": "CURRENT_TIMESTAMP",
+      "note": null
+    },
+    {
+      "table_name": "employee_assignments",
+      "name": "is_active",
+      "position": 5,
+      "type": "boolean",
+      "not_null": true,
+      "identity": "",
+      "default_value": "true",
+      "note": null
+    },
+    {
+      "table_name": "invoice_items",
+      "name": "id",
+      "position": 1,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "d",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "invoice_items",
+      "name": "invoice_id",
+      "position": 2,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "invoice_items",
+      "name": "service_item_id",
+      "position": 3,
+      "type": "bigint",
+      "not_null": false,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "invoice_items",
+      "name": "meter_reading_id",
+      "position": 4,
+      "type": "bigint",
+      "not_null": false,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "invoice_items",
+      "name": "item_name_snapshot",
+      "position": 5,
+      "type": "character varying(100)",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "invoice_items",
+      "name": "unit_name_snapshot",
+      "position": 6,
+      "type": "character varying(30)",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "invoice_items",
+      "name": "unit_price_snapshot",
+      "position": 7,
+      "type": "numeric(12,2)",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "invoice_items",
+      "name": "quantity",
+      "position": 8,
+      "type": "integer",
+      "not_null": false,
+      "identity": "",
+      "default_value": null,
+      "note": "Ngày ở/ngày-người cho khoản thu tháng; NULL khi tham chiếu chỉ số đo đếm."
+    },
+    {
+      "table_name": "invoices",
+      "name": "id",
+      "position": 1,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "d",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "invoices",
+      "name": "invoice_code",
+      "position": 2,
+      "type": "character varying(50)",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "invoices",
+      "name": "contract_id",
+      "position": 3,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "invoices",
+      "name": "billing_period",
+      "position": 4,
+      "type": "date",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "invoices",
+      "name": "issue_date",
+      "position": 5,
+      "type": "date",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "invoices",
+      "name": "due_date",
+      "position": 6,
+      "type": "date",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "invoices",
+      "name": "status",
+      "position": 7,
+      "type": "character varying(20)",
+      "not_null": true,
+      "identity": "",
+      "default_value": "'DRAFT'::character varying",
+      "note": null
+    },
+    {
+      "table_name": "invoices",
+      "name": "is_settlement",
+      "position": 8,
+      "type": "boolean",
+      "not_null": true,
+      "identity": "",
+      "default_value": "false",
+      "note": null
+    },
+    {
+      "table_name": "invoices",
+      "name": "issued_at",
+      "position": 9,
+      "type": "timestamp with time zone",
+      "not_null": false,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "maintenance_images",
+      "name": "id",
+      "position": 1,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "d",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "maintenance_images",
+      "name": "maintenance_request_id",
+      "position": 2,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "maintenance_images",
+      "name": "url",
+      "position": 3,
+      "type": "text",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "maintenance_images",
+      "name": "uploaded_by",
+      "position": 4,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "maintenance_images",
+      "name": "created_at",
+      "position": 5,
+      "type": "timestamp with time zone",
+      "not_null": true,
+      "identity": "",
+      "default_value": "CURRENT_TIMESTAMP",
+      "note": null
+    },
+    {
+      "table_name": "maintenance_requests",
+      "name": "id",
+      "position": 1,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "d",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "maintenance_requests",
+      "name": "contract_id",
+      "position": 2,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "maintenance_requests",
+      "name": "submitted_by",
+      "position": 3,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "maintenance_requests",
+      "name": "assigned_to",
+      "position": 4,
+      "type": "bigint",
+      "not_null": false,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "maintenance_requests",
+      "name": "title",
+      "position": 5,
+      "type": "character varying(150)",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "maintenance_requests",
+      "name": "description",
+      "position": 6,
+      "type": "text",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "maintenance_requests",
+      "name": "priority",
+      "position": 7,
+      "type": "character varying(20)",
+      "not_null": true,
+      "identity": "",
+      "default_value": "'NORMAL'::character varying",
+      "note": null
+    },
+    {
+      "table_name": "maintenance_requests",
+      "name": "status",
+      "position": 8,
+      "type": "character varying(20)",
+      "not_null": true,
+      "identity": "",
+      "default_value": "'NEW'::character varying",
+      "note": null
+    },
+    {
+      "table_name": "maintenance_requests",
+      "name": "expected_date",
+      "position": 9,
+      "type": "date",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "maintenance_requests",
+      "name": "actual_cost",
+      "position": 10,
+      "type": "numeric(12,2)",
+      "not_null": true,
+      "identity": "",
+      "default_value": "0",
+      "note": null
+    },
+    {
+      "table_name": "maintenance_requests",
+      "name": "progress_note",
+      "position": 11,
+      "type": "text",
+      "not_null": false,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "maintenance_requests",
+      "name": "created_at",
+      "position": 12,
+      "type": "timestamp with time zone",
+      "not_null": true,
+      "identity": "",
+      "default_value": "CURRENT_TIMESTAMP",
+      "note": null
+    },
+    {
+      "table_name": "meter_readings",
+      "name": "id",
+      "position": 1,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "d",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "meter_readings",
+      "name": "contract_id",
+      "position": 2,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "meter_readings",
+      "name": "service_item_id",
+      "position": 3,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "meter_readings",
+      "name": "billing_period",
+      "position": 4,
+      "type": "date",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "meter_readings",
+      "name": "old_index",
+      "position": 5,
+      "type": "numeric(10,2)",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "meter_readings",
+      "name": "new_index",
+      "position": 6,
+      "type": "numeric(10,2)",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "meter_readings",
+      "name": "reading_date",
+      "position": 7,
+      "type": "date",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "meter_readings",
+      "name": "recorded_by",
+      "position": 8,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "payment_transactions",
+      "name": "id",
+      "position": 1,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "d",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "payment_transactions",
+      "name": "invoice_id",
+      "position": 2,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "payment_transactions",
+      "name": "transaction_code",
+      "position": 3,
+      "type": "character varying(50)",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "payment_transactions",
+      "name": "amount",
+      "position": 4,
+      "type": "numeric(12,2)",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "payment_transactions",
+      "name": "payment_method",
+      "position": 5,
+      "type": "character varying(30)",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "payment_transactions",
+      "name": "payment_date",
+      "position": 6,
+      "type": "timestamp with time zone",
+      "not_null": true,
+      "identity": "",
+      "default_value": "CURRENT_TIMESTAMP",
+      "note": null
+    },
+    {
+      "table_name": "payment_transactions",
+      "name": "received_by",
+      "position": 7,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "payment_transactions",
+      "name": "notes",
+      "position": 8,
+      "type": "text",
+      "not_null": false,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "properties",
+      "name": "id",
+      "position": 1,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "d",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "properties",
+      "name": "property_code",
+      "position": 2,
+      "type": "character varying(30)",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "properties",
+      "name": "name",
+      "position": 3,
+      "type": "character varying(150)",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "properties",
+      "name": "address",
+      "position": 4,
+      "type": "text",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "properties",
+      "name": "status",
+      "position": 5,
+      "type": "character varying(20)",
+      "not_null": true,
+      "identity": "",
+      "default_value": "'ACTIVE'::character varying",
+      "note": null
+    },
+    {
+      "table_name": "properties",
+      "name": "meter_cutoff_day",
+      "position": 6,
+      "type": "smallint",
+      "not_null": true,
+      "identity": "",
+      "default_value": "28",
+      "note": null
+    },
+    {
+      "table_name": "properties",
+      "name": "invoice_issue_day",
+      "position": 7,
+      "type": "smallint",
+      "not_null": true,
+      "identity": "",
+      "default_value": "1",
+      "note": null
+    },
+    {
+      "table_name": "properties",
+      "name": "alert_threshold_percentage",
+      "position": 8,
+      "type": "numeric(7,2)",
+      "not_null": true,
+      "identity": "",
+      "default_value": "50",
+      "note": null
+    },
+    {
+      "table_name": "properties",
+      "name": "alert_history_months",
+      "position": 9,
+      "type": "smallint",
+      "not_null": true,
+      "identity": "",
+      "default_value": "3",
+      "note": null
+    },
+    {
+      "table_name": "properties",
+      "name": "created_at",
+      "position": 10,
+      "type": "timestamp with time zone",
+      "not_null": true,
+      "identity": "",
+      "default_value": "CURRENT_TIMESTAMP",
+      "note": null
+    },
+    {
+      "table_name": "rooms",
+      "name": "id",
+      "position": 1,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "d",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "rooms",
+      "name": "property_id",
+      "position": 2,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "rooms",
+      "name": "floor_number",
+      "position": 3,
+      "type": "smallint",
+      "not_null": true,
+      "identity": "",
+      "default_value": "1",
+      "note": null
+    },
+    {
+      "table_name": "rooms",
+      "name": "room_code",
+      "position": 4,
+      "type": "character varying(30)",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "rooms",
+      "name": "base_price",
+      "position": 5,
+      "type": "numeric(12,2)",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "rooms",
+      "name": "max_occupants",
+      "position": 6,
+      "type": "smallint",
+      "not_null": true,
+      "identity": "",
+      "default_value": "2",
+      "note": null
+    },
+    {
+      "table_name": "rooms",
+      "name": "area_sqm",
+      "position": 7,
+      "type": "numeric(6,2)",
+      "not_null": false,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "rooms",
+      "name": "operational_status",
+      "position": 8,
+      "type": "character varying(20)",
+      "not_null": true,
+      "identity": "",
+      "default_value": "'AVAILABLE'::character varying",
+      "note": "Tình trạng khai thác; trạng thái đang thuê suy ra từ hợp đồng."
+    },
+    {
+      "table_name": "rooms",
+      "name": "description",
+      "position": 9,
+      "type": "text",
+      "not_null": true,
+      "identity": "",
+      "default_value": "''::text",
+      "note": null
+    },
+    {
+      "table_name": "rooms",
+      "name": "internal_note",
+      "position": 10,
+      "type": "text",
+      "not_null": true,
+      "identity": "",
+      "default_value": "''::text",
+      "note": null
+    },
+    {
+      "table_name": "service_items",
+      "name": "id",
+      "position": 1,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "d",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "service_items",
+      "name": "service_code",
+      "position": 2,
+      "type": "character varying(30)",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "service_items",
+      "name": "name",
+      "position": 3,
+      "type": "character varying(100)",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "service_items",
+      "name": "calculation_type",
+      "position": 4,
+      "type": "character varying(20)",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "service_items",
+      "name": "unit_name",
+      "position": 5,
+      "type": "character varying(30)",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "service_items",
+      "name": "is_mandatory",
+      "position": 6,
+      "type": "boolean",
+      "not_null": true,
+      "identity": "",
+      "default_value": "true",
+      "note": null
+    },
+    {
+      "table_name": "service_price_configs",
+      "name": "id",
+      "position": 1,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "d",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "service_price_configs",
+      "name": "property_id",
+      "position": 2,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "service_price_configs",
+      "name": "service_item_id",
+      "position": 3,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "service_price_configs",
+      "name": "unit_price",
+      "position": 4,
+      "type": "numeric(12,2)",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "service_price_configs",
+      "name": "effective_from",
+      "position": 5,
+      "type": "date",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "tenant_profiles",
+      "name": "id",
+      "position": 1,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "d",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "tenant_profiles",
+      "name": "user_id",
+      "position": 2,
+      "type": "bigint",
+      "not_null": false,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "tenant_profiles",
+      "name": "full_name",
+      "position": 3,
+      "type": "character varying(100)",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "tenant_profiles",
+      "name": "identity_number",
+      "position": 4,
+      "type": "character varying(20)",
+      "not_null": false,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "tenant_profiles",
+      "name": "phone",
+      "position": 5,
+      "type": "character varying(20)",
+      "not_null": false,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "tenant_profiles",
+      "name": "email",
+      "position": 6,
+      "type": "character varying(100)",
+      "not_null": false,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "tenant_profiles",
+      "name": "date_of_birth",
+      "position": 7,
+      "type": "date",
+      "not_null": false,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "tenant_profiles",
+      "name": "hometown",
+      "position": 8,
+      "type": "character varying(150)",
+      "not_null": false,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "tenant_profiles",
+      "name": "created_at",
+      "position": 9,
+      "type": "timestamp with time zone",
+      "not_null": true,
+      "identity": "",
+      "default_value": "CURRENT_TIMESTAMP",
+      "note": null
+    },
+    {
+      "table_name": "users",
+      "name": "id",
+      "position": 1,
+      "type": "bigint",
+      "not_null": true,
+      "identity": "d",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "users",
+      "name": "username",
+      "position": 2,
+      "type": "character varying(50)",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "users",
+      "name": "password_hash",
+      "position": 3,
+      "type": "character varying(255)",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "users",
+      "name": "role",
+      "position": 4,
+      "type": "character varying(20)",
+      "not_null": true,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "users",
+      "name": "status",
+      "position": 5,
+      "type": "character varying(20)",
+      "not_null": true,
+      "identity": "",
+      "default_value": "'ACTIVE'::character varying",
+      "note": null
+    },
+    {
+      "table_name": "users",
+      "name": "created_at",
+      "position": 6,
+      "type": "timestamp with time zone",
+      "not_null": true,
+      "identity": "",
+      "default_value": "CURRENT_TIMESTAMP",
+      "note": null
+    }
+  ],
+  "constraints": [
+    {
+      "table_name": "checkout_records",
+      "name": "checkout_records_contract_id_fkey",
+      "kind": "f",
+      "columns": [
+        "contract_id"
+      ],
+      "parent_table": "contracts",
+      "parent_columns": [
+        "id"
+      ],
+      "on_delete": "r",
+      "on_update": "a",
+      "check_expression": null,
+      "definition": "FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "checkout_records",
+      "name": "checkout_records_contract_id_key",
+      "kind": "u",
+      "columns": [
+        "contract_id"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "UNIQUE (contract_id)"
+    },
+    {
+      "table_name": "checkout_records",
+      "name": "checkout_records_damage_amount_check",
+      "kind": "c",
+      "columns": [
+        "damage_amount"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(damage_amount >= (0)::numeric)",
+      "definition": "CHECK ((damage_amount >= (0)::numeric))"
+    },
+    {
+      "table_name": "checkout_records",
+      "name": "checkout_records_deposit_snapshot_check",
+      "kind": "c",
+      "columns": [
+        "deposit_snapshot"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(deposit_snapshot >= (0)::numeric)",
+      "definition": "CHECK ((deposit_snapshot >= (0)::numeric))"
+    },
+    {
+      "table_name": "checkout_records",
+      "name": "checkout_records_outstanding_snapshot_check",
+      "kind": "c",
+      "columns": [
+        "outstanding_snapshot"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(outstanding_snapshot >= (0)::numeric)",
+      "definition": "CHECK ((outstanding_snapshot >= (0)::numeric))"
+    },
+    {
+      "table_name": "checkout_records",
+      "name": "checkout_records_pkey",
+      "kind": "p",
+      "columns": [
+        "id"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "checkout_records",
+      "name": "checkout_records_settled_by_fkey",
+      "kind": "f",
+      "columns": [
+        "settled_by"
+      ],
+      "parent_table": "users",
+      "parent_columns": [
+        "id"
+      ],
+      "on_delete": "r",
+      "on_update": "a",
+      "check_expression": null,
+      "definition": "FOREIGN KEY (settled_by) REFERENCES users(id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "consumption_alerts",
+      "name": "consumption_alerts_applied_threshold_percentage_check",
+      "kind": "c",
+      "columns": [
+        "applied_threshold_percentage"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(applied_threshold_percentage > (0)::numeric)",
+      "definition": "CHECK ((applied_threshold_percentage > (0)::numeric))"
+    },
+    {
+      "table_name": "consumption_alerts",
+      "name": "consumption_alerts_baseline_average_check",
+      "kind": "c",
+      "columns": [
+        "baseline_average"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(baseline_average > (0)::numeric)",
+      "definition": "CHECK ((baseline_average > (0)::numeric))"
+    },
+    {
+      "table_name": "consumption_alerts",
+      "name": "consumption_alerts_check",
+      "kind": "c",
+      "columns": [
+        "status",
+        "checked_by",
+        "checked_at"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "((((status)::text = 'PENDING'::text) AND (checked_by IS NULL) AND (checked_at IS NULL)) OR (((status)::text <> 'PENDING'::text) AND (checked_by IS NOT NULL) AND (checked_at IS NOT NULL)))",
+      "definition": "CHECK (((((status)::text = 'PENDING'::text) AND (checked_by IS NULL) AND (checked_at IS NULL)) OR (((status)::text <> 'PENDING'::text) AND (checked_by IS NOT NULL) AND (checked_at IS NOT NULL))))"
+    },
+    {
+      "table_name": "consumption_alerts",
+      "name": "consumption_alerts_checked_by_fkey",
+      "kind": "f",
+      "columns": [
+        "checked_by"
+      ],
+      "parent_table": "users",
+      "parent_columns": [
+        "id"
+      ],
+      "on_delete": "r",
+      "on_update": "a",
+      "check_expression": null,
+      "definition": "FOREIGN KEY (checked_by) REFERENCES users(id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "consumption_alerts",
+      "name": "consumption_alerts_history_months_check",
+      "kind": "c",
+      "columns": [
+        "history_months"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "((history_months >= 1) AND (history_months <= 12))",
+      "definition": "CHECK (((history_months >= 1) AND (history_months <= 12)))"
+    },
+    {
+      "table_name": "consumption_alerts",
+      "name": "consumption_alerts_meter_reading_id_fkey",
+      "kind": "f",
+      "columns": [
+        "meter_reading_id"
+      ],
+      "parent_table": "meter_readings",
+      "parent_columns": [
+        "id"
+      ],
+      "on_delete": "c",
+      "on_update": "a",
+      "check_expression": null,
+      "definition": "FOREIGN KEY (meter_reading_id) REFERENCES meter_readings(id) ON DELETE CASCADE"
+    },
+    {
+      "table_name": "consumption_alerts",
+      "name": "consumption_alerts_meter_reading_id_key",
+      "kind": "u",
+      "columns": [
+        "meter_reading_id"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "UNIQUE (meter_reading_id)"
+    },
+    {
+      "table_name": "consumption_alerts",
+      "name": "consumption_alerts_pkey",
+      "kind": "p",
+      "columns": [
+        "id"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "consumption_alerts",
+      "name": "consumption_alerts_status_check",
+      "kind": "c",
+      "columns": [
+        "status"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "((status)::text = ANY ((ARRAY['PENDING'::character varying, 'CONFIRMED'::character varying, 'DISMISSED'::character varying])::text[]))",
+      "definition": "CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'CONFIRMED'::character varying, 'DISMISSED'::character varying])::text[])))"
+    },
+    {
+      "table_name": "contract_members",
+      "name": "contract_members_check",
+      "kind": "c",
+      "columns": [
+        "effective_to",
+        "effective_from"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "((effective_to IS NULL) OR (effective_from < effective_to))",
+      "definition": "CHECK (((effective_to IS NULL) OR (effective_from < effective_to)))"
+    },
+    {
+      "table_name": "contract_members",
+      "name": "contract_members_contract_id_fkey",
+      "kind": "f",
+      "columns": [
+        "contract_id"
+      ],
+      "parent_table": "contracts",
+      "parent_columns": [
+        "id"
+      ],
+      "on_delete": "r",
+      "on_update": "a",
+      "check_expression": null,
+      "definition": "FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "contract_members",
+      "name": "contract_members_contract_id_tenant_id_effective_from_key",
+      "kind": "u",
+      "columns": [
+        "contract_id",
+        "tenant_id",
+        "effective_from"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "UNIQUE (contract_id, tenant_id, effective_from)"
+    },
+    {
+      "table_name": "contract_members",
+      "name": "contract_members_pkey",
+      "kind": "p",
+      "columns": [
+        "id"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "contract_members",
+      "name": "contract_members_tenant_id_fkey",
+      "kind": "f",
+      "columns": [
+        "tenant_id"
+      ],
+      "parent_table": "tenant_profiles",
+      "parent_columns": [
+        "id"
+      ],
+      "on_delete": "r",
+      "on_update": "a",
+      "check_expression": null,
+      "definition": "FOREIGN KEY (tenant_id) REFERENCES tenant_profiles(id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "contract_members",
+      "name": "ex_member_period",
+      "kind": "x",
+      "columns": [
+        "contract_id",
+        "tenant_id"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "EXCLUDE USING gist (contract_id WITH =, tenant_id WITH =, daterange(effective_from, effective_to, '[)'::text) WITH &&)"
+    },
+    {
+      "table_name": "contracts",
+      "name": "contracts_check",
+      "kind": "c",
+      "columns": [
+        "start_date",
+        "end_date"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(start_date < end_date)",
+      "definition": "CHECK ((start_date < end_date))"
+    },
+    {
+      "table_name": "contracts",
+      "name": "contracts_check1",
+      "kind": "c",
+      "columns": [
+        "actual_checkout_date",
+        "start_date",
+        "end_date"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "((actual_checkout_date IS NULL) OR ((actual_checkout_date > start_date) AND (actual_checkout_date <= end_date)))",
+      "definition": "CHECK (((actual_checkout_date IS NULL) OR ((actual_checkout_date > start_date) AND (actual_checkout_date <= end_date))))"
+    },
+    {
+      "table_name": "contracts",
+      "name": "contracts_check2",
+      "kind": "c",
+      "columns": [
+        "status",
+        "actual_checkout_date"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(((status)::text = 'TERMINATED'::text) = (actual_checkout_date IS NOT NULL))",
+      "definition": "CHECK ((((status)::text = 'TERMINATED'::text) = (actual_checkout_date IS NOT NULL)))"
+    },
+    {
+      "table_name": "contracts",
+      "name": "contracts_contract_code_key",
+      "kind": "u",
+      "columns": [
+        "contract_code"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "UNIQUE (contract_code)"
+    },
+    {
+      "table_name": "contracts",
+      "name": "contracts_deposit_amount_check",
+      "kind": "c",
+      "columns": [
+        "deposit_amount"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(deposit_amount >= (0)::numeric)",
+      "definition": "CHECK ((deposit_amount >= (0)::numeric))"
+    },
+    {
+      "table_name": "contracts",
+      "name": "contracts_payment_cycle_day_check",
+      "kind": "c",
+      "columns": [
+        "payment_cycle_day"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "((payment_cycle_day >= 1) AND (payment_cycle_day <= 28))",
+      "definition": "CHECK (((payment_cycle_day >= 1) AND (payment_cycle_day <= 28)))"
+    },
+    {
+      "table_name": "contracts",
+      "name": "contracts_pkey",
+      "kind": "p",
+      "columns": [
+        "id"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "contracts",
+      "name": "contracts_primary_tenant_id_fkey",
+      "kind": "f",
+      "columns": [
+        "primary_tenant_id"
+      ],
+      "parent_table": "tenant_profiles",
+      "parent_columns": [
+        "id"
+      ],
+      "on_delete": "r",
+      "on_update": "a",
+      "check_expression": null,
+      "definition": "FOREIGN KEY (primary_tenant_id) REFERENCES tenant_profiles(id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "contracts",
+      "name": "contracts_rental_price_check",
+      "kind": "c",
+      "columns": [
+        "rental_price"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(rental_price >= (0)::numeric)",
+      "definition": "CHECK ((rental_price >= (0)::numeric))"
+    },
+    {
+      "table_name": "contracts",
+      "name": "contracts_room_id_fkey",
+      "kind": "f",
+      "columns": [
+        "room_id"
+      ],
+      "parent_table": "rooms",
+      "parent_columns": [
+        "id"
+      ],
+      "on_delete": "r",
+      "on_update": "a",
+      "check_expression": null,
+      "definition": "FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "contracts",
+      "name": "contracts_status_check",
+      "kind": "c",
+      "columns": [
+        "status"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "((status)::text = ANY ((ARRAY['PENDING'::character varying, 'ACTIVE'::character varying, 'TERMINATED'::character varying, 'CANCELLED'::character varying])::text[]))",
+      "definition": "CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'ACTIVE'::character varying, 'TERMINATED'::character varying, 'CANCELLED'::character varying])::text[])))"
+    },
+    {
+      "table_name": "contracts",
+      "name": "ex_contract_room_period",
+      "kind": "x",
+      "columns": [
+        "room_id"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "EXCLUDE USING gist (room_id WITH =, daterange(start_date, COALESCE(actual_checkout_date, end_date), '[)'::text) WITH &&) WHERE (((status)::text <> 'CANCELLED'::text))"
+    },
+    {
+      "table_name": "employee_assignments",
+      "name": "employee_assignments_pkey",
+      "kind": "p",
+      "columns": [
+        "id"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "employee_assignments",
+      "name": "employee_assignments_property_id_fkey",
+      "kind": "f",
+      "columns": [
+        "property_id"
+      ],
+      "parent_table": "properties",
+      "parent_columns": [
+        "id"
+      ],
+      "on_delete": "r",
+      "on_update": "a",
+      "check_expression": null,
+      "definition": "FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "employee_assignments",
+      "name": "employee_assignments_user_id_fkey",
+      "kind": "f",
+      "columns": [
+        "user_id"
+      ],
+      "parent_table": "users",
+      "parent_columns": [
+        "id"
+      ],
+      "on_delete": "r",
+      "on_update": "a",
+      "check_expression": null,
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "employee_assignments",
+      "name": "employee_assignments_user_id_property_id_key",
+      "kind": "u",
+      "columns": [
+        "user_id",
+        "property_id"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "UNIQUE (user_id, property_id)"
+    },
+    {
+      "table_name": "invoice_items",
+      "name": "invoice_items_check",
+      "kind": "c",
+      "columns": [
+        "meter_reading_id",
+        "service_item_id",
+        "quantity"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(((meter_reading_id IS NOT NULL) AND (service_item_id IS NULL) AND (quantity IS NULL)) OR ((meter_reading_id IS NULL) AND (quantity IS NOT NULL) AND (quantity > 0)))",
+      "definition": "CHECK ((((meter_reading_id IS NOT NULL) AND (service_item_id IS NULL) AND (quantity IS NULL)) OR ((meter_reading_id IS NULL) AND (quantity IS NOT NULL) AND (quantity > 0))))"
+    },
+    {
+      "table_name": "invoice_items",
+      "name": "invoice_items_invoice_id_fkey",
+      "kind": "f",
+      "columns": [
+        "invoice_id"
+      ],
+      "parent_table": "invoices",
+      "parent_columns": [
+        "id"
+      ],
+      "on_delete": "c",
+      "on_update": "a",
+      "check_expression": null,
+      "definition": "FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE"
+    },
+    {
+      "table_name": "invoice_items",
+      "name": "invoice_items_invoice_id_service_item_id_key",
+      "kind": "u",
+      "columns": [
+        "invoice_id",
+        "service_item_id"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "UNIQUE (invoice_id, service_item_id)"
+    },
+    {
+      "table_name": "invoice_items",
+      "name": "invoice_items_meter_reading_id_fkey",
+      "kind": "f",
+      "columns": [
+        "meter_reading_id"
+      ],
+      "parent_table": "meter_readings",
+      "parent_columns": [
+        "id"
+      ],
+      "on_delete": "r",
+      "on_update": "a",
+      "check_expression": null,
+      "definition": "FOREIGN KEY (meter_reading_id) REFERENCES meter_readings(id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "invoice_items",
+      "name": "invoice_items_meter_reading_id_key",
+      "kind": "u",
+      "columns": [
+        "meter_reading_id"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "UNIQUE (meter_reading_id)"
+    },
+    {
+      "table_name": "invoice_items",
+      "name": "invoice_items_pkey",
+      "kind": "p",
+      "columns": [
+        "id"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "invoice_items",
+      "name": "invoice_items_service_item_id_fkey",
+      "kind": "f",
+      "columns": [
+        "service_item_id"
+      ],
+      "parent_table": "service_items",
+      "parent_columns": [
+        "id"
+      ],
+      "on_delete": "r",
+      "on_update": "a",
+      "check_expression": null,
+      "definition": "FOREIGN KEY (service_item_id) REFERENCES service_items(id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "invoice_items",
+      "name": "invoice_items_unit_price_snapshot_check",
+      "kind": "c",
+      "columns": [
+        "unit_price_snapshot"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(unit_price_snapshot >= (0)::numeric)",
+      "definition": "CHECK ((unit_price_snapshot >= (0)::numeric))"
+    },
+    {
+      "table_name": "invoices",
+      "name": "invoices_billing_period_check",
+      "kind": "c",
+      "columns": [
+        "billing_period"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(EXTRACT(day FROM billing_period) = (1)::numeric)",
+      "definition": "CHECK ((EXTRACT(day FROM billing_period) = (1)::numeric))"
+    },
+    {
+      "table_name": "invoices",
+      "name": "invoices_check",
+      "kind": "c",
+      "columns": [
+        "due_date",
+        "issue_date"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(due_date >= issue_date)",
+      "definition": "CHECK ((due_date >= issue_date))"
+    },
+    {
+      "table_name": "invoices",
+      "name": "invoices_check1",
+      "kind": "c",
+      "columns": [
+        "status",
+        "issued_at"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "((((status)::text = 'DRAFT'::text) AND (issued_at IS NULL)) OR (((status)::text = 'ISSUED'::text) AND (issued_at IS NOT NULL)))",
+      "definition": "CHECK (((((status)::text = 'DRAFT'::text) AND (issued_at IS NULL)) OR (((status)::text = 'ISSUED'::text) AND (issued_at IS NOT NULL))))"
+    },
+    {
+      "table_name": "invoices",
+      "name": "invoices_contract_id_billing_period_key",
+      "kind": "u",
+      "columns": [
+        "contract_id",
+        "billing_period"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "UNIQUE (contract_id, billing_period)"
+    },
+    {
+      "table_name": "invoices",
+      "name": "invoices_contract_id_fkey",
+      "kind": "f",
+      "columns": [
+        "contract_id"
+      ],
+      "parent_table": "contracts",
+      "parent_columns": [
+        "id"
+      ],
+      "on_delete": "r",
+      "on_update": "a",
+      "check_expression": null,
+      "definition": "FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "invoices",
+      "name": "invoices_invoice_code_key",
+      "kind": "u",
+      "columns": [
+        "invoice_code"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "UNIQUE (invoice_code)"
+    },
+    {
+      "table_name": "invoices",
+      "name": "invoices_pkey",
+      "kind": "p",
+      "columns": [
+        "id"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "invoices",
+      "name": "invoices_status_check",
+      "kind": "c",
+      "columns": [
+        "status"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'ISSUED'::character varying])::text[]))",
+      "definition": "CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'ISSUED'::character varying])::text[])))"
+    },
+    {
+      "table_name": "maintenance_images",
+      "name": "maintenance_images_maintenance_request_id_fkey",
+      "kind": "f",
+      "columns": [
+        "maintenance_request_id"
+      ],
+      "parent_table": "maintenance_requests",
+      "parent_columns": [
+        "id"
+      ],
+      "on_delete": "c",
+      "on_update": "a",
+      "check_expression": null,
+      "definition": "FOREIGN KEY (maintenance_request_id) REFERENCES maintenance_requests(id) ON DELETE CASCADE"
+    },
+    {
+      "table_name": "maintenance_images",
+      "name": "maintenance_images_maintenance_request_id_url_key",
+      "kind": "u",
+      "columns": [
+        "maintenance_request_id",
+        "url"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "UNIQUE (maintenance_request_id, url)"
+    },
+    {
+      "table_name": "maintenance_images",
+      "name": "maintenance_images_pkey",
+      "kind": "p",
+      "columns": [
+        "id"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "maintenance_images",
+      "name": "maintenance_images_uploaded_by_fkey",
+      "kind": "f",
+      "columns": [
+        "uploaded_by"
+      ],
+      "parent_table": "users",
+      "parent_columns": [
+        "id"
+      ],
+      "on_delete": "r",
+      "on_update": "a",
+      "check_expression": null,
+      "definition": "FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "maintenance_images",
+      "name": "maintenance_images_url_check",
+      "kind": "c",
+      "columns": [
+        "url"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(btrim(url) <> ''::text)",
+      "definition": "CHECK ((btrim(url) <> ''::text))"
+    },
+    {
+      "table_name": "maintenance_requests",
+      "name": "maintenance_requests_actual_cost_check",
+      "kind": "c",
+      "columns": [
+        "actual_cost"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(actual_cost >= (0)::numeric)",
+      "definition": "CHECK ((actual_cost >= (0)::numeric))"
+    },
+    {
+      "table_name": "maintenance_requests",
+      "name": "maintenance_requests_assigned_to_fkey",
+      "kind": "f",
+      "columns": [
+        "assigned_to"
+      ],
+      "parent_table": "users",
+      "parent_columns": [
+        "id"
+      ],
+      "on_delete": "r",
+      "on_update": "a",
+      "check_expression": null,
+      "definition": "FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "maintenance_requests",
+      "name": "maintenance_requests_contract_id_fkey",
+      "kind": "f",
+      "columns": [
+        "contract_id"
+      ],
+      "parent_table": "contracts",
+      "parent_columns": [
+        "id"
+      ],
+      "on_delete": "r",
+      "on_update": "a",
+      "check_expression": null,
+      "definition": "FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "maintenance_requests",
+      "name": "maintenance_requests_description_check",
+      "kind": "c",
+      "columns": [
+        "description"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(btrim(description) <> ''::text)",
+      "definition": "CHECK ((btrim(description) <> ''::text))"
+    },
+    {
+      "table_name": "maintenance_requests",
+      "name": "maintenance_requests_pkey",
+      "kind": "p",
+      "columns": [
+        "id"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "maintenance_requests",
+      "name": "maintenance_requests_priority_check",
+      "kind": "c",
+      "columns": [
+        "priority"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "((priority)::text = ANY ((ARRAY['URGENT'::character varying, 'NORMAL'::character varying, 'LOW'::character varying])::text[]))",
+      "definition": "CHECK (((priority)::text = ANY ((ARRAY['URGENT'::character varying, 'NORMAL'::character varying, 'LOW'::character varying])::text[])))"
+    },
+    {
+      "table_name": "maintenance_requests",
+      "name": "maintenance_requests_status_check",
+      "kind": "c",
+      "columns": [
+        "status"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "((status)::text = ANY ((ARRAY['NEW'::character varying, 'ACCEPTED'::character varying, 'IN_PROGRESS'::character varying, 'COMPLETED'::character varying])::text[]))",
+      "definition": "CHECK (((status)::text = ANY ((ARRAY['NEW'::character varying, 'ACCEPTED'::character varying, 'IN_PROGRESS'::character varying, 'COMPLETED'::character varying])::text[])))"
+    },
+    {
+      "table_name": "maintenance_requests",
+      "name": "maintenance_requests_submitted_by_fkey",
+      "kind": "f",
+      "columns": [
+        "submitted_by"
+      ],
+      "parent_table": "users",
+      "parent_columns": [
+        "id"
+      ],
+      "on_delete": "r",
+      "on_update": "a",
+      "check_expression": null,
+      "definition": "FOREIGN KEY (submitted_by) REFERENCES users(id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "maintenance_requests",
+      "name": "maintenance_requests_title_check",
+      "kind": "c",
+      "columns": [
+        "title"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(btrim((title)::text) <> ''::text)",
+      "definition": "CHECK ((btrim((title)::text) <> ''::text))"
+    },
+    {
+      "table_name": "meter_readings",
+      "name": "meter_readings_billing_period_check",
+      "kind": "c",
+      "columns": [
+        "billing_period"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(EXTRACT(day FROM billing_period) = (1)::numeric)",
+      "definition": "CHECK ((EXTRACT(day FROM billing_period) = (1)::numeric))"
+    },
+    {
+      "table_name": "meter_readings",
+      "name": "meter_readings_check",
+      "kind": "c",
+      "columns": [
+        "new_index",
+        "old_index"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(new_index >= old_index)",
+      "definition": "CHECK ((new_index >= old_index))"
+    },
+    {
+      "table_name": "meter_readings",
+      "name": "meter_readings_check1",
+      "kind": "c",
+      "columns": [
+        "reading_date",
+        "billing_period"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "((reading_date >= billing_period) AND (reading_date < (billing_period + '1 mon'::interval)))",
+      "definition": "CHECK (((reading_date >= billing_period) AND (reading_date < (billing_period + '1 mon'::interval))))"
+    },
+    {
+      "table_name": "meter_readings",
+      "name": "meter_readings_contract_id_billing_period_service_item_id_key",
+      "kind": "u",
+      "columns": [
+        "contract_id",
+        "billing_period",
+        "service_item_id"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "UNIQUE (contract_id, billing_period, service_item_id)"
+    },
+    {
+      "table_name": "meter_readings",
+      "name": "meter_readings_contract_id_fkey",
+      "kind": "f",
+      "columns": [
+        "contract_id"
+      ],
+      "parent_table": "contracts",
+      "parent_columns": [
+        "id"
+      ],
+      "on_delete": "r",
+      "on_update": "a",
+      "check_expression": null,
+      "definition": "FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "meter_readings",
+      "name": "meter_readings_old_index_check",
+      "kind": "c",
+      "columns": [
+        "old_index"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(old_index >= (0)::numeric)",
+      "definition": "CHECK ((old_index >= (0)::numeric))"
+    },
+    {
+      "table_name": "meter_readings",
+      "name": "meter_readings_pkey",
+      "kind": "p",
+      "columns": [
+        "id"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "meter_readings",
+      "name": "meter_readings_recorded_by_fkey",
+      "kind": "f",
+      "columns": [
+        "recorded_by"
+      ],
+      "parent_table": "users",
+      "parent_columns": [
+        "id"
+      ],
+      "on_delete": "r",
+      "on_update": "a",
+      "check_expression": null,
+      "definition": "FOREIGN KEY (recorded_by) REFERENCES users(id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "meter_readings",
+      "name": "meter_readings_service_item_id_fkey",
+      "kind": "f",
+      "columns": [
+        "service_item_id"
+      ],
+      "parent_table": "service_items",
+      "parent_columns": [
+        "id"
+      ],
+      "on_delete": "r",
+      "on_update": "a",
+      "check_expression": null,
+      "definition": "FOREIGN KEY (service_item_id) REFERENCES service_items(id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "payment_transactions",
+      "name": "payment_transactions_amount_check",
+      "kind": "c",
+      "columns": [
+        "amount"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(amount > (0)::numeric)",
+      "definition": "CHECK ((amount > (0)::numeric))"
+    },
+    {
+      "table_name": "payment_transactions",
+      "name": "payment_transactions_invoice_id_fkey",
+      "kind": "f",
+      "columns": [
+        "invoice_id"
+      ],
+      "parent_table": "invoices",
+      "parent_columns": [
+        "id"
+      ],
+      "on_delete": "r",
+      "on_update": "a",
+      "check_expression": null,
+      "definition": "FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "payment_transactions",
+      "name": "payment_transactions_payment_method_check",
+      "kind": "c",
+      "columns": [
+        "payment_method"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "((payment_method)::text = ANY ((ARRAY['CASH'::character varying, 'BANK_TRANSFER_MANUAL'::character varying, 'DEPOSIT_OFFSET'::character varying, 'OTHER'::character varying])::text[]))",
+      "definition": "CHECK (((payment_method)::text = ANY ((ARRAY['CASH'::character varying, 'BANK_TRANSFER_MANUAL'::character varying, 'DEPOSIT_OFFSET'::character varying, 'OTHER'::character varying])::text[])))"
+    },
+    {
+      "table_name": "payment_transactions",
+      "name": "payment_transactions_pkey",
+      "kind": "p",
+      "columns": [
+        "id"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "payment_transactions",
+      "name": "payment_transactions_received_by_fkey",
+      "kind": "f",
+      "columns": [
+        "received_by"
+      ],
+      "parent_table": "users",
+      "parent_columns": [
+        "id"
+      ],
+      "on_delete": "r",
+      "on_update": "a",
+      "check_expression": null,
+      "definition": "FOREIGN KEY (received_by) REFERENCES users(id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "payment_transactions",
+      "name": "payment_transactions_transaction_code_key",
+      "kind": "u",
+      "columns": [
+        "transaction_code"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "UNIQUE (transaction_code)"
+    },
+    {
+      "table_name": "properties",
+      "name": "properties_address_check",
+      "kind": "c",
+      "columns": [
+        "address"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(btrim(address) <> ''::text)",
+      "definition": "CHECK ((btrim(address) <> ''::text))"
+    },
+    {
+      "table_name": "properties",
+      "name": "properties_alert_history_months_check",
+      "kind": "c",
+      "columns": [
+        "alert_history_months"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "((alert_history_months >= 1) AND (alert_history_months <= 12))",
+      "definition": "CHECK (((alert_history_months >= 1) AND (alert_history_months <= 12)))"
+    },
+    {
+      "table_name": "properties",
+      "name": "properties_alert_threshold_percentage_check",
+      "kind": "c",
+      "columns": [
+        "alert_threshold_percentage"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(alert_threshold_percentage > (0)::numeric)",
+      "definition": "CHECK ((alert_threshold_percentage > (0)::numeric))"
+    },
+    {
+      "table_name": "properties",
+      "name": "properties_invoice_issue_day_check",
+      "kind": "c",
+      "columns": [
+        "invoice_issue_day"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "((invoice_issue_day >= 1) AND (invoice_issue_day <= 28))",
+      "definition": "CHECK (((invoice_issue_day >= 1) AND (invoice_issue_day <= 28)))"
+    },
+    {
+      "table_name": "properties",
+      "name": "properties_meter_cutoff_day_check",
+      "kind": "c",
+      "columns": [
+        "meter_cutoff_day"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "((meter_cutoff_day >= 1) AND (meter_cutoff_day <= 31))",
+      "definition": "CHECK (((meter_cutoff_day >= 1) AND (meter_cutoff_day <= 31)))"
+    },
+    {
+      "table_name": "properties",
+      "name": "properties_name_check",
+      "kind": "c",
+      "columns": [
+        "name"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(btrim((name)::text) <> ''::text)",
+      "definition": "CHECK ((btrim((name)::text) <> ''::text))"
+    },
+    {
+      "table_name": "properties",
+      "name": "properties_pkey",
+      "kind": "p",
+      "columns": [
+        "id"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "properties",
+      "name": "properties_property_code_check",
+      "kind": "c",
+      "columns": [
+        "property_code"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(btrim((property_code)::text) <> ''::text)",
+      "definition": "CHECK ((btrim((property_code)::text) <> ''::text))"
+    },
+    {
+      "table_name": "properties",
+      "name": "properties_property_code_key",
+      "kind": "u",
+      "columns": [
+        "property_code"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "UNIQUE (property_code)"
+    },
+    {
+      "table_name": "properties",
+      "name": "properties_status_check",
+      "kind": "c",
+      "columns": [
+        "status"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'INACTIVE'::character varying])::text[]))",
+      "definition": "CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'INACTIVE'::character varying])::text[])))"
+    },
+    {
+      "table_name": "rooms",
+      "name": "rooms_area_sqm_check",
+      "kind": "c",
+      "columns": [
+        "area_sqm"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(area_sqm > (0)::numeric)",
+      "definition": "CHECK ((area_sqm > (0)::numeric))"
+    },
+    {
+      "table_name": "rooms",
+      "name": "rooms_base_price_check",
+      "kind": "c",
+      "columns": [
+        "base_price"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(base_price >= (0)::numeric)",
+      "definition": "CHECK ((base_price >= (0)::numeric))"
+    },
+    {
+      "table_name": "rooms",
+      "name": "rooms_floor_number_check",
+      "kind": "c",
+      "columns": [
+        "floor_number"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(floor_number >= 0)",
+      "definition": "CHECK ((floor_number >= 0))"
+    },
+    {
+      "table_name": "rooms",
+      "name": "rooms_max_occupants_check",
+      "kind": "c",
+      "columns": [
+        "max_occupants"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(max_occupants > 0)",
+      "definition": "CHECK ((max_occupants > 0))"
+    },
+    {
+      "table_name": "rooms",
+      "name": "rooms_operational_status_check",
+      "kind": "c",
+      "columns": [
+        "operational_status"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "((operational_status)::text = ANY ((ARRAY['AVAILABLE'::character varying, 'MAINTENANCE'::character varying])::text[]))",
+      "definition": "CHECK (((operational_status)::text = ANY ((ARRAY['AVAILABLE'::character varying, 'MAINTENANCE'::character varying])::text[])))"
+    },
+    {
+      "table_name": "rooms",
+      "name": "rooms_pkey",
+      "kind": "p",
+      "columns": [
+        "id"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "rooms",
+      "name": "rooms_property_id_fkey",
+      "kind": "f",
+      "columns": [
+        "property_id"
+      ],
+      "parent_table": "properties",
+      "parent_columns": [
+        "id"
+      ],
+      "on_delete": "r",
+      "on_update": "a",
+      "check_expression": null,
+      "definition": "FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "rooms",
+      "name": "rooms_property_id_room_code_key",
+      "kind": "u",
+      "columns": [
+        "property_id",
+        "room_code"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "UNIQUE (property_id, room_code)"
+    },
+    {
+      "table_name": "rooms",
+      "name": "rooms_room_code_check",
+      "kind": "c",
+      "columns": [
+        "room_code"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(btrim((room_code)::text) <> ''::text)",
+      "definition": "CHECK ((btrim((room_code)::text) <> ''::text))"
+    },
+    {
+      "table_name": "service_items",
+      "name": "service_items_calculation_type_check",
+      "kind": "c",
+      "columns": [
+        "calculation_type"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "((calculation_type)::text = ANY ((ARRAY['METER_BASED'::character varying, 'PER_ROOM'::character varying, 'PER_PERSON'::character varying])::text[]))",
+      "definition": "CHECK (((calculation_type)::text = ANY ((ARRAY['METER_BASED'::character varying, 'PER_ROOM'::character varying, 'PER_PERSON'::character varying])::text[])))"
+    },
+    {
+      "table_name": "service_items",
+      "name": "service_items_name_check",
+      "kind": "c",
+      "columns": [
+        "name"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(btrim((name)::text) <> ''::text)",
+      "definition": "CHECK ((btrim((name)::text) <> ''::text))"
+    },
+    {
+      "table_name": "service_items",
+      "name": "service_items_pkey",
+      "kind": "p",
+      "columns": [
+        "id"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "service_items",
+      "name": "service_items_service_code_key",
+      "kind": "u",
+      "columns": [
+        "service_code"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "UNIQUE (service_code)"
+    },
+    {
+      "table_name": "service_price_configs",
+      "name": "service_price_configs_pkey",
+      "kind": "p",
+      "columns": [
+        "id"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "service_price_configs",
+      "name": "service_price_configs_property_id_fkey",
+      "kind": "f",
+      "columns": [
+        "property_id"
+      ],
+      "parent_table": "properties",
+      "parent_columns": [
+        "id"
+      ],
+      "on_delete": "r",
+      "on_update": "a",
+      "check_expression": null,
+      "definition": "FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "service_price_configs",
+      "name": "service_price_configs_property_id_service_item_id_effective_key",
+      "kind": "u",
+      "columns": [
+        "property_id",
+        "service_item_id",
+        "effective_from"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "UNIQUE (property_id, service_item_id, effective_from)"
+    },
+    {
+      "table_name": "service_price_configs",
+      "name": "service_price_configs_service_item_id_fkey",
+      "kind": "f",
+      "columns": [
+        "service_item_id"
+      ],
+      "parent_table": "service_items",
+      "parent_columns": [
+        "id"
+      ],
+      "on_delete": "r",
+      "on_update": "a",
+      "check_expression": null,
+      "definition": "FOREIGN KEY (service_item_id) REFERENCES service_items(id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "service_price_configs",
+      "name": "service_price_configs_unit_price_check",
+      "kind": "c",
+      "columns": [
+        "unit_price"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(unit_price >= (0)::numeric)",
+      "definition": "CHECK ((unit_price >= (0)::numeric))"
+    },
+    {
+      "table_name": "tenant_profiles",
+      "name": "tenant_profiles_full_name_check",
+      "kind": "c",
+      "columns": [
+        "full_name"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(btrim((full_name)::text) <> ''::text)",
+      "definition": "CHECK ((btrim((full_name)::text) <> ''::text))"
+    },
+    {
+      "table_name": "tenant_profiles",
+      "name": "tenant_profiles_identity_number_key",
+      "kind": "u",
+      "columns": [
+        "identity_number"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "UNIQUE (identity_number)"
+    },
+    {
+      "table_name": "tenant_profiles",
+      "name": "tenant_profiles_pkey",
+      "kind": "p",
+      "columns": [
+        "id"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "tenant_profiles",
+      "name": "tenant_profiles_user_id_fkey",
+      "kind": "f",
+      "columns": [
+        "user_id"
+      ],
+      "parent_table": "users",
+      "parent_columns": [
+        "id"
+      ],
+      "on_delete": "n",
+      "on_update": "a",
+      "check_expression": null,
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL"
+    },
+    {
+      "table_name": "tenant_profiles",
+      "name": "tenant_profiles_user_id_key",
+      "kind": "u",
+      "columns": [
+        "user_id"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "UNIQUE (user_id)"
+    },
+    {
+      "table_name": "users",
+      "name": "users_pkey",
+      "kind": "p",
+      "columns": [
+        "id"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "users",
+      "name": "users_role_check",
+      "kind": "c",
+      "columns": [
+        "role"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "((role)::text = ANY ((ARRAY['ADMIN'::character varying, 'STAFF'::character varying, 'TENANT'::character varying])::text[]))",
+      "definition": "CHECK (((role)::text = ANY ((ARRAY['ADMIN'::character varying, 'STAFF'::character varying, 'TENANT'::character varying])::text[])))"
+    },
+    {
+      "table_name": "users",
+      "name": "users_status_check",
+      "kind": "c",
+      "columns": [
+        "status"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'LOCKED'::character varying, 'INACTIVE'::character varying])::text[]))",
+      "definition": "CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'LOCKED'::character varying, 'INACTIVE'::character varying])::text[])))"
+    },
+    {
+      "table_name": "users",
+      "name": "users_username_check",
+      "kind": "c",
+      "columns": [
+        "username"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(btrim((username)::text) <> ''::text)",
+      "definition": "CHECK ((btrim((username)::text) <> ''::text))"
+    },
+    {
+      "table_name": "users",
+      "name": "users_username_key",
+      "kind": "u",
+      "columns": [
+        "username"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": null,
+      "definition": "UNIQUE (username)"
+    }
+  ],
+  "indexes": [
+    {
+      "table_name": "checkout_records",
+      "name": "checkout_records_contract_id_key",
+      "is_unique": true,
+      "is_primary": false,
+      "columns": [
+        "contract_id"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX checkout_records_contract_id_key ON public.checkout_records USING btree (contract_id)",
+      "constraint_kind": "u",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "checkout_records",
+      "name": "checkout_records_pkey",
+      "is_unique": true,
+      "is_primary": true,
+      "columns": [
+        "id"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX checkout_records_pkey ON public.checkout_records USING btree (id)",
+      "constraint_kind": "p",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "consumption_alerts",
+      "name": "consumption_alerts_meter_reading_id_key",
+      "is_unique": true,
+      "is_primary": false,
+      "columns": [
+        "meter_reading_id"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX consumption_alerts_meter_reading_id_key ON public.consumption_alerts USING btree (meter_reading_id)",
+      "constraint_kind": "u",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "consumption_alerts",
+      "name": "consumption_alerts_pkey",
+      "is_unique": true,
+      "is_primary": true,
+      "columns": [
+        "id"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX consumption_alerts_pkey ON public.consumption_alerts USING btree (id)",
+      "constraint_kind": "p",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "consumption_alerts",
+      "name": "idx_alert_status",
+      "is_unique": false,
+      "is_primary": false,
+      "columns": [
+        "status"
+      ],
+      "predicate": null,
+      "definition": "CREATE INDEX idx_alert_status ON public.consumption_alerts USING btree (status)",
+      "constraint_kind": null,
+      "access_method": "btree"
+    },
+    {
+      "table_name": "contract_members",
+      "name": "contract_members_contract_id_tenant_id_effective_from_key",
+      "is_unique": true,
+      "is_primary": false,
+      "columns": [
+        "contract_id",
+        "tenant_id",
+        "effective_from"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX contract_members_contract_id_tenant_id_effective_from_key ON public.contract_members USING btree (contract_id, tenant_id, effective_from)",
+      "constraint_kind": "u",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "contract_members",
+      "name": "contract_members_pkey",
+      "is_unique": true,
+      "is_primary": true,
+      "columns": [
+        "id"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX contract_members_pkey ON public.contract_members USING btree (id)",
+      "constraint_kind": "p",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "contract_members",
+      "name": "ex_member_period",
+      "is_unique": false,
+      "is_primary": false,
+      "columns": [
+        "contract_id",
+        "tenant_id",
+        null
+      ],
+      "predicate": null,
+      "definition": "CREATE INDEX ex_member_period ON public.contract_members USING gist (contract_id, tenant_id, daterange(effective_from, effective_to, '[)'::text))",
+      "constraint_kind": "x",
+      "access_method": "gist"
+    },
+    {
+      "table_name": "contract_members",
+      "name": "idx_member_tenant",
+      "is_unique": false,
+      "is_primary": false,
+      "columns": [
+        "tenant_id"
+      ],
+      "predicate": null,
+      "definition": "CREATE INDEX idx_member_tenant ON public.contract_members USING btree (tenant_id)",
+      "constraint_kind": null,
+      "access_method": "btree"
+    },
+    {
+      "table_name": "contracts",
+      "name": "contracts_contract_code_key",
+      "is_unique": true,
+      "is_primary": false,
+      "columns": [
+        "contract_code"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX contracts_contract_code_key ON public.contracts USING btree (contract_code)",
+      "constraint_kind": "u",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "contracts",
+      "name": "contracts_pkey",
+      "is_unique": true,
+      "is_primary": true,
+      "columns": [
+        "id"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX contracts_pkey ON public.contracts USING btree (id)",
+      "constraint_kind": "p",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "contracts",
+      "name": "ex_contract_room_period",
+      "is_unique": false,
+      "is_primary": false,
+      "columns": [
+        "room_id",
+        null
+      ],
+      "predicate": "((status)::text <> 'CANCELLED'::text)",
+      "definition": "CREATE INDEX ex_contract_room_period ON public.contracts USING gist (room_id, daterange(start_date, COALESCE(actual_checkout_date, end_date), '[)'::text)) WHERE ((status)::text <> 'CANCELLED'::text)",
+      "constraint_kind": "x",
+      "access_method": "gist"
+    },
+    {
+      "table_name": "contracts",
+      "name": "idx_contract_tenant",
+      "is_unique": false,
+      "is_primary": false,
+      "columns": [
+        "primary_tenant_id"
+      ],
+      "predicate": null,
+      "definition": "CREATE INDEX idx_contract_tenant ON public.contracts USING btree (primary_tenant_id)",
+      "constraint_kind": null,
+      "access_method": "btree"
+    },
+    {
+      "table_name": "employee_assignments",
+      "name": "employee_assignments_pkey",
+      "is_unique": true,
+      "is_primary": true,
+      "columns": [
+        "id"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX employee_assignments_pkey ON public.employee_assignments USING btree (id)",
+      "constraint_kind": "p",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "employee_assignments",
+      "name": "employee_assignments_user_id_property_id_key",
+      "is_unique": true,
+      "is_primary": false,
+      "columns": [
+        "user_id",
+        "property_id"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX employee_assignments_user_id_property_id_key ON public.employee_assignments USING btree (user_id, property_id)",
+      "constraint_kind": "u",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "invoice_items",
+      "name": "invoice_items_invoice_id_service_item_id_key",
+      "is_unique": true,
+      "is_primary": false,
+      "columns": [
+        "invoice_id",
+        "service_item_id"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX invoice_items_invoice_id_service_item_id_key ON public.invoice_items USING btree (invoice_id, service_item_id)",
+      "constraint_kind": "u",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "invoice_items",
+      "name": "invoice_items_meter_reading_id_key",
+      "is_unique": true,
+      "is_primary": false,
+      "columns": [
+        "meter_reading_id"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX invoice_items_meter_reading_id_key ON public.invoice_items USING btree (meter_reading_id)",
+      "constraint_kind": "u",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "invoice_items",
+      "name": "invoice_items_pkey",
+      "is_unique": true,
+      "is_primary": true,
+      "columns": [
+        "id"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX invoice_items_pkey ON public.invoice_items USING btree (id)",
+      "constraint_kind": "p",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "invoice_items",
+      "name": "uq_invoice_room_line",
+      "is_unique": true,
+      "is_primary": false,
+      "columns": [
+        "invoice_id"
+      ],
+      "predicate": "((service_item_id IS NULL) AND (meter_reading_id IS NULL))",
+      "definition": "CREATE UNIQUE INDEX uq_invoice_room_line ON public.invoice_items USING btree (invoice_id) WHERE ((service_item_id IS NULL) AND (meter_reading_id IS NULL))",
+      "constraint_kind": null,
+      "access_method": "btree"
+    },
+    {
+      "table_name": "invoices",
+      "name": "idx_invoice_contract",
+      "is_unique": false,
+      "is_primary": false,
+      "columns": [
+        "contract_id"
+      ],
+      "predicate": null,
+      "definition": "CREATE INDEX idx_invoice_contract ON public.invoices USING btree (contract_id)",
+      "constraint_kind": null,
+      "access_method": "btree"
+    },
+    {
+      "table_name": "invoices",
+      "name": "invoices_contract_id_billing_period_key",
+      "is_unique": true,
+      "is_primary": false,
+      "columns": [
+        "contract_id",
+        "billing_period"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX invoices_contract_id_billing_period_key ON public.invoices USING btree (contract_id, billing_period)",
+      "constraint_kind": "u",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "invoices",
+      "name": "invoices_invoice_code_key",
+      "is_unique": true,
+      "is_primary": false,
+      "columns": [
+        "invoice_code"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX invoices_invoice_code_key ON public.invoices USING btree (invoice_code)",
+      "constraint_kind": "u",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "invoices",
+      "name": "invoices_pkey",
+      "is_unique": true,
+      "is_primary": true,
+      "columns": [
+        "id"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX invoices_pkey ON public.invoices USING btree (id)",
+      "constraint_kind": "p",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "maintenance_images",
+      "name": "maintenance_images_maintenance_request_id_url_key",
+      "is_unique": true,
+      "is_primary": false,
+      "columns": [
+        "maintenance_request_id",
+        "url"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX maintenance_images_maintenance_request_id_url_key ON public.maintenance_images USING btree (maintenance_request_id, url)",
+      "constraint_kind": "u",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "maintenance_images",
+      "name": "maintenance_images_pkey",
+      "is_unique": true,
+      "is_primary": true,
+      "columns": [
+        "id"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX maintenance_images_pkey ON public.maintenance_images USING btree (id)",
+      "constraint_kind": "p",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "maintenance_requests",
+      "name": "idx_maintenance_contract",
+      "is_unique": false,
+      "is_primary": false,
+      "columns": [
+        "contract_id"
+      ],
+      "predicate": null,
+      "definition": "CREATE INDEX idx_maintenance_contract ON public.maintenance_requests USING btree (contract_id)",
+      "constraint_kind": null,
+      "access_method": "btree"
+    },
+    {
+      "table_name": "maintenance_requests",
+      "name": "maintenance_requests_pkey",
+      "is_unique": true,
+      "is_primary": true,
+      "columns": [
+        "id"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX maintenance_requests_pkey ON public.maintenance_requests USING btree (id)",
+      "constraint_kind": "p",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "meter_readings",
+      "name": "meter_readings_contract_id_billing_period_service_item_id_key",
+      "is_unique": true,
+      "is_primary": false,
+      "columns": [
+        "contract_id",
+        "billing_period",
+        "service_item_id"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX meter_readings_contract_id_billing_period_service_item_id_key ON public.meter_readings USING btree (contract_id, billing_period, service_item_id)",
+      "constraint_kind": "u",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "meter_readings",
+      "name": "meter_readings_pkey",
+      "is_unique": true,
+      "is_primary": true,
+      "columns": [
+        "id"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX meter_readings_pkey ON public.meter_readings USING btree (id)",
+      "constraint_kind": "p",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "payment_transactions",
+      "name": "idx_payment_invoice",
+      "is_unique": false,
+      "is_primary": false,
+      "columns": [
+        "invoice_id"
+      ],
+      "predicate": null,
+      "definition": "CREATE INDEX idx_payment_invoice ON public.payment_transactions USING btree (invoice_id)",
+      "constraint_kind": null,
+      "access_method": "btree"
+    },
+    {
+      "table_name": "payment_transactions",
+      "name": "payment_transactions_pkey",
+      "is_unique": true,
+      "is_primary": true,
+      "columns": [
+        "id"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX payment_transactions_pkey ON public.payment_transactions USING btree (id)",
+      "constraint_kind": "p",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "payment_transactions",
+      "name": "payment_transactions_transaction_code_key",
+      "is_unique": true,
+      "is_primary": false,
+      "columns": [
+        "transaction_code"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX payment_transactions_transaction_code_key ON public.payment_transactions USING btree (transaction_code)",
+      "constraint_kind": "u",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "properties",
+      "name": "properties_pkey",
+      "is_unique": true,
+      "is_primary": true,
+      "columns": [
+        "id"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX properties_pkey ON public.properties USING btree (id)",
+      "constraint_kind": "p",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "properties",
+      "name": "properties_property_code_key",
+      "is_unique": true,
+      "is_primary": false,
+      "columns": [
+        "property_code"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX properties_property_code_key ON public.properties USING btree (property_code)",
+      "constraint_kind": "u",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "rooms",
+      "name": "idx_rooms_property",
+      "is_unique": false,
+      "is_primary": false,
+      "columns": [
+        "property_id"
+      ],
+      "predicate": null,
+      "definition": "CREATE INDEX idx_rooms_property ON public.rooms USING btree (property_id)",
+      "constraint_kind": null,
+      "access_method": "btree"
+    },
+    {
+      "table_name": "rooms",
+      "name": "rooms_pkey",
+      "is_unique": true,
+      "is_primary": true,
+      "columns": [
+        "id"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX rooms_pkey ON public.rooms USING btree (id)",
+      "constraint_kind": "p",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "rooms",
+      "name": "rooms_property_id_room_code_key",
+      "is_unique": true,
+      "is_primary": false,
+      "columns": [
+        "property_id",
+        "room_code"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX rooms_property_id_room_code_key ON public.rooms USING btree (property_id, room_code)",
+      "constraint_kind": "u",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "service_items",
+      "name": "service_items_pkey",
+      "is_unique": true,
+      "is_primary": true,
+      "columns": [
+        "id"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX service_items_pkey ON public.service_items USING btree (id)",
+      "constraint_kind": "p",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "service_items",
+      "name": "service_items_service_code_key",
+      "is_unique": true,
+      "is_primary": false,
+      "columns": [
+        "service_code"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX service_items_service_code_key ON public.service_items USING btree (service_code)",
+      "constraint_kind": "u",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "service_price_configs",
+      "name": "service_price_configs_pkey",
+      "is_unique": true,
+      "is_primary": true,
+      "columns": [
+        "id"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX service_price_configs_pkey ON public.service_price_configs USING btree (id)",
+      "constraint_kind": "p",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "service_price_configs",
+      "name": "service_price_configs_property_id_service_item_id_effective_key",
+      "is_unique": true,
+      "is_primary": false,
+      "columns": [
+        "property_id",
+        "service_item_id",
+        "effective_from"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX service_price_configs_property_id_service_item_id_effective_key ON public.service_price_configs USING btree (property_id, service_item_id, effective_from)",
+      "constraint_kind": "u",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "tenant_profiles",
+      "name": "tenant_profiles_identity_number_key",
+      "is_unique": true,
+      "is_primary": false,
+      "columns": [
+        "identity_number"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX tenant_profiles_identity_number_key ON public.tenant_profiles USING btree (identity_number)",
+      "constraint_kind": "u",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "tenant_profiles",
+      "name": "tenant_profiles_pkey",
+      "is_unique": true,
+      "is_primary": true,
+      "columns": [
+        "id"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX tenant_profiles_pkey ON public.tenant_profiles USING btree (id)",
+      "constraint_kind": "p",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "tenant_profiles",
+      "name": "tenant_profiles_user_id_key",
+      "is_unique": true,
+      "is_primary": false,
+      "columns": [
+        "user_id"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX tenant_profiles_user_id_key ON public.tenant_profiles USING btree (user_id)",
+      "constraint_kind": "u",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "users",
+      "name": "users_pkey",
+      "is_unique": true,
+      "is_primary": true,
+      "columns": [
+        "id"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)",
+      "constraint_kind": "p",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "users",
+      "name": "users_username_key",
+      "is_unique": true,
+      "is_primary": false,
+      "columns": [
+        "username"
+      ],
+      "predicate": null,
+      "definition": "CREATE UNIQUE INDEX users_username_key ON public.users USING btree (username)",
+      "constraint_kind": "u",
+      "access_method": "btree"
+    }
+  ],
+  "views": [
+    "v_checkout_totals",
+    "v_consumption_alerts",
+    "v_invoice_balances",
+    "v_invoice_lines",
+    "v_meter_consumption",
+    "v_room_status"
+  ],
+  "server_version": "18.4"
+}

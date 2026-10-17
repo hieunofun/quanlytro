@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1200" viewBox="0 0 1920 1200" role="img">
+<title>LUỒNG LẬP VÀ PHÁT HÀNH HÓA ĐƠN</title>
+<desc>Tác nhân: ADMIN hoặc STAFF đúng khu • Các nhánh lỗi giữ nguyên trạng thái hợp lệ</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/></marker></defs>
+<rect width="1920" height="1200" fill="#ffffff"/>
+<g font-family="Arial, sans-serif" fill="#0f172a">
+<text x="960" y="65" text-anchor="middle" font-size="38" font-weight="700">LUỒNG LẬP VÀ PHÁT HÀNH HÓA ĐƠN</text>
+<text x="960" y="108" text-anchor="middle" font-size="23" fill="#475569">Tác nhân: ADMIN hoặc STAFF đúng khu • Các nhánh lỗi giữ nguyên trạng thái hợp lệ</text>
+<rect x="600.0" y="150.0" width="600" height="76" rx="16" fill="#eff6ff" stroke="#2563eb" stroke-width="2.5"/>
+<text x="900" y="188.0" text-anchor="middle" dominant-baseline="middle" font-size="27" font-weight="400">
+<tspan x="900" dy="0">Chọn hợp đồng và kỳ tính tiền</tspan>
+</text>
+<polygon points="900,268.0 1245.0,342 900,416.0 555.0,342" fill="#fffbeb" stroke="#d97706" stroke-width="2.5"/>
+<text x="900" y="325.26" text-anchor="middle" dominant-baseline="middle" font-size="27" font-weight="400">
+<tspan x="900" dy="0">Kỳ hợp lệ, chưa có hóa đơn,</tspan>
+<tspan x="900" dy="33.48">đủ giá và chỉ số hợp lệ?</tspan>
+</text>
+<rect x="80.0" y="292.0" width="350" height="100" rx="16" fill="#fef2f2" stroke="#dc2626" stroke-width="2.5"/>
+<text x="255" y="325.26" text-anchor="middle" dominant-baseline="middle" font-size="27" font-weight="400">
+<tspan x="255" dy="0">Dừng; thông báo</tspan>
+<tspan x="255" dy="33.48">lý do cụ thể</tspan>
+</text>
+<rect x="600.0" y="457.0" width="600" height="86" rx="16" fill="#eff6ff" stroke="#2563eb" stroke-width="2.5"/>
+<text x="900" y="483.26" text-anchor="middle" dominant-baseline="middle" font-size="27" font-weight="400">
+<tspan x="900" dy="0">Tính các khoản thu;</tspan>
+<tspan x="900" dy="33.48">lưu NHÁP và snapshot</tspan>
+</text>
+<polygon points="900,598.0 1225.0,670 900,742.0 575.0,670" fill="#fffbeb" stroke="#d97706" stroke-width="2.5"/>
+<text x="900" y="653.26" text-anchor="middle" dominant-baseline="middle" font-size="27" font-weight="400">
+<tspan x="900" dy="0">Còn cảnh báo</tspan>
+<tspan x="900" dy="33.48">PENDING?</tspan>
+</text>
+<rect x="1370.0" y="590.0" width="480" height="160" rx="16" fill="#eff6ff" stroke="#2563eb" stroke-width="2.5"/>
+<text x="1610" y="639.0" text-anchor="middle" dominant-baseline="middle" font-size="25" font-weight="400">
+<tspan x="1610" dy="0">Kiểm tra các cảnh báo</tspan>
+<tspan x="1610" dy="31.0">Đúng: xác nhận</tspan>
+<tspan x="1610" dy="31.0">Sai: xóa nháp, sửa số, lập lại</tspan>
+</text>
+<polygon points="900,810.0 1225.0,882 900,954.0 575.0,882" fill="#fffbeb" stroke="#d97706" stroke-width="2.5"/>
+<text x="900" y="865.26" text-anchor="middle" dominant-baseline="middle" font-size="27" font-weight="400">
+<tspan x="900" dy="0">Đã đến ngày</tspan>
+<tspan x="900" dy="33.48">phát hành?</tspan>
+</text>
+<rect x="65.0" y="829.0" width="380" height="106" rx="16" fill="#f8fafc" stroke="#64748b" stroke-width="2.5"/>
+<text x="255" y="867.12" text-anchor="middle" dominant-baseline="middle" font-size="24" font-weight="400">
+<tspan x="255" dy="0">Giữ nháp, chờ đến ngày;</tspan>
+<tspan x="255" dy="29.759999999999998">kiểm tra lại trước phát hành</tspan>
+</text>
+<rect x="560.0" y="1027.0" width="680" height="90" rx="16" fill="#ecfdf5" stroke="#059669" stroke-width="2.5"/>
+<text x="900" y="1055.26" text-anchor="middle" dominant-baseline="middle" font-size="27" font-weight="400">
+<tspan x="900" dy="0">Phát hành ISSUED; giữ snapshot;</tspan>
+<tspan x="900" dy="33.48">người thuê được xem hóa đơn</tspan>
+</text>
+<path d="M 900,226 L 900,268" fill="none" stroke="#475569" stroke-width="2.7" marker-end="url(#arrow)"/>
+<path d="M 555,342 L 430,342" fill="none" stroke="#475569" stroke-width="2.7" marker-end="url(#arrow)"/>
+<text x="490" y="320.0" text-anchor="middle" dominant-baseline="middle" font-size="23" font-weight="700">
+<tspan x="490" dy="0">Không</tspan>
+</text>
+<path d="M 900,416 L 900,457" fill="none" stroke="#475569" stroke-width="2.7" marker-end="url(#arrow)"/>
+<text x="930" y="437.0" text-anchor="middle" dominant-baseline="middle" font-size="23" font-weight="700">
+<tspan x="930" dy="0">Có</tspan>
+</text>
+<path d="M 900,543 L 900,598" fill="none" stroke="#475569" stroke-width="2.7" marker-end="url(#arrow)"/>
+<path d="M 1225,670 L 1370,670" fill="none" stroke="#475569" stroke-width="2.7" marker-end="url(#arrow)"/>
+<text x="1295" y="647.0" text-anchor="middle" dominant-baseline="middle" font-size="23" font-weight="700">
+<tspan x="1295" dy="0">Có</tspan>
+</text>
+<path d="M 900,742 L 900,810" fill="none" stroke="#475569" stroke-width="2.7" marker-end="url(#arrow)"/>
+<text x="945" y="775.0" text-anchor="middle" dominant-baseline="middle" font-size="23" font-weight="700">
+<tspan x="945" dy="0">Không</tspan>
+</text>
+<path d="M 1610,750 L 1610,788 L 900,788 L 900,810" fill="none" stroke="#475569" stroke-width="2.7" marker-end="url(#arrow)"/>
+<text x="1360" y="771.0" text-anchor="middle" dominant-baseline="middle" font-size="23" font-weight="700">
+<tspan x="1360" dy="0">Đúng: đã xác nhận</tspan>
+</text>
+<path d="M 1850,670 L 1880,670 L 1880,250 L 900,250 L 900,268" fill="none" stroke="#475569" stroke-width="2.7" marker-end="url(#arrow)"/>
+<text x="1520" y="230.0" text-anchor="middle" dominant-baseline="middle" font-size="23" font-weight="700">
+<tspan x="1520" dy="0">Sai: lập lại sau khi sửa</tspan>
+</text>
+<path d="M 575,882 L 445,882" fill="none" stroke="#475569" stroke-width="2.7" marker-end="url(#arrow)"/>
+<text x="510" y="860.0" text-anchor="middle" dominant-baseline="middle" font-size="23" font-weight="700">
+<tspan x="510" dy="0">Chưa</tspan>
+</text>
+<path d="M 900,954 L 900,1027" fill="none" stroke="#475569" stroke-width="2.7" marker-end="url(#arrow)"/>
+<text x="938" y="989.0" text-anchor="middle" dominant-baseline="middle" font-size="23" font-weight="700">
+<tspan x="938" dy="0">Rồi</tspan>
+</text>
+<text x="960" y="1175" text-anchor="middle" font-size="22" fill="#475569">Thiếu lịch sử hoặc trung bình bằng 0: không đánh giá tăng theo phần trăm; vẫn kiểm tra chỉ số hợp lệ.</text>
+</g></svg>

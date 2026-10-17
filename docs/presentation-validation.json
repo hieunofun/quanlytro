@@ -1,0 +1,16 @@
+{
+  "slides": 21,
+  "main_slides": 20,
+  "appendix_slides": 1,
+  "pdf_pages": 21,
+  "speaker_notes": 0,
+  "raster_images_in_deck": 0,
+  "native_objects": 456,
+  "text_overflows": 0,
+  "objects_outside_slide": 0,
+  "erd_pdf_pages": 1,
+  "erd_tables_verified": 17,
+  "database_cases_passed": 40,
+  "concurrent_payment_test_passed": true,
+  "all_passed": true
+}

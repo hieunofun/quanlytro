@@ -1,0 +1,31 @@
+{
+  "schema": "presentation-v2",
+  "tables": 17,
+  "columns": 138,
+  "primary_keys": 17,
+  "foreign_keys": 28,
+  "check_constraints": 55,
+  "exclusion_constraints": 2,
+  "views": [
+    "v_checkout_totals",
+    "v_consumption_alerts",
+    "v_invoice_balances",
+    "v_invoice_lines",
+    "v_meter_consumption",
+    "v_room_status"
+  ],
+  "database_cases_passed": 40,
+  "concurrent_payment_test": {
+    "passed": true,
+    "lock_wait_observed": true,
+    "invoice_total": 1000,
+    "attempts": [
+      600,
+      600
+    ],
+    "accepted_payments": 1,
+    "remaining_balance": 400
+  },
+  "postgresql": "18.4",
+  "all_passed": true
+}

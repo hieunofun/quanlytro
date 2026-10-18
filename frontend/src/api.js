@@ -12,6 +12,7 @@ export function saveSession(value) {
 }
 let refreshing;
 export async function api(path, method = "GET", data, retry = true) {
+  if(path === "/meter-readings" && method === "POST" && data?.settlement) path="/meter-readings/settlement";
   const originalSession = session;
   const response = await fetch("/api" + path, {
     method,
@@ -76,7 +77,7 @@ export async function download(path, name) {
 }
 export async function upload(path, file) {
   // Refresh first so a multipart request does not need to be replayed.
-  await api("/notifications");
+  await api("/auth/me");
   const body = new FormData(); body.append("file", file);
   const response = await fetch("/api" + path, {
     method: "POST", headers: { Authorization: "Bearer " + getSession().accessToken }, body,
@@ -88,7 +89,7 @@ export async function upload(path, file) {
   return response.json();
 }
 export async function imageBlob(path) {
-  await api("/notifications");
+  await api("/auth/me");
   const response = await fetch(path, {headers:{Authorization:"Bearer "+getSession().accessToken}});
   if (!response.ok) throw new Error("Không thể tải ảnh.");
   return URL.createObjectURL(await response.blob());

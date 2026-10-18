@@ -79,9 +79,9 @@ PowerPoint có 20 trang chính và hai trang ERD phụ lục. Văn bản, bảng
 
 ## Quan hệ với backend hiện có
 
-Hồ sơ bước 1–2 dùng **một mô hình mục tiêu duy nhất là 17 bảng**. Backend React/Spring Boot trong repo là **prototype schema 29 bảng V1–V9**, được giữ để tiếp tục phát triển ở bước 3. Đây là hai phiên bản có tên và vai trò rõ ràng, không phải hai ERD cùng mô tả một phiên bản chạy.
+Backend đã chuyển sang mô hình 17 bảng bằng Flyway V10. V1–V9 giữ nguyên; 29 bảng cũ được lưu trong schema prototype_v9. API đọc các view tính toán thay cho cột tổng hợp, entity khớp 138 cột thiết kế. [Hướng dẫn chuyển đổi và kiểm chứng backend](BACKEND-17-TABLES.md), [API hiện hành](API.md), [kết quả backend](backend-validation.json).
 
-`quanlytro.sql` không được dùng để ghi đè database prototype. Chưa có migration dữ liệu hay sửa API để chạy với mô hình 17 bảng. Khi bước 3 chuyển sang mô hình mục tiêu, phải tạo migration mới, chuyển thành viên/ảnh sang bảng liên kết, đổi truy vấn tổng tiền sang view và sửa entity/repository tương ứng. Không sửa nội dung các migration V1–V9 đã áp dụng.
+`quanlytro.sql` là nguồn thiết kế trên database trống, không dùng để ghi đè prototype. Database cũ nâng cấp qua Flyway; V10 đối chiếu số tiền và rollback khi dữ liệu không tương thích. Archive không chứa nghiệp vụ mới phát sinh sau cutover; cần backup database/thư mục ảnh khi nghiệm thu và đưa vào vận hành.
 
 ## Cập nhật dbdiagram.io
 

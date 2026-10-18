@@ -3,9 +3,10 @@ import jakarta.persistence.*;
 import lombok.Getter;
 @Entity @Table(name="service_price_configs") @Getter
 public class ServicePriceEntity {
-    @Id @GeneratedValue(strategy=GenerationType.IDENTITY) private Long id;
-    @ManyToOne(fetch=FetchType.LAZY) @JoinColumn(name="property_id") private PropertyEntity property;
-    @ManyToOne(fetch=FetchType.LAZY) @JoinColumn(name="service_item_id") private ServiceItemEntity service;
-    @Column(name="unit_price") private java.math.BigDecimal price;
-    @Column(name="effective_from") private java.time.LocalDate effectiveFrom;
+ @Id @GeneratedValue(strategy=GenerationType.IDENTITY)
+ @Column(name="id",nullable=false) private Long id;
+ @Column(name="property_id",nullable=false) private Long propertyId;
+ @Column(name="service_item_id",nullable=false) private Long serviceItemId;
+ @Column(name="unit_price",nullable=false,precision=12,scale=2) private java.math.BigDecimal unitPrice;
+ @Column(name="effective_from",nullable=false) private java.time.LocalDate effectiveFrom;
 }

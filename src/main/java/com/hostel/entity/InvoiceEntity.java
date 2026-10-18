@@ -3,13 +3,14 @@ import jakarta.persistence.*;
 import lombok.Getter;
 @Entity @Table(name="invoices") @Getter
 public class InvoiceEntity {
-    @Id @GeneratedValue(strategy=GenerationType.IDENTITY) private Long id;
-    @ManyToOne(fetch=FetchType.LAZY) @JoinColumn(name="contract_id") private ContractEntity contract;
-    @Column(name="invoice_code") private String code;
-    @Column(name="billing_period",length=7) private String period;
-    @Column(name="total_amount") private java.math.BigDecimal totalAmount;
-    @Column(name="paid_amount") private java.math.BigDecimal paidAmount;
-    @Column(name="balance_due") private java.math.BigDecimal balanceDue;
-    private String status;
-    @OneToMany(mappedBy="invoice") private java.util.List<InvoiceItemEntity> items;
+ @Id @GeneratedValue(strategy=GenerationType.IDENTITY)
+ @Column(name="id",nullable=false) private Long id;
+ @Column(name="invoice_code",nullable=false) private String invoiceCode;
+ @Column(name="contract_id",nullable=false) private Long contractId;
+ @Column(name="billing_period",nullable=false) private java.time.LocalDate billingPeriod;
+ @Column(name="issue_date",nullable=false) private java.time.LocalDate issueDate;
+ @Column(name="due_date",nullable=false) private java.time.LocalDate dueDate;
+ @Column(name="status",nullable=false) private String status;
+ @Column(name="is_settlement",nullable=false) private Boolean isSettlement;
+ @Column(name="issued_at",nullable=true) private java.time.Instant issuedAt;
 }

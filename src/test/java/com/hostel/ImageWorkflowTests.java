@@ -23,7 +23,7 @@ class ImageWorkflowTests {
     @Autowired Database db;@Autowired PasswordEncoder encoder;@Autowired DataSource dataSource;@Value("${local.server.port}") int port;
     HttpClient client=HttpClient.newHttpClient();long admin,staff,tenant,profile,property,floor,room,sibling,contract,repair;String ownerToken,staffToken,tenantToken;
     long user(String role,String suffix) {
-        return db.insert("users","username,password_hash,full_name,phone,role",suffix,encoder.encode("UploadTest#2026"),role,UUID.randomUUID().toString().substring(0,18),role);
+        return db.insert("users","username,password_hash,role",suffix,encoder.encode("UploadTest#2026"),role);
     }
     String token(String username) throws Exception {
         var r=client.send(HttpRequest.newBuilder(URI.create(base()+"/auth/login")).header("Content-Type","application/json").POST(HttpRequest.BodyPublishers.ofString("{\"username\":\""+username+"\",\"password\":\"UploadTest#2026\"}")).build(),HttpResponse.BodyHandlers.ofString());
@@ -33,23 +33,23 @@ class ImageWorkflowTests {
     @BeforeEach void seed() throws Exception {
         String key=UUID.randomUUID().toString();admin=user("ADMIN","ua"+key);staff=user("STAFF","us"+key);tenant=user("TENANT","ut"+key);
         property=db.insert("properties","property_code,name,address",key.substring(0,20),"Upload fixture","HCM");
-        floor=db.insert("floors","property_id,floor_number,name",property,1,"Tầng 1");
-        room=db.insert("rooms","property_id,floor_id,room_code,base_price,max_occupants,status",property,floor,"301",3000000,2,"RENTED");
-        sibling=db.insert("rooms","property_id,floor_id,room_code,base_price,max_occupants",property,floor,"302",3000000,2);
+        floor=1;
+        room=db.insert("rooms","property_id,floor_number,room_code,base_price,max_occupants",property,1,"301",3000000,2);
+        sibling=db.insert("rooms","property_id,floor_number,room_code,base_price,max_occupants",property,1,"302",3000000,2);
         profile=db.insert("tenant_profiles","user_id,full_name,identity_number,phone",tenant,"Upload tenant",key.substring(0,15),"0900000000");
-        contract=db.insert("contracts","contract_code,room_id,primary_tenant_id,start_date,end_date,rental_price,deposit_amount,payment_cycle_day,initial_electric_index,initial_water_index",key,room,profile,LocalDate.now().minusMonths(1),LocalDate.now().plusYears(1),3000000,3000000,5,0,0);
-        repair=db.insert("maintenance_requests","contract_id,property_id,room_id,submitted_by,title,description,priority,expected_date",contract,property,room,tenant,"Hỏng khóa","Upload test","NORMAL",LocalDate.now().plusDays(3));
+        contract=db.insert("contracts","contract_code,room_id,primary_tenant_id,start_date,end_date,rental_price,deposit_amount,payment_cycle_day",key,room,profile,LocalDate.now().minusMonths(1),LocalDate.now().plusYears(1),3000000,3000000,5);
+        repair=db.insert("maintenance_requests","contract_id,submitted_by,title,description,priority,expected_date",contract,tenant,"Hỏng khóa","Upload test","NORMAL",LocalDate.now().plusDays(3));
         ownerToken=token("ua"+key);staffToken=token("us"+key);tenantToken=token("ut"+key);
     }
     @AfterEach void clean() throws Exception {
-        for(var row:db.rows("select id,extension from uploaded_images where room_id in (?,?) or maintenance_request_id=?",room,sibling,repair)) Files.deleteIfExists(Path.of(".runtime/test-uploads").resolve(row.get("id")+"."+row.get("extension")));
-        db.jdbc.update("delete from audit_logs where user_id in (?,?,?)",admin,staff,tenant);
-        db.jdbc.update("delete from uploaded_images where room_id in (?,?) or maintenance_request_id=?",room,sibling,repair);
-        db.jdbc.update("delete from room_images where room_id in (?,?)",room,sibling);
-        db.jdbc.update("delete from maintenance_requests where id=?",repair);db.jdbc.update("delete from room_employee_assignments where user_id=?",staff);
+        for(var row:db.rows("select url from maintenance_images where maintenance_request_id=?",repair)) {
+            String url=row.get("url").toString();if(url.startsWith("/api/uploads/"))Files.deleteIfExists(Path.of(".runtime/test-uploads").resolve(url.substring(13)));
+        }
+        db.jdbc.update("delete from maintenance_requests where id=?",repair);
+        db.jdbc.update("delete from employee_assignments where user_id=?",staff);
         db.jdbc.update("delete from contracts where id=?",contract);db.jdbc.update("delete from tenant_profiles where id=?",profile);
-        db.jdbc.update("delete from rooms where id in (?,?)",room,sibling);db.jdbc.update("delete from floors where id=?",floor);db.jdbc.update("delete from properties where id=?",property);
-        db.jdbc.update("delete from auth_sessions where user_id in (?,?,?)",admin,staff,tenant);db.jdbc.update("delete from users where id in (?,?,?)",admin,staff,tenant);
+        db.jdbc.update("delete from rooms where id in (?,?)",room,sibling);db.jdbc.update("delete from properties where id=?",property);
+        db.jdbc.update("delete from users where id in (?,?,?)",admin,staff,tenant);
     }
     byte[] png() throws Exception {var out=new ByteArrayOutputStream();ImageIO.write(new BufferedImage(2,2,BufferedImage.TYPE_INT_RGB),"png",out);return out.toByteArray();}
     HttpResponse<byte[]> upload(String endpoint,byte[] bytes,String token) throws Exception {
@@ -60,20 +60,19 @@ class ImageWorkflowTests {
     }
     String url(HttpResponse<byte[]> response) {var m=java.util.regex.Pattern.compile("\"url\":\"([^\"]+)\"").matcher(new String(response.body(),StandardCharsets.UTF_8));assertTrue(m.find());return m.group(1);}
     HttpResponse<byte[]> read(String path,String token) throws Exception {var b=HttpRequest.newBuilder(URI.create("http://127.0.0.1:"+port+path));if(token!=null)b.header("Authorization","Bearer "+token);return client.send(b.GET().build(),HttpResponse.BodyHandlers.ofByteArray());}
-    @Test void imageBytesArePrivateAndRoomAssignmentsApplyToUploadAndRead() throws Exception {
-        byte[] bytes=png();var saved=upload("/rooms/"+room+"/images",bytes,ownerToken);assertEquals(200,saved.statusCode());String image=url(saved);
+    @Test void imageBytesArePrivateAndPropertyAssignmentsApply() throws Exception {
+        byte[] bytes=png();var saved=upload("/maintenance-requests/"+repair+"/images",bytes,ownerToken);assertEquals(200,saved.statusCode());String image=url(saved);
         assertEquals(401,read(image,null).statusCode());assertEquals(403,read(image,staffToken).statusCode());assertArrayEquals(bytes,read(image,tenantToken).body());
-        db.insert("room_employee_assignments","user_id,room_id",staff,room);
-        assertArrayEquals(bytes,read(image,staffToken).body());assertEquals(403,upload("/rooms/"+sibling+"/images",bytes,staffToken).statusCode());assertEquals(200,upload("/rooms/"+room+"/images",bytes,staffToken).statusCode());
+        db.insert("employee_assignments","user_id,property_id",staff,property);
+        assertArrayEquals(bytes,read(image,staffToken).body());assertEquals(200,upload("/maintenance-requests/"+repair+"/images",bytes,staffToken).statusCode());
     }
-    @Test void tenantCanAttachPhotoToOwnRepairButCannotAttachRoomPhotos() throws Exception {
+    @Test void tenantCanAttachPhotoToOwnRepair() throws Exception {
         var saved=upload("/maintenance-requests/"+repair+"/images",png(),tenantToken);assertEquals(200,saved.statusCode());assertEquals(200,read(url(saved),tenantToken).statusCode());assertEquals(403,read(url(saved),staffToken).statusCode());
-        assertEquals(403,upload("/rooms/"+room+"/images",png(),tenantToken).statusCode());
     }
     @Test void disguisedFilesOversizeAndAnonymousUploadsAreRejected() throws Exception {
-        assertEquals(400,upload("/rooms/"+room+"/images","<script>alert(1)</script>".getBytes(),ownerToken).statusCode());
-        assertEquals(413,upload("/rooms/"+room+"/images",new byte[6*1024*1024+1],ownerToken).statusCode());
-        assertEquals(401,upload("/rooms/"+room+"/images",png(),null).statusCode());
+        assertEquals(400,upload("/maintenance-requests/"+repair+"/images","<script>alert(1)</script>".getBytes(),ownerToken).statusCode());
+        assertEquals(413,upload("/maintenance-requests/"+repair+"/images",new byte[6*1024*1024+1],ownerToken).statusCode());
+        assertEquals(401,upload("/maintenance-requests/"+repair+"/images",png(),null).statusCode());
     }
     List<HttpResponse<byte[]>> simultaneousRepairUploads() throws Exception {
         byte[] bytes=png();
@@ -86,7 +85,7 @@ class ImageWorkflowTests {
                 second=pool.submit(()->upload("/maintenance-requests/"+repair+"/images",bytes,tenantToken));
                 long deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(5);int waiting=0;
                 while(System.nanoTime()<deadline) {
-                    waiting=db.jdbc.queryForObject("select count(*)::int from pg_stat_activity where datname=current_database() and wait_event_type='Lock' and query like 'select * from maintenance_requests%for update%'",Integer.class);
+                    waiting=db.jdbc.queryForObject("select count(*)::int from pg_stat_activity where datname=current_database() and wait_event_type='Lock' and query like 'select id from maintenance_requests%for update%'",Integer.class);
                     if(waiting>=2)break;Thread.sleep(25);
                 }
                 assertEquals(2,waiting,"Both uploads must wait on the fixture lock before release");connection.commit();
@@ -96,14 +95,12 @@ class ImageWorkflowTests {
     }
     @Test void concurrentRepairUploadsRetainBothAttachments() throws Exception {
         var responses=simultaneousRepairUploads();assertTrue(responses.stream().allMatch(r->r.statusCode()==200));
-        String urls=db.one("select image_urls from maintenance_requests where id=?",repair).get("image_urls").toString();
-        assertEquals(2,urls.lines().count());for(var response:responses)assertTrue(urls.contains(url(response)));
-        assertEquals(2,db.jdbc.queryForObject("select count(*)::int from uploaded_images where maintenance_request_id=?",Integer.class,repair));
+        var rows=db.rows("select url from maintenance_images where maintenance_request_id=?",repair);
+        assertEquals(2,rows.size());for(var response:responses)assertTrue(rows.stream().anyMatch(r->r.get("url").equals(url(response))));
     }
     @Test void concurrentRepairUploadsCannotExceedAttachmentLimit() throws Exception {
-        db.jdbc.update("update maintenance_requests set image_urls=? where id=?",String.join("\n",java.util.stream.IntStream.range(0,11).mapToObj(i->"https://example.test/fixture-"+i+".png").toList()),repair);
+        for(int i=0;i<11;i++)db.insert("maintenance_images","maintenance_request_id,url,uploaded_by",repair,"https://example.test/fixture-"+i+".png",tenant);
         var responses=simultaneousRepairUploads();assertEquals(List.of(200,400),responses.stream().map(HttpResponse::statusCode).sorted().toList());
-        assertEquals(12,db.one("select image_urls from maintenance_requests where id=?",repair).get("image_urls").toString().lines().count());
-        assertEquals(1,db.jdbc.queryForObject("select count(*)::int from uploaded_images where maintenance_request_id=?",Integer.class,repair));
+        assertEquals(12,db.jdbc.queryForObject("select count(*)::int from maintenance_images where maintenance_request_id=?",Integer.class,repair));
     }
 }

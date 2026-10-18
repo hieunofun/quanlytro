@@ -1,0 +1,111 @@
+{
+  "recorded_at": "2026-10-18T17:04:14.226173+07:00",
+  "build": "mvn verify PASS; frontend production build PASS",
+  "unit_integration": {
+    "tests": 58,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "suites": [
+      {
+        "suite": "com.hostel.BusinessWorkflowTests",
+        "tests": 38,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "com.hostel.FeeCalculatorTests",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "com.hostel.HostelManagementApplicationTests",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "com.hostel.HttpSecurityTests",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "com.hostel.ImageWorkflowTests",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "com.hostel.MigrationTests",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "com.hostel.PdfTests",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    ]
+  },
+  "schema": {
+    "server": "18.4",
+    "business_tables": 17,
+    "columns": 138,
+    "foreign_keys": 28,
+    "views": 6,
+    "archived_prototype_tables": 29,
+    "flyway_version": "10"
+  },
+  "jpa_entities": 17,
+  "v1_v9_unchanged": true,
+  "http_smoke": {
+    "status": "PASS",
+    "schema": 17,
+    "total": 3690000,
+    "paid": 2000000,
+    "balance": 1690000,
+    "pdf": true,
+    "tenant_cannot_list_users": 403,
+    "reports": {
+      "/dashboard?period=2026-09": 200,
+      "/reports/revenue": 200,
+      "/reports/revenue-quarterly": 200,
+      "/reports/debts": 200,
+      "/reports/occupancy": 200,
+      "/reports/occupancy-history": 200,
+      "/reports/maintenance": 200
+    }
+  },
+  "browser": {
+    "status": "PASS",
+    "pages": 8,
+    "roles": [
+      "ADMIN",
+      "TENANT"
+    ],
+    "viewports": [
+      1440,
+      375
+    ],
+    "screenshots": 5,
+    "errors": []
+  },
+  "artifact": {
+    "file": "target/hostel-management-0.0.1-SNAPSHOT.jar",
+    "sha256": "988f1b1d0ee7dc31739ceec4c6747e8db2650dad474470535f25114e708dd288"
+  },
+  "migration_sha256": "76c5e654eafa16f2f30ae07369c5bbe578943225b38fa52c3ca8ace75ea3a576",
+  "database_isolation": "hostel_cutover_tests_r3 and hostel_mvp_demo_17 on isolated PostgreSQL port 55437; original demo unchanged",
+  "all_passed": true
+}

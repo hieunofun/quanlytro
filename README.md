@@ -1,6 +1,8 @@
 # Hệ thống quản lý nhà trọ
 
-Bản Java/Web theo tài liệu `v1.docx`: React → REST API Spring Boot → PostgreSQL. Điểm chính là hóa đơn lưu đơn giá/công thức, cảnh báo điện nước và phân quyền theo khu nhà hoặc phòng cụ thể.
+Backend Spring Boot và React sử dụng mô hình 17 bảng đã chốt: hóa đơn giữ snapshot đơn giá, tổng tiền/công nợ tính qua view, cảnh báo điện nước và phân quyền nhân viên theo khu nhà.
+
+Flyway V10 chuyển prototype V9 và giữ 29 bảng cũ trong schema archive. Đọc [hướng dẫn chuyển đổi](docs/BACKEND-17-TABLES.md), [API hiện hành](docs/API.md) và [kết quả kiểm chứng backend](docs/backend-validation.json) trước khi nâng cấp database có dữ liệu.
 
 ## Chạy bản đã đóng gói trên máy này
 

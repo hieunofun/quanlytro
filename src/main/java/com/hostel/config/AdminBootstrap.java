@@ -10,7 +10,7 @@ public class AdminBootstrap {
         return args -> {
             if (password.isBlank()) return;
             if (password.length() < 12) throw new IllegalArgumentException("ADMIN_PASSWORD requires at least 12 characters");
-            db.update("insert into users(username,password_hash,full_name,phone,role) values ('admin',?,'Administrator','ADMIN','ADMIN') on conflict (username) do nothing", encoder.encode(password));
+            db.update("insert into users(username,password_hash,role) values ('admin',?,'ADMIN') on conflict (username) do nothing", encoder.encode(password));
         };
     }
 }

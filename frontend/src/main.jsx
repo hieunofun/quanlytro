@@ -109,7 +109,6 @@ const routes = {
   "meter-readings": ["Điện nước", Gauge],
   invoices: ["Hóa đơn", Receipt],
   "maintenance-requests": ["Sự cố", Wrench],
-  notifications: ["Thông báo", Bell],
   settings: ["Thiết lập", Settings],
 };
 const columns = {
@@ -274,7 +273,7 @@ function App() {
   };
   const open = async (row) =>
     run(async () => {
-      if (["invoices", "contracts"].includes(route))
+      if (["invoices", "contracts", "maintenance-requests"].includes(route))
         setDetail(await api("/" + route + "/" + row.id));
       else setDetail(row);
     });
@@ -303,15 +302,7 @@ function App() {
           "Thêm phòng",
           [
             f("propertyId", "Khu nhà", "select", { options: prop }),
-            f("floorId", "Tầng", "select", {
-              options: options(
-                floors,
-                (v) =>
-                  properties.find((p) => p.id === v.property_id)?.name +
-                  " · " +
-                  v.name,
-              ),
-            }),
+            f("floorNumber", "Tầng", "number"),
             f("code", "Mã phòng"),
             f("price", "Giá thuê / tháng", "number"),
             f("maxOccupants", "Sức chứa", "number"),
@@ -365,8 +356,6 @@ function App() {
             f("rentalPrice", "Tiền thuê / tháng", "number"),
             f("deposit", "Tiền cọc đã nhận", "number"),
             f("paymentDay", "Ngày thanh toán (1–28)", "number"),
-            f("electricIndex", "Chỉ số điện ban đầu", "number"),
-            f("waterIndex", "Chỉ số nước ban đầu", "number"),
           ],
           "/contracts",
           "POST",
@@ -374,8 +363,6 @@ function App() {
             startDate: date(),
             paymentDay: 5,
             deposit: 0,
-            electricIndex: 0,
-            waterIndex: 0,
           },
         );
       }
@@ -397,6 +384,8 @@ function App() {
                 ["WATER", "Nước"],
               ],
             }),
+            f("settlement", "Chốt chỉ số để trả phòng trước ngày chốt tháng", "boolean", { optional: true }),
+            f("oldIndex", "Chỉ số đầu (bắt buộc lần ghi đầu tiên)", "number", { optional: true }),
             f("newIndex", "Chỉ số mới", "number"),
             f("readingDate", "Ngày ghi", "date"),
           ],
@@ -574,10 +563,6 @@ function App() {
             <Menu size={20} />
           </button>
           <span>{tenant ? "Cổng người thuê" : "Không gian quản lý"}</span>
-          <button onClick={() => navigate("notifications")}>
-            <Bell size={16} />
-            Thông báo
-          </button>
         </header>
         <main>
           <div className="pagehead">
@@ -596,7 +581,7 @@ function App() {
             </div>
             {!detail &&
               !["dashboard", "settings", "notifications"].includes(route) &&
-              (!tenant || route === "maintenance-requests") && (
+              (!tenant || route === "maintenance-requests") && (admin || !["properties","rooms","tenants"].includes(route)) && (
                 <button className="primary" onClick={create}>
                   <Plus size={16} />
                   {route === "invoices"
@@ -963,7 +948,7 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate }) {
         images: [],
       };
       if (route === "rooms") {
-        result.images = await api("/rooms/" + d.id + "/images");
+        result.images = [];
         if (!tenant) {
           [result.floors, result.properties] = await Promise.all([
             api("/floors"),
@@ -1148,31 +1133,10 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate }) {
             <div><dt>Tiền cọc ban đầu</dt><dd>{money(d.checkout.initial_deposit)}</dd></div>
             <div><dt>Công nợ trước cấn cọc</dt><dd>{money(d.checkout.unpaid_invoices_amount)}</dd></div>
             <div><dt>Khấu trừ thiệt hại</dt><dd>{money(d.checkout.damage_amount)}</dd></div>
-            <div><dt>Chỉ số điện cuối</dt><dd>{d.checkout.final_electric_index}</dd></div>
-            <div><dt>Chỉ số nước cuối</dt><dd>{d.checkout.final_water_index}</dd></div>
-            <div><dt>Điện nước kỳ cuối</dt><dd>{money(d.checkout.final_utility_amount)}</dd></div>
             <div><dt>{Number(d.checkout.actual_refund_amount) < 0 ? "Cần thu thêm" : "Tiền hoàn cọc"}</dt><dd><strong>{money(Math.abs(Number(d.checkout.actual_refund_amount)))}</strong></dd></div>
           </dl>
           <p className="muted">Điện nước kỳ cuối đã nằm trong hóa đơn; số tiền quyết toán chỉ khấu trừ công nợ một lần.</p>
           {d.checkout.notes && <p>{d.checkout.notes}</p>}
-        </section>
-      )}
-      {route === "rooms" && (
-        <section className="card">
-          <h2>Ảnh phòng</h2>
-          {lookups.images.length ? (
-            <div className="room-images">
-              {lookups.images.map((i) => (
-                <div key={i.id}>
-                  <ProtectedImage src={i.url} alt={"Ảnh phòng " + d.room_code} />
-                  {!tenant && <button onClick={()=>run(async()=>{await api("/rooms/"+d.id+"/images/"+i.id,"DELETE");const images=await api("/rooms/"+d.id+"/images");setLookups(v=>({...v,images}));})}>Gỡ ảnh</button>}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="muted">Chưa có ảnh phòng.</p>
-          )}
-          {!tenant && <ImageUpload endpoint={"/rooms/"+d.id+"/images"} reload={async () => {const images=await api("/rooms/"+d.id+"/images");setLookups(v=>({...v,images}));}} />}
         </section>
       )}
       {route === "maintenance-requests" && repairImages.length > 0 && (
@@ -1252,7 +1216,8 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate }) {
             showForm(
               "Sửa chỉ số",
               [
-                f("newIndex", "Chỉ số mới", "number"),
+                f("oldIndex", "Chỉ số đầu (bắt buộc lần ghi đầu tiên)", "number", { optional: true }),
+            f("newIndex", "Chỉ số mới", "number"),
                 f("reason", "Lý do chỉnh sửa", "textarea"),
               ],
               "/meter-readings/" + d.id,
@@ -1297,23 +1262,10 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate }) {
           )}
           {!tenant && d.status === "ACTIVE" && (
             <div className="actions">
-              <button
-                onClick={() =>
-                  showForm(
-                    "Thêm thành viên",
-                    [
-                      f("fullName", "Họ tên"),
-                      f("identityNumber", "CCCD", "text", { optional: true }),
-                      f("phone", "Điện thoại", "text", { optional: true }),
-                      f("relationship", "Quan hệ", "text", { optional: true }),
-                      f("effectiveFrom", "Ngày vào ở", "date"),
-                    ],
-                    "/contracts/" + d.id + "/members",
-                  )
-                }
-              >
-                Thêm thành viên
-              </button>
+              <button onClick={()=>run(async()=>{const people=await api("/tenants");showForm("Thêm thành viên",[
+                f("tenantId","Hồ sơ người thuê","select",{options:people.filter(t=>t.id!==d.primary_tenant_id).map(t=>[t.id,t.full_name])}),
+                f("relationship","Quan hệ","text",{optional:true}),f("effectiveFrom","Ngày vào ở","date")
+              ],"/contracts/"+d.id+"/members");})}>Thêm thành viên</button>
               <button
                 onClick={() =>
                   showForm(
@@ -1370,16 +1322,6 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate }) {
           )}
         </section>
       )}
-      {route === "contracts" && <section className="card">
-        <h2>Vi phạm hợp đồng</h2>
-        {d.violations?.length ? d.violations.map(v=><div className="violation" key={v.id}>
-          <div className="metric"><strong>{v.reason}</strong><span>{labels[v.status]}</span></div>
-          <small>Ghi nhận {new Date(v.created_at).toLocaleString("vi-VN")} · {v.recorded_by_name}</small>
-          {v.resolution_note && <p>{v.resolution_note}</p>}
-          {!tenant && ["OPEN","HANDLING"].includes(v.status) && <button onClick={()=>showForm("Xử lý vi phạm",[f("status","Trạng thái","select",{options:[["HANDLING","Đang xử lý"],["RESOLVED","Đã giải quyết"],["DISMISSED","Loại bỏ"]]}),f("note","Nội dung xử lý / lý do","textarea")],"/contracts/"+d.id+"/violations/"+v.id,"PUT")}>Xử lý vi phạm</button>}
-        </div>) : <p className="muted">Chưa có vi phạm được ghi nhận.</p>}
-        {!tenant && d.status === "ACTIVE" && <button onClick={()=>showForm("Ghi nhận vi phạm",[f("reason","Nội dung và lý do vi phạm","textarea")],"/contracts/"+d.id+"/violations")}>Ghi nhận vi phạm</button>}
-      </section>}
       {!tenant &&
         route === "maintenance-requests" &&
         d.status !== "COMPLETED" && (
@@ -1429,11 +1371,7 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate }) {
                       .filter((p) => p.id === d.property_id)
                       .map((p) => [p.id, p.name]),
                   }),
-                  f("floorId", "Tầng", "select", {
-                    options: lookups.floors
-                      .filter((v) => v.property_id === d.property_id)
-                      .map((v) => [v.id, v.name]),
-                  }),
+                  f("floorNumber", "Tầng", "number"),
                   f("code", "Mã phòng"),
                   f("price", "Giá thuê", "number"),
                   f("maxOccupants", "Sức chứa", "number"),
@@ -1443,7 +1381,7 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate }) {
                 "PUT",
                 {
                   propertyId: d.property_id,
-                  floorId: d.floor_id,
+                  floorNumber: d.floor_number,
                   code: d.room_code,
                   price: d.base_price,
                   maxOccupants: d.max_occupants,
@@ -1454,46 +1392,10 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate }) {
           >
             Sửa phòng / giá
           </button>
-          {
-            <button
-              onClick={() =>
-                showForm(
-                  "Tiện nghi, ảnh và bảo trì",
-                  [
-                    f("status", "Trạng thái", "select", {
-                      options:
-                        d.status === "RENTED"
-                          ? [["RENTED", "Đang thuê"]]
-                          : [
-                              ["AVAILABLE", "Trống"],
-                              ["MAINTENANCE", "Bảo trì"],
-                            ],
-                    }),
-                    f("amenities", "Tiện nghi", "textarea", { optional: true }),
-                    f("internalNote", "Ghi chú nội bộ", "textarea", {
-                      optional: true,
-                    }),
-                    f("imageUrls", "Link ảnh (mỗi dòng một ảnh)", "urls", {
-                      optional: true,
-                    }),
-                  ],
-                  "/rooms/" + d.id + "/details",
-                  "PUT",
-                  {
-                    status: d.status,
-                    amenities: d.amenities || "",
-                    internalNote: d.internal_note || "",
-                    imageUrls: lookups.images.map((i) => i.url).join("\n"),
-                  },
-                )
-              }
-            >
-              Tiện nghi / ảnh
-            </button>
-          }
+          <button onClick={()=>showForm("Tình trạng khai thác",[f("status","Tình trạng","select",{options:[["AVAILABLE","Sẵn sàng"],["MAINTENANCE","Bảo trì"]]})],"/rooms/"+d.id+"/status","PUT",{status:d.operational_status})}>Tình trạng khai thác</button>
         </div>
       )}
-      {!tenant && route === "tenants" && (
+      {getSession().user.role === "ADMIN" && route === "tenants" && (
         <button
           onClick={() =>
             showForm(
@@ -1529,7 +1431,7 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate }) {
           Sửa thông tin
         </button>
       )}
-      {!tenant && route === "tenants" && (
+      {getSession().user.role === "ADMIN" && route === "tenants" && (
         <button
           onClick={() =>
             showForm(
@@ -1553,477 +1455,30 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate }) {
   );
 }
 function SettingsPanel({ data: d, admin, showForm, run, mutate }) {
-  const [rooms, setRooms] = useState([]),
-    [schedules, setSchedules] = useState([]),
-    [reports, setReports] = useState(null),
-    [auditLogs, setAuditLogs] = useState(null);
-  useEffect(() => {
-    run(async () => {
-      setRooms(await api("/rooms"));
-      setSchedules(await api("/maintenance-schedules"));
-    });
-  }, []);
   if (!d.properties) return null;
-  const prop = d.properties.map((p) => [p.id, p.name]);
-  return (
-    <>
-      <section className="card">
-        <h2>Cấu trúc và đơn giá</h2>
-        <div className="actions">
-          {admin && <button onClick={()=>showForm("Thêm dịch vụ",[f("code","Mã dịch vụ (chữ hoa, số, gạch dưới)"),f("name","Tên dịch vụ"),f("calculationType","Cách tính","select",{options:[["PER_ROOM","Theo phòng"],["PER_PERSON","Theo đầu người"]]}),f("unitName","Đơn vị")],"/services","POST",{calculationType:"PER_ROOM",unitName:"Tháng"})}>Thêm dịch vụ</button>}
-          <button
-            onClick={() =>
-              showForm(
-                "Thêm tầng",
-                [
-                  f("propertyId", "Khu nhà", "select", { options: prop }),
-                  f("number", "Số tầng", "number"),
-                  f("name", "Tên tầng"),
-                ],
-                "/floors",
-              )
-            }
-          >
-            Thêm tầng
-          </button>
-          <button
-            onClick={() =>
-              showForm(
-                "Đơn giá áp dụng theo thời gian",
-                [
-                  f("propertyId", "Khu nhà", "select", { options: prop }),
-                  f("serviceId", "Dịch vụ", "select", {
-                    options: d.services.map((s) => [s.id, s.name]),
-                  }),
-                  f("unitPrice", "Đơn giá", "number"),
-                  f("effectiveFrom", "Áp dụng từ ngày", "date"),
-                ],
-                "/prices",
-              )
-            }
-          >
-            Thêm đơn giá
-          </button>
-          <button
-            onClick={() =>
-              showForm(
-                "Ngưỡng cảnh báo",
-                [
-                  f("propertyId", "Khu nhà", "select", { options: prop }),
-                  f("roomId", "Phòng (trống = toàn khu)", "select", {
-                    optional: true,
-                    options: rooms.map((r) => [
-                      r.id,
-                      r.property_name + " · " + r.room_code,
-                    ]),
-                  }),
-                  f("meterType", "Đồng hồ", "select", {
-                    options: [
-                      ["ELECTRICITY", "Điện"],
-                      ["WATER", "Nước"],
-                    ],
-                  }),
-                  f("percentage", "Tăng trên (%)", "number"),
-                  f("months", "Số tháng tính trung bình", "number"),
-                ],
-                "/thresholds",
-                "POST",
-                { percentage: 50, months: 3 },
-              )
-            }
-          >
-            Ngưỡng cảnh báo
-          </button>
-          <button
-            onClick={() =>
-              showForm(
-                "Lịch bảo trì định kỳ",
-                [
-                  f("propertyId", "Khu nhà", "select", { options: prop }),
-                  f("title", "Nội dung"),
-                  f("nextDate", "Ngày thực hiện", "date"),
-                  f("intervalDays", "Lặp lại sau (ngày)", "number"),
-                  f("notes", "Ghi chú", "textarea", { optional: true }),
-                ],
-                "/maintenance-schedules",
-                "POST",
-                { intervalDays: 30 },
-              )
-            }
-          >
-            Lịch bảo trì
-          </button>
-        </div>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Khu</th>
-                <th>Dịch vụ</th>
-                <th>Đơn giá</th>
-                <th>Áp dụng từ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {d.prices.map((p) => (
-                <tr key={p.id}>
-                  <td>
-                    {d.properties.find((v) => v.id === p.property_id)?.name}
-                  </td>
-                  <td>{p.name}</td>
-                  <td>{money(p.unit_price)}</td>
-                  <td>{p.effective_from}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-      {admin && (
-        <section className="card">
-          <h2>Tài khoản và phân công</h2>
-        {d.assignments?.map((a,i)=><div className="metric" key={i}><span>{d.users.find(u=>u.id===a.user_id)?.full_name}<small>{d.properties.find(p=>p.id===a.property_id)?.name}{a.room_id?" · Phòng "+rooms.find(r=>r.id===a.room_id)?.room_code:" · Toàn khu"}</small></span><span>{a.is_active?"Đang phân công":"Đã thu hồi"}</span></div>)}
-          <div className="actions">
-            <button
-              onClick={() =>
-                showForm(
-                  "Tạo tài khoản",
-                  [
-                    f("username", "Tên đăng nhập"),
-                    f("password", "Mật khẩu (ít nhất 12 ký tự)", "password", {
-                      minLength: 12,
-                    }),
-                    f("fullName", "Họ tên"),
-                    f("phone", "Điện thoại"),
-                    f("email", "Email", "email", { optional: true }),
-                    f("role", "Vai trò", "select", {
-                      options: [
-                        ["STAFF", "Nhân viên"],
-                        ["TENANT", "Người thuê"],
-                        ["ADMIN", "Chủ nhà"],
-                      ],
-                    }),
-                  ],
-                  "/users",
-                )
-              }
-            >
-              Tạo tài khoản
-            </button>
-            <button
-              onClick={() =>
-                showForm(
-                  "Phân công nhân viên",
-                  [
-                    f("userId", "Nhân viên", "select", {
-                      options: d.users
-                        .filter((u) => u.role === "STAFF")
-                        .map((u) => [u.id, u.full_name]),
-                    }),
-                    f("propertyId", "Khu nhà", "select", { options: prop }),
-                    f("roomId", "Phòng (để trống để giao toàn khu)", "select", {optional:true, options:rooms.map(r=>[r.id,r.property_name+" · "+r.room_code]), dependsOn:"propertyId", source:rooms, parentKey:"property_id"}),
-                    f("active", "Kích hoạt phân công", "boolean"),
-                  ],
-                  "/assignments",
-                  "POST",
-                  { active: true },
-                )
-              }
-            >
-              Phân công
-            </button>
-            <button
-              onClick={() =>
-                showForm(
-                  "Thông báo chung",
-                  [f("message", "Nội dung", "textarea")],
-                  "/notifications/announce",
-                )
-              }
-            >
-              Thông báo chung
-            </button>
-          </div>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Người dùng</th>
-                  <th>Đăng nhập</th>
-                  <th>Vai trò</th>
-                  <th>Trạng thái</th>
-                  <th>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {d.users.map((u) => (
-                  <tr key={u.id}>
-                    <td>{u.id}</td>
-                    <td>{u.full_name}</td>
-                    <td>{u.username}</td>
-                    <td>{labels[u.role]}</td>
-                    <td>
-                      <Badge value={u.status} />
-                    </td>
-                    <td>
-                      <div className="actions">
-                        <button
-                          onClick={() =>
-                            run(() =>
-                              mutate(
-                                "/users/" + u.id + "/status",
-                                "PUT",
-                                {
-                                  status:
-                                    u.status === "ACTIVE" ? "LOCKED" : "ACTIVE",
-                                },
-                                "Đã cập nhật tài khoản.",
-                              ),
-                            )
-                          }
-                        >
-                          {u.status === "ACTIVE" ? "Khóa" : "Mở khóa"}
-                        </button>
-                        <button
-                          onClick={() =>
-                            run(async () => {
-                              const c = await api(
-                                "/users/" + u.id + "/reset-code",
-                                "POST",
-                              );
-                              navigator.clipboard?.writeText(c.code);
-                              window.prompt(
-                                "Mã đặt lại mật khẩu, hết hạn sau 15 phút. Chuyển cho chủ tài khoản đã xác minh:",
-                                c.code,
-                              );
-                            })
-                          }
-                        >
-                          Mã đặt lại
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-      <section className="card">
-        <h2>Bảo mật tài khoản</h2>
-        <button
-          onClick={() =>
-            showForm(
-              "Đổi mật khẩu",
-              [
-                f("oldPassword", "Mật khẩu hiện tại", "password"),
-                f(
-                  "newPassword",
-                  "Mật khẩu mới (ít nhất 12 ký tự)",
-                  "password",
-                  { minLength: 12 },
-                ),
-              ],
-              "/auth/change-password",
-              "POST",
-              {},
-              () => {
-                saveSession(null);
-                window.dispatchEvent(new Event("session-expired"));
-              },
-            )
-          }
-        >
-          Đổi mật khẩu
-        </button>
-      </section>
-      <section className="card">
-        <h2>Lịch bảo trì định kỳ</h2>
-        {schedules.length ? (
-          schedules.map((s) => (
-            <div className="metric" key={s.id}>
-              <span>
-                {s.title}
-                <small>
-                  {d.properties.find((p) => p.id === s.property_id)?.name} · Lặp
-                  mỗi {s.interval_days} ngày
-                </small>
-              </span>
-              <strong>{s.next_date}</strong>
-              <button
-                onClick={() =>
-                  run(async () => {
-                    await mutate(
-                      "/maintenance-schedules/" + s.id + "/complete",
-                      "POST",
-                      undefined,
-                      "Đã hoàn tất kỳ bảo trì.",
-                    );
-                    setSchedules(await api("/maintenance-schedules"));
-                  })
-                }
-              >
-                Hoàn tất kỳ
-              </button>
-            </div>
-          ))
-        ) : (
-          <p className="muted">Chưa có lịch bảo trì.</p>
-        )}
-      </section>
-      <section className="card">
-        <h2>Phân tích và báo cáo</h2>
-        <div className="actions">
-          <button
-            onClick={() =>
-              run(async () =>
-                setReports({
-                  revenue: await api("/reports/revenue"),
-                  quarterly: await api("/reports/revenue-quarterly"),
-                  history: await api("/reports/occupancy-history"),
-                  debts: await api("/reports/debts"),
-                  occupancy: await api("/reports/occupancy"),
-                  maintenance: await api("/reports/maintenance"),
-                }),
-              )
-            }
-          >
-            Xem báo cáo
-          </button>
-          <button
-            onClick={() => run(() => download("/reports/pdf", "bao-cao.pdf"))}
-          >
-            Tải PDF
-          </button>
-          <button
-            onClick={() =>
-              run(() => download("/reports/debts.csv", "cong-no.csv"))
-            }
-          >
-            Xuất công nợ CSV
-          </button>
-        </div>
-        {reports && (
-          <>
-            <h2>Doanh thu theo kỳ</h2>
-            {reports.revenue.map((r) => (
-              <div className="metric" key={r.billing_period}>
-                <span>{r.billing_period}</span>
-                <span>
-                  Đã lập: {money(r.billed)}
-                  <small>
-                    Đã thu: {money(r.collected)} · Nợ: {money(r.outstanding)}
-                  </small>
-                </span>
-              </div>
-            ))}
-            <h2>Doanh thu theo quý</h2>
-            {reports.quarterly.map(r=><div className="metric" key={r.quarter}><span>{r.quarter}</span><span>Đã lập: {money(r.billed)}<small>Đã thu: {money(r.collected)} · Nợ: {money(r.outstanding)}</small></span></div>)}
-            <h2>Tỷ lệ lấp đầy hiện tại</h2>
-            {reports.occupancy.map((r) => (
-              <div className="metric" key={r.id}>
-                <span>{r.name}</span>
-                <span>
-                  {r.rented_rooms}/{r.total_rooms} phòng ·{" "}
-                  {r.occupancy_percentage || 0}%
-                </span>
-              </div>
-            ))}
-            <h2>Lấp đầy cuối tháng (12 tháng gần nhất)</h2>
-            {reports.history.map((r,i)=><div className="metric" key={i}><span>{r.period} · {r.name}</span><span>{r.occupied_rooms}/{r.total_rooms} phòng</span></div>)}
-            <h2>Chi phí bảo trì</h2>
-            {reports.maintenance.map((r, i) => (
-              <div className="metric" key={i}>
-                <span>
-                  {r.period} · {labels[r.category] || r.category} · {labels[r.status]}
-                </span>
-                <span>
-                  {r.total} sự cố · {money(r.cost)}
-                </span>
-              </div>
-            ))}
-          </>
-        )}
-      </section>
-      {admin && (
-        <section className="card">
-          <h2>Nhật ký và chính sách hóa đơn</h2>
-          <div className="actions">
-            <button
-              onClick={() =>
-                run(async () => setAuditLogs(await api("/audit-logs")))
-              }
-            >
-              Xem nhật ký thao tác
-            </button>
-            {d.properties.map((p) => (
-              <button
-                key={p.id}
-                onClick={() =>
-                  showForm(
-                    "Chính sách hóa đơn · " + p.name,
-                    [
-                      f("meterCutoffDay", "Ngày chốt số (1–31)", "number"),
-                      f(
-                        "invoiceIssueDay",
-                        "Ngày phát hành tháng sau (1–28)",
-                        "number",
-                      ),
-                      f("lateFeeEnabled", "Bật phí chậm thanh toán", "boolean"),
-                      f("lateFeePercentage", "Tỷ lệ phí chậm (%)", "number"),
-                    ],
-                    "/properties/" + p.id + "/billing-policy",
-                    "PUT",
-                    {
-                      meterCutoffDay: p.meter_cutoff_day,
-                      invoiceIssueDay: p.invoice_issue_day,
-                      lateFeeEnabled: p.late_fee_enabled,
-                      lateFeePercentage: p.late_fee_percentage,
-                    },
-                  )
-                }
-              >
-                Chính sách · {p.name}
-              </button>
-            ))}
-          </div>
-          {auditLogs && (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Thời gian</th>
-                    <th>Người thực hiện</th>
-                    <th>Thao tác</th>
-                    <th>Dữ liệu</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {auditLogs.map((a) => (
-                    <tr key={a.id}>
-                      <td>{new Date(a.created_at).toLocaleString("vi-VN")}</td>
-                      <td>{a.full_name}</td>
-                      <td>{a.action}</td>
-                      <td>
-                        {a.resource_type} #{a.resource_id}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-      )}
-    </>
-  );
+  const prop=d.properties.map(p=>[p.id,p.name]);
+  return <>
+    <section className="card"><h2>Dịch vụ và đơn giá</h2>
+      {admin && <div className="actions">
+        <button onClick={()=>showForm("Thêm dịch vụ",[f("code","Mã dịch vụ"),f("name","Tên dịch vụ"),f("calculationType","Cách tính","select",{options:[["PER_ROOM","Theo phòng"],["PER_PERSON","Theo người"]]}),f("unitName","Đơn vị")],"/services")}>Thêm dịch vụ</button>
+        <button onClick={()=>showForm("Thiết lập đơn giá",[f("propertyId","Khu nhà","select",{options:prop}),f("serviceId","Dịch vụ","select",{options:d.services.map(v=>[v.id,v.name])}),f("unitPrice","Đơn giá","number"),f("effectiveFrom","Áp dụng từ","date")],"/prices")}>Thiết lập đơn giá</button>
+        <button onClick={()=>showForm("Ngưỡng cảnh báo theo khu",[f("propertyId","Khu nhà","select",{options:prop}),f("percentage","Tăng trên (%)","number"),f("months","Số tháng lịch sử","number")],"/thresholds","POST",{percentage:50,months:3})}>Ngưỡng cảnh báo</button>
+      </div>}
+      <div className="table-wrap"><table><thead><tr><th>Khu</th><th>Dịch vụ</th><th>Đơn giá</th><th>Áp dụng từ</th></tr></thead><tbody>{d.prices.map(p=><tr key={p.id}><td>{d.properties.find(x=>x.id===p.property_id)?.name}</td><td>{p.name}</td><td>{money(p.unit_price)}</td><td>{p.effective_from}</td></tr>)}</tbody></table></div>
+    </section>
+    <section className="card"><h2>Chính sách tính tiền</h2>{d.properties.map(p=><div className="metric" key={p.id}><div><strong>{p.name}</strong><p>Chốt số: ngày {p.meter_cutoff_day} · Phát hành: ngày {p.invoice_issue_day} tháng sau · Cảnh báo: tăng trên {p.alert_threshold_percentage}% so với {p.alert_history_months} tháng trước</p></div>{admin&&<button onClick={()=>showForm("Lịch tính tiền",[f("meterCutoffDay","Ngày chốt số (1–31)","number"),f("invoiceIssueDay","Ngày phát hành (1–28)","number")],"/properties/"+p.id+"/billing-policy","PUT",{meterCutoffDay:p.meter_cutoff_day,invoiceIssueDay:p.invoice_issue_day})}>Cập nhật</button>}</div>)}</section>
+    {admin&&<section className="card"><h2>Tài khoản và phân công</h2><div className="actions">
+      <button onClick={()=>showForm("Tạo tài khoản",[f("username","Tên đăng nhập"),f("password","Mật khẩu (tối thiểu 12 ký tự)","password"),f("role","Vai trò","select",{options:[["STAFF","Nhân viên"],["TENANT","Người thuê"],["ADMIN","Chủ nhà"]]})],"/users")}>Tạo tài khoản</button>
+      <button onClick={()=>showForm("Phân công nhân viên",[f("userId","Nhân viên","select",{options:d.users.filter(u=>u.role==="STAFF").map(u=>[u.id,u.username])}),f("propertyId","Khu nhà","select",{options:prop})],"/assignments")}>Phân công theo khu</button>
+    </div><div className="table-wrap"><table><thead><tr><th>Tài khoản</th><th>Vai trò</th><th>Trạng thái</th><th></th></tr></thead><tbody>{d.users.map(u=><tr key={u.id}><td>{u.username}</td><td>{u.role}</td><td>{labels[u.status]||u.status}</td><td>{u.id!==getSession().user.id&&<button onClick={()=>showForm("Trạng thái tài khoản",[f("status","Trạng thái","select",{options:[["ACTIVE","Hoạt động"],["LOCKED","Khóa"],["INACTIVE","Ngừng hoạt động"]]})],"/users/"+u.id+"/status","PUT",{status:u.status})}>Cập nhật</button>}</td></tr>)}</tbody></table></div>
+    {d.assignments.map(a=><div className="metric" key={a.id}><span>{a.full_name} · {a.property_name} · {a.is_active?"Đang phân công":"Đã thu hồi"}</span>{a.is_active&&<button onClick={()=>run(()=>mutate("/assignments/"+a.id,"DELETE"))}>Thu hồi</button>}</div>)}
+    </section>}
+  </>;
 }
 
 function CalendarPreview({contractId,period}) {
   const [calendar,setCalendar]=useState(null);
-  useEffect(()=>{let active=true;setCalendar(null);if(contractId && period)api("/contracts/"+contractId+"/billing-calendar?period="+period).then(v=>{if(active)setCalendar(v);}).catch(()=>{});return()=>{active=false;};},[contractId,period]);
+  useEffect(()=>{let active=true;setCalendar(null);if(contractId && period)api("/contracts/"+contractId+"/billing-calendar?period="+period.slice(0,7)).then(v=>{if(active)setCalendar(v);}).catch(()=>{});return()=>{active=false;};},[contractId,period]);
   return calendar?<p className="muted calendar-preview">Chốt số từ {calendar.cutoffDate} · Phát hành {calendar.issueDate} · Hạn thanh toán {calendar.dueDate}</p>:null;
 }
 function ProtectedImage({src,alt}) {
@@ -2209,106 +1664,17 @@ function FormDialog({ spec: s, onClose, onSave }) {
   );
 }
 function Login({ onLogin }) {
-  const [username, setUsername] = useState(""),
-    [password, setPassword] = useState(""),
-    [error, setError] = useState(""),
-    [busy, setBusy] = useState(false),
-    [reset, setReset] = useState(false);
-  return (
-    <div className="login">
-      <section className="card login-card">
-        <div className="brand">
-          <Building2 size={28} />
-          <span>
-            Nhà Trọ<small>Quản lý minh bạch</small>
-          </span>
-        </div>
-        <h1>{reset ? "Đặt lại mật khẩu" : "Đăng nhập"}</h1>
-        <p className="muted">
-          {reset
-            ? "Nhận mã xác nhận từ chủ nhà sau khi xác minh tài khoản."
-            : "Theo dõi phòng, hợp đồng và từng khoản trong hóa đơn."}
-        </p>
-        <form
-          onSubmit={async (e) => {
-            e.preventDefault();
-            if (busy) return;
-            setBusy(true);
-            setError("");
-            try {
-              if (reset) {
-                await api("/auth/reset-password", "POST", {
-                  code: username,
-                  newPassword: password,
-                });
-                setReset(false);
-                setUsername("");
-                setPassword("");
-                setError("Đã đặt lại mật khẩu. Hãy đăng nhập.");
-              } else
-                onLogin(
-                  await api("/auth/login", "POST", { username, password }),
-                );
-            } catch (e) {
-              setError(e.message);
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          <label>
-            {reset ? "Mã đặt lại" : "Tên đăng nhập"}
-            <input
-              required
-              autoComplete="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-            />
-          </label>
-          <label>
-            {reset ? "Mật khẩu mới" : "Mật khẩu"}
-            <input
-              required
-              minLength={reset ? 12 : undefined}
-              type="password"
-              autoComplete={reset ? "new-password" : "current-password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </label>
-          {error && (
-            <p className="banner error" role="alert">
-              {error}
-            </p>
-          )}
-          <button
-            className="primary full"
-            aria-busy={busy}
-            aria-disabled={busy}
-            onClick={(e) => {
-              if (busy) e.preventDefault();
-            }}
-          >
-            {busy && <RefreshCw className="spin" size={16} />}{" "}
-            {reset ? "Đặt lại mật khẩu" : "Đăng nhập"}
-          </button>
-          <button
-            type="button"
-            className="full"
-            onClick={() => {
-              setReset(!reset);
-              setError("");
-            }}
-          >
-            {reset ? "Quay lại đăng nhập" : "Quên mật khẩu"}
-          </button>
-        </form>
-        <div className="login-note">
-          <ShieldCheck size={18} />
-          <span>Dữ liệu được bảo vệ theo vai trò và phạm vi quản lý.</span>
-        </div>
-      </section>
-    </div>
-  );
+  const [username,setUsername]=useState(""),[password,setPassword]=useState(""),[error,setError]=useState(""),[busy,setBusy]=useState(false);
+  return <div className="login"><section className="card login-card">
+    <div className="brand"><Building2 size={28}/><span>Nhà Trọ<small>Quản lý minh bạch</small></span></div>
+    <h1>Đăng nhập</h1><p className="muted">Theo dõi phòng, hợp đồng và từng khoản trong hóa đơn.</p>
+    <form onSubmit={async e=>{e.preventDefault();if(busy)return;setBusy(true);setError("");try{onLogin(await api("/auth/login","POST",{username,password}));}catch(e){setError(e.message);}finally{setBusy(false);}}}>
+      <label>Tên đăng nhập<input required autoComplete="username" value={username} onChange={e=>setUsername(e.target.value)}/></label>
+      <label>Mật khẩu<input required type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)}/></label>
+      {error&&<p className="banner error" role="alert">{error}</p>}
+      <button className="primary full" disabled={busy} aria-busy={busy}>{busy&&<RefreshCw className="spin" size={16}/>} Đăng nhập</button>
+    </form>
+    <div className="login-note"><ShieldCheck size={18}/><span>Dữ liệu được bảo vệ theo vai trò và phạm vi quản lý.</span></div>
+  </section></div>;
 }
 createRoot(document.getElementById("root")).render(<App />);

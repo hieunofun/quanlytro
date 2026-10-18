@@ -12,29 +12,21 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
+import java.security.*;
+import java.util.*;
 import javax.crypto.SecretKey;
 @Component
 public class JwtFilter extends OncePerRequestFilter {
-    private final JdbcTemplate db;
-    public final SecretKey key;
-    public JwtFilter(JdbcTemplate db, @Value("${app.jwt.secret}") String secret) {
-        this.db = db; key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-    }
-    @Override protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain) throws ServletException, IOException {
-        String header = req.getHeader("Authorization");
-        if (header != null && header.startsWith("Bearer ")) {
-            try {
-                var claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(header.substring(7)).getPayload();
-                String id = claims.getSubject();
-                var users = db.queryForList("select id, role from users where id=? and status='ACTIVE' and token_version=? and (locked_until is null or locked_until < current_timestamp)", Long.parseLong(id), claims.get("ver", Integer.class));
-                if (!users.isEmpty()) {
-                    var user = users.getFirst();
-                    SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(user.get("id").toString(), null,
-                        List.of(new SimpleGrantedAuthority("ROLE_" + user.get("role")))));
-                }
-            } catch (io.jsonwebtoken.JwtException | IllegalArgumentException ignored) { SecurityContextHolder.clearContext(); }
-        }
-        chain.doFilter(req, res);
-    }
+ private final JdbcTemplate db;private final SessionRegistry sessions;public final SecretKey key;
+ public JwtFilter(JdbcTemplate db,SessionRegistry sessions,@Value("${app.jwt.secret}") String secret){this.db=db;this.sessions=sessions;key=Keys.hmacShaKeyFor((secret+UUID.randomUUID()).getBytes(StandardCharsets.UTF_8));}
+ public static String fingerprint(Map<String,Object> u){try{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest((u.get("password_hash")+":"+u.get("role")+":"+u.get("created_at")).getBytes(StandardCharsets.UTF_8)));}catch(NoSuchAlgorithmException e){throw new IllegalStateException(e);}}
+ @Override protected void doFilterInternal(HttpServletRequest req,HttpServletResponse res,FilterChain chain)throws ServletException,IOException{
+  String h=req.getHeader("Authorization");
+  if(h!=null && h.startsWith("Bearer "))try{
+   var c=Jwts.parser().verifyWith(key).build().parseSignedClaims(h.substring(7)).getPayload();long id=Long.parseLong(c.getSubject());
+   var rows=db.queryForList("select * from users where id=? and status='ACTIVE'",id);
+   if(!rows.isEmpty() && !sessions.locked(id) && Long.valueOf(sessions.epoch(id)).equals(c.get("epoch",Long.class)) && fingerprint(rows.getFirst()).equals(c.get("fp",String.class)))SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(Long.toString(id),null,List.of(new SimpleGrantedAuthority("ROLE_"+rows.getFirst().get("role")))));
+  }catch(io.jsonwebtoken.JwtException|IllegalArgumentException ignored){SecurityContextHolder.clearContext();}
+  chain.doFilter(req,res);
+ }
 }

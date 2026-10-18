@@ -10,7 +10,7 @@ import java.util.*;
 public class InvoiceController {
     private final Database db;private final Access access;private final InvoiceService invoices;
     public InvoiceController(Database db,Access access,InvoiceService invoices) {this.db=db;this.access=access;this.invoices=invoices;}
-    @GetMapping("/invoices") public Object list() {return db.rows("select i.*,r.room_code,t.full_name from invoices i join contracts c on c.id=i.contract_id join rooms r on r.id=c.room_id join tenant_profiles t on t.id=c.primary_tenant_id where "+access.contractScope("c")+(access.role().equals("TENANT")?" and i.status='ISSUED'":"")+" order by i.id desc");}
+    @GetMapping("/invoices") public Object list() {return db.rows("select i.*,r.room_code,t.full_name from v_invoice_balances i join contracts c on c.id=i.contract_id join rooms r on r.id=c.room_id join tenant_profiles t on t.id=c.primary_tenant_id where "+access.contractScope("c")+(access.role().equals("TENANT")?" and i.status='ISSUED'":"")+" order by i.id desc");}
     @GetMapping("/invoices/{id}") public Object detail(@PathVariable long id) {return invoices.detail(id);}
     @PostMapping("/invoices") public Object create(@Valid @RequestBody Invoice r) {return invoices.create(r);}
     @PostMapping("/invoices/{id}/issue") public Object issue(@PathVariable long id) {return invoices.issue(id);}

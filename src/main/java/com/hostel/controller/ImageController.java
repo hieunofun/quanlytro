@@ -21,26 +21,14 @@ public class ImageController {
     public ImageController(Database db,Access access,Audit audit,@Value("${app.upload-directory:.runtime/uploads}") String directory) {
         this.db=db;this.access=access;this.audit=audit;this.directory=Path.of(directory).toAbsolutePath().normalize();
     }
-    @PostMapping(value="/rooms/{id}/images",consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Transactional public Object roomImage(@PathVariable long id,@RequestParam MultipartFile file) throws IOException {
-        access.manager();access.room(id);db.one("select id from rooms where id=? for update",id);
-        require(db.jdbc.queryForObject("select count(*) from room_images where room_id=?",Long.class,id)<12,"Tối đa 12 ảnh mỗi phòng");
-        var image=store(file,id,null);db.insert("room_images","room_id,url",id,image.get("url"));return image;
-    }
     @PostMapping(value="/maintenance-requests/{id}/images",consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Transactional public Object repairImage(@PathVariable long id,@RequestParam MultipartFile file) throws IOException {
-        access.maintenance(id);var m=db.one("select * from maintenance_requests where id=? for update",id);
-        require(!"COMPLETED".equals(m.get("status")),"Sự cố đã hoàn thành");
-        var urls=new ArrayList<>(Arrays.asList(m.get("image_urls").toString().split("\n")));urls.removeIf(String::isBlank);
-        require(urls.size()<12,"Tối đa 12 ảnh mỗi sự cố");
-        var image=store(file,null,id);urls.add(image.get("url").toString());
-        db.jdbc.update("update maintenance_requests set image_urls=? where id=?",String.join("\n",urls),id);return image;
+    @Transactional public Object repairImage(@PathVariable long id,@RequestParam MultipartFile file)throws IOException {
+        var m=access.maintenance(id);db.one("select id from maintenance_requests where id=? for update",id);
+        require(!"COMPLETED".equals(m.get("status")),"Request already completed");
+        require(db.jdbc.queryForObject("select count(*) from maintenance_images where maintenance_request_id=?",Long.class,id)<12,"Maximum 12 images");
+        return store(file,id);
     }
-    @DeleteMapping("/rooms/{id}/images/{imageId}") @Transactional public Object remove(@PathVariable long id,@PathVariable long imageId) {
-        access.manager();access.room(id);var before=db.one("select * from room_images where id=? and room_id=?",imageId,id);
-        db.jdbc.update("delete from room_images where id=?",imageId);audit.log("REMOVE_IMAGE","rooms",id,before,null);return Map.of("id",imageId);
-    }
-    private Map<String,Object> store(MultipartFile file,Long roomId,Long repairId) throws IOException {
+    private Map<String,Object> store(MultipartFile file,long repairId) throws IOException {
         require(!file.isEmpty() && file.getSize()<=6*1024*1024,"Ảnh phải nhỏ hơn hoặc bằng 6 MB");
         byte[] bytes=file.getBytes();String format;
         try(var stream=ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
@@ -63,20 +51,15 @@ public class ImageController {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override public void afterCompletion(int status) {if(status!=STATUS_COMMITTED) try {Files.deleteIfExists(target);}catch(IOException ignored) {}}
         });
-        db.jdbc.update("insert into uploaded_images(id,room_id,maintenance_request_id,original_name,content_type,extension,size_bytes,uploaded_by) values(?,?,?,?,?,?,?,?)",id,roomId,repairId,original,type,extension,bytes.length,access.userId());
-        audit.log("UPLOAD_IMAGE",roomId==null?"maintenance_requests":"rooms",roomId==null?repairId:roomId,null,id);
-        return Map.of("id",id,"url","/api/uploads/"+id,"name",original);
+        String url="/api/uploads/"+id+"."+extension;
+        long image=db.insert("maintenance_images","maintenance_request_id,url,uploaded_by",repairId,url,access.userId());
+        return Map.of("id",image,"url",url,"name",original);
     }
-    @GetMapping("/uploads/{id}") public ResponseEntity<ByteArrayResource> image(@PathVariable UUID id) throws IOException {
-        var i=db.one("select * from uploaded_images where id=?",id);
-        if(i.get("room_id")!=null) {
-            access.room(id(i,"room_id"));
-            require(db.jdbc.queryForObject("select count(*) from room_images where room_id=? and url=?",Long.class,i.get("room_id"),"/api/uploads/"+id)>0,"Ảnh đã được gỡ khỏi phòng");
-        } else access.maintenance(id(i,"maintenance_request_id"));
-        Path path=directory.resolve(id+"."+i.get("extension")).normalize();
-        if(!Files.isRegularFile(path)) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Không tìm thấy tệp ảnh");
-        return ResponseEntity.ok().contentType(MediaType.parseMediaType(i.get("content_type").toString()))
-            .cacheControl(CacheControl.noStore()).header("X-Content-Type-Options","nosniff")
-            .body(new ByteArrayResource(Files.readAllBytes(path)));
+    @GetMapping("/uploads/{file}") public ResponseEntity<ByteArrayResource> image(@PathVariable String file)throws IOException {
+        require(file.matches("[a-f0-9-]{36}\\.(jpg|png)"),"Invalid image name");
+        var i=db.one("select * from maintenance_images where url=?","/api/uploads/"+file);
+        access.maintenance(id(i,"maintenance_request_id"));Path target=directory.resolve(file).normalize();
+        if(!target.getParent().equals(directory)||!Files.isRegularFile(target))throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Image file not found");
+        return ResponseEntity.ok().contentType(file.endsWith(".png")?MediaType.IMAGE_PNG:MediaType.IMAGE_JPEG).cacheControl(CacheControl.noStore()).header("X-Content-Type-Options","nosniff").body(new ByteArrayResource(Files.readAllBytes(target)));
     }
 }

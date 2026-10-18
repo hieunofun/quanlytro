@@ -451,7 +451,7 @@ lines+=['','## Quy tắc dữ liệu','',
  '- [Ca kiểm tra DB](database-cases.sql), [kết quả thực thi](database-validation.json).',
  '- [Luồng hóa đơn](diagrams/thuyet-trinh-luong-hoa-don.svg), [luồng trả phòng](diagrams/thuyet-trinh-luong-tra-phong.svg).','',
  '## Phiên bản triển khai','',
- 'Đây là mô hình mục tiêu của bước 1–2. Backend 29 bảng V1–V9 là prototype riêng; chưa có migration/API chạy trên mô hình 17 bảng. Kết quả 40 ca và một ca đồng thời là kiểm tra SQL thiết kế trên database tạm, không phải kết quả kiểm thử API hoặc điểm chấm của giảng viên.','']
+ 'Hồ sơ bước 1–2 dùng mô hình 17 bảng. Backend đã được triển khai theo mô hình này bằng Flyway V10, giữ nguyên V1–V9 và lưu dữ liệu prototype trong schema prototype_v9. Kết quả 40 ca SQL thiết kế được tách khỏi kiểm chứng backend/API; xem BACKEND-17-TABLES.md và backend-validation.json cho phần triển khai.','']
 (DOCS/'NOI-DUNG-THUYET-TRINH-BUOC-1-2.md').write_text('\n'.join(lines),encoding='utf-8')
 (DOCS/'presentation-content.json').write_text(json.dumps(CONTENT,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
 print(f'Created {OUT.name}: {len(prs.slides)} slides, native text/tables/diagrams, no notes.')

@@ -262,4 +262,4 @@ Phân tích yêu cầu và thiết kế cơ sở dữ liệu — học phần K�
 
 ## Phiên bản triển khai
 
-Đây là mô hình mục tiêu của bước 1–2. Backend 29 bảng V1–V9 là prototype riêng; chưa có migration/API chạy trên mô hình 17 bảng. Kết quả 40 ca và một ca đồng thời là kiểm tra SQL thiết kế trên database tạm, không phải kết quả kiểm thử API hoặc điểm chấm của giảng viên.
+Hồ sơ bước 1–2 dùng mô hình 17 bảng. Backend đã được triển khai theo mô hình này bằng Flyway V10, giữ nguyên V1–V9 và lưu dữ liệu prototype trong schema prototype_v9. Kết quả 40 ca SQL thiết kế được tách khỏi kiểm chứng backend/API; xem BACKEND-17-TABLES.md và backend-validation.json cho phần triển khai.

@@ -3,12 +3,12 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import assert from "node:assert/strict";
 const base = process.env.BASE_URL || "http://localhost:8080";
-const output = path.resolve("../docs/screenshots");
+const output = path.resolve(process.env.SCREENSHOT_DIR || "../.runtime/mvp-screenshots");
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch(
   process.env.CHROME_PATH
     ? { executablePath: process.env.CHROME_PATH, headless: true }
-    : { channel: "chrome", headless: true },
+    : { channel: process.env.BROWSER_CHANNEL || "chrome", headless: true },
 );
 const errors = [];
 try {
@@ -44,7 +44,6 @@ try {
     "Điện nước",
     "Hóa đơn",
     "Sự cố",
-    "Thông báo",
     "Thiết lập",
   ]) {
     await page
@@ -151,7 +150,7 @@ try {
     JSON.stringify(
       {
         status: "PASS",
-        pages: 9,
+        pages: 8,
         roles: ["ADMIN", "TENANT"],
         viewports: [1440, 375],
         screenshots: 5,

@@ -355,7 +355,7 @@ Table maintenance_images [headercolor: #315775] {
 
 Ref checkout_records_contract_id_fkey: contracts.id - checkout_records.contract_id [delete: restrict]
 Ref checkout_records_settled_by_fkey: checkout_records.settled_by > users.id [delete: restrict]
-Ref consumption_alerts_checked_by_fkey: consumption_alerts.checked_by > users.id [delete: restrict]
+Ref consumption_alerts_checked_by_fkey: consumption_alerts.checked_by >? users.id [delete: restrict]
 Ref consumption_alerts_meter_reading_id_fkey: meter_readings.id - consumption_alerts.meter_reading_id [delete: cascade]
 Ref contract_members_contract_id_fkey: contract_members.contract_id > contracts.id [delete: restrict]
 Ref contract_members_tenant_id_fkey: contract_members.tenant_id > tenant_profiles.id [delete: restrict]
@@ -364,12 +364,12 @@ Ref contracts_room_id_fkey: contracts.room_id > rooms.id [delete: restrict]
 Ref employee_assignments_property_id_fkey: employee_assignments.property_id > properties.id [delete: restrict]
 Ref employee_assignments_user_id_fkey: employee_assignments.user_id > users.id [delete: restrict]
 Ref invoice_items_invoice_id_fkey: invoice_items.invoice_id > invoices.id [delete: cascade]
-Ref invoice_items_meter_reading_id_fkey: meter_readings.id - invoice_items.meter_reading_id [delete: restrict]
-Ref invoice_items_service_item_id_fkey: invoice_items.service_item_id > service_items.id [delete: restrict]
+Ref invoice_items_meter_reading_id_fkey: meter_readings.id ?- invoice_items.meter_reading_id [delete: restrict]
+Ref invoice_items_service_item_id_fkey: invoice_items.service_item_id >? service_items.id [delete: restrict]
 Ref invoices_contract_id_fkey: invoices.contract_id > contracts.id [delete: restrict]
 Ref maintenance_images_maintenance_request_id_fkey: maintenance_images.maintenance_request_id > maintenance_requests.id [delete: cascade]
 Ref maintenance_images_uploaded_by_fkey: maintenance_images.uploaded_by > users.id [delete: restrict]
-Ref maintenance_requests_assigned_to_fkey: maintenance_requests.assigned_to > users.id [delete: restrict]
+Ref maintenance_requests_assigned_to_fkey: maintenance_requests.assigned_to >? users.id [delete: restrict]
 Ref maintenance_requests_contract_id_fkey: maintenance_requests.contract_id > contracts.id [delete: restrict]
 Ref maintenance_requests_submitted_by_fkey: maintenance_requests.submitted_by > users.id [delete: restrict]
 Ref meter_readings_contract_id_fkey: meter_readings.contract_id > contracts.id [delete: restrict]
@@ -380,7 +380,7 @@ Ref payment_transactions_received_by_fkey: payment_transactions.received_by > us
 Ref rooms_property_id_fkey: rooms.property_id > properties.id [delete: restrict]
 Ref service_price_configs_property_id_fkey: service_price_configs.property_id > properties.id [delete: restrict]
 Ref service_price_configs_service_item_id_fkey: service_price_configs.service_item_id > service_items.id [delete: restrict]
-Ref tenant_profiles_user_id_fkey: users.id - tenant_profiles.user_id [delete: set null]
+Ref tenant_profiles_user_id_fkey: users.id ?- tenant_profiles.user_id [delete: set null]
 
 TableGroup TaiKhoan {
   users

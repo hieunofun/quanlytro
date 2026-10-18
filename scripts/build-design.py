@@ -72,7 +72,8 @@ def main():
         assert len(fk['columns'])==len(fk['parent_columns'])==1
         child=fk['table_name']+'.'+fk['columns'][0]; parent=fk['parent_table']+'.'+fk['parent_columns'][0]
         unique=any(c['kind'] in ('p','u') and c['table_name']==fk['table_name'] and c['columns']==fk['columns'] for c in metadata['constraints'])
-        relation=parent+' - '+child if unique else child+' > '+parent
+        nullable=not next(c['not_null'] for c in metadata['columns'] if c['table_name']==fk['table_name'] and c['name']==fk['columns'][0])
+        relation=parent+(' ?- ' if nullable else ' - ')+child if unique else child+(' >? ' if nullable else ' > ')+parent
         lines.append('Ref '+fk['name']+': '+relation+' [delete: '+actions[fk['on_delete']]+']')
     for group,names in GROUPS: lines+=['',f'TableGroup {group} {{',*['  '+n for n in names],'}']
     (ROOT/'docs/quanlytro.dbml').write_text('\n'.join(lines)+'\n',encoding='utf-8')

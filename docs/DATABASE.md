@@ -84,6 +84,10 @@ Hồ sơ bước 1–2 dùng **một mô hình mục tiêu duy nhất là 17 b�
 
 ## Cập nhật dbdiagram.io
 
-Mở sơ đồ → thay nội dung bằng `docs/quanlytro.dbml` → kiểm tra 17 bảng và 28 quan hệ → lưu sơ đồ mới. Không cần vẽ tay. EXCLUDE, chỉ mục có điều kiện và trigger phải xem thêm SQL; DBML ghi chú các chi tiết PostgreSQL không biểu diễn trực tiếp.
+Mở sơ đồ → thay nội dung bằng `docs/quanlytro.dbml` → kiểm tra 17 bảng và 28 quan hệ → lưu sơ đồ mới. Các quan hệ có FK cho phép NULL dùng ký hiệu `>?` hoặc `?-` để khớp với tính bắt buộc của cột và tránh cảnh báo trên dbdiagram.
+
+[Ảnh bố cục đã sắp xếp thủ công trên dbdiagram.io](diagrams/quanlytro-dbdiagram-manual.png): nhà/phòng và cư trú bên trái, hợp đồng ở giữa, điện nước và hóa đơn bên phải, tài khoản và sự cố phía dưới. DBML lưu cấu trúc, không chứa tọa độ kéo thả; cần đăng nhập và lưu sơ đồ trên dbdiagram để giữ bố cục. Ảnh là bản dự phòng của lần sắp xếp này.
+
+EXCLUDE, chỉ mục có điều kiện và trigger phải xem thêm SQL; DBML ghi chú các chi tiết PostgreSQL không biểu diễn trực tiếp.
 
 Tham khảo cú pháp: [PostgreSQL — Constraints](https://www.postgresql.org/docs/18/ddl-constraints.html), [Trigger functions](https://www.postgresql.org/docs/18/plpgsql-trigger.html), [Explicit locking](https://www.postgresql.org/docs/18/explicit-locking.html).

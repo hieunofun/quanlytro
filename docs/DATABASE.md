@@ -12,7 +12,8 @@ Thiết kế mục tiêu cho MVP quản lý nhà trọ: **17 bảng, 138 cột, 
 - [SQL view và ràng buộc liên bảng](database-rules.sql).
 - [Ca kiểm tra thực thi](database-cases.sql), [kết quả kiểm tra](database-validation.json).
 - [Chứng minh chuẩn hóa và quyết định thiết kế](NORMALIZATION.md).
-- [ERD đầy đủ — PDF](diagrams/quanlytro-dbdiagram.pdf), [PNG](diagrams/quanlytro-dbdiagram.png), [SVG](diagrams/quanlytro-dbdiagram.svg).
+- [ERD chính thức từ dbdiagram.io — SVG](diagrams/quanlytro-dbdiagram-official.svg), [PNG](diagrams/quanlytro-dbdiagram-official.png), [PDF](diagrams/quanlytro-dbdiagram-official.pdf).
+- [ERD sinh tự động từ metadata — PDF](diagrams/quanlytro-dbdiagram.pdf), [PNG](diagrams/quanlytro-dbdiagram.png), [SVG](diagrams/quanlytro-dbdiagram.svg).
 
 ## Các thay đổi so với bản 16 bảng
 
@@ -57,7 +58,7 @@ python scripts/create-class-presentation.py
 python scripts/export-presentation-text.py
 ```
 
-PowerPoint có 20 trang chính và một trang ERD phụ lục; văn bản, bảng và sơ đồ trên slide là đối tượng chỉnh sửa được, không có speaker notes. PDF là bản xuất để trình chiếu dự phòng.
+PowerPoint có 20 trang chính và hai trang ERD phụ lục. Văn bản, bảng và các sơ đồ chi tiết là đối tượng chỉnh sửa được; trang 22 dùng ảnh xuất chính thức từ dbdiagram.io. Không có speaker notes. PDF là bản xuất để trình chiếu dự phòng. Tên nhóm ở trang 1 và thông tin thành viên, phần việc, tỷ lệ đóng góp ở trang 20 cần được nhóm điền theo thực tế.
 
 Đã thực thi **40 ca trên PostgreSQL 18.4**, cùng một ca thu tiền đồng thời: hóa đơn 1.000, hai kết nối cùng thu 600; một kết nối thành công, một bị từ chối, còn nợ 400. Chi tiết và số lượng đối tượng nằm trong `database-validation.json`.
 

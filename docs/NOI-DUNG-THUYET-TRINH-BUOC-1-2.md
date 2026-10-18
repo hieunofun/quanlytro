@@ -186,6 +186,11 @@ Phân tích yêu cầu và thiết kế cơ sở dữ liệu — học phần K�
 - Người gửi, người được giao và người đính kèm đều tham chiếu users.
 - Một yêu cầu có nhiều ảnh; mỗi dòng một URL.
 
+## Slide 22 — ERD tổng thể — 17 bảng
+
+- 17 bảng, 138 cột và 28 khóa ngoại; cùng mô hình với các ERD chi tiết.
+- Bản xuất chính thức từ dbdiagram.io: diagrams/quanlytro-dbdiagram-official.svg.
+
 # Phụ lục — danh mục Use Case
 
 **A:** ADMIN. **S:** STAFF theo khu được giao. **T:** TENANT theo hợp đồng mình đại diện. Hồ sơ chưa gắn hợp đồng do ADMIN tiếp nhận; STAFF tra cứu hồ sơ có căn cứ trong khu được giao.
@@ -251,7 +256,7 @@ Phân tích yêu cầu và thiết kế cơ sở dữ liệu — học phần K�
 - [Thiết kế và ràng buộc](DATABASE.md).
 - [Chứng minh chuẩn hóa](NORMALIZATION.md).
 - [DBML](quanlytro.dbml), [SQL](quanlytro.sql), [view và trigger](database-rules.sql).
-- [ERD PDF](diagrams/quanlytro-dbdiagram.pdf).
+- [ERD chính thức — SVG](diagrams/quanlytro-dbdiagram-official.svg), [PNG](diagrams/quanlytro-dbdiagram-official.png), [PDF](diagrams/quanlytro-dbdiagram-official.pdf).
 - [Ca kiểm tra DB](database-cases.sql), [kết quả thực thi](database-validation.json).
 - [Luồng hóa đơn](diagrams/thuyet-trinh-luong-hoa-don.svg), [luồng trả phòng](diagrams/thuyet-trinh-luong-tra-phong.svg).
 

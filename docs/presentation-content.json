@@ -522,5 +522,14 @@
       "Người gửi, người được giao và người đính kèm đều tham chiếu users.",
       "Một yêu cầu có nhiều ảnh; mỗi dòng một URL."
     ]
+  },
+  {
+    "slide": 22,
+    "title": "ERD tổng thể — 17 bảng",
+    "section": "PHỤ LỤC",
+    "items": [
+      "17 bảng, 138 cột và 28 khóa ngoại; cùng mô hình với các ERD chi tiết.",
+      "Bản xuất chính thức từ dbdiagram.io: diagrams/quanlytro-dbdiagram-official.svg."
+    ]
   }
 ]

@@ -381,7 +381,17 @@ CONTENT[-1]['items']=['Sự cố gắn hợp đồng; khu/phòng truy ra qua h�
  'Người gửi, người được giao và người đính kèm đều tham chiếu users.',
  'Một yêu cầu có nhiều ảnh; mỗi dòng một URL.']
 
-assert len(prs.slides)==21
+# 22: full diagram exported from the saved dbdiagram document.
+s=base('ERD tổng thể — 17 bảng','PHỤ LỤC',[
+ '17 bảng, 138 cột và 28 khóa ngoại; cùng mô hình với các ERD chi tiết.',
+ 'Bản xuất chính thức từ dbdiagram.io: diagrams/quanlytro-dbdiagram-official.svg.'])
+picture=s.shapes.add_picture(str(DOCS/'diagrams/quanlytro-dbdiagram-official.png'),0,0)
+scale=min(Inches(12.1)/picture.width,Inches(5.05)/picture.height)
+picture.width=int(picture.width*scale);picture.height=int(picture.height*scale)
+picture.left=int((prs.slide_width-picture.width)/2);picture.top=Inches(1.6)
+text(s,.8,6.72,11.8,.25,'17 bảng • 28 khóa ngoại • Bản xuất từ dbdiagram.io',13,False,MUTED)
+
+assert len(prs.slides)==22
 prs.save(OUT)
 with zipfile.ZipFile(OUT) as archive:
     assert not any(name.startswith('ppt/notesSlides/notesSlide') and name.endswith('.xml') for name in archive.namelist())
@@ -437,7 +447,7 @@ lines+=['','## Quy tắc dữ liệu','',
  '- [Thiết kế và ràng buộc](DATABASE.md).',
  '- [Chứng minh chuẩn hóa](NORMALIZATION.md).',
  '- [DBML](quanlytro.dbml), [SQL](quanlytro.sql), [view và trigger](database-rules.sql).',
- '- [ERD PDF](diagrams/quanlytro-dbdiagram.pdf).',
+ '- [ERD chính thức — SVG](diagrams/quanlytro-dbdiagram-official.svg), [PNG](diagrams/quanlytro-dbdiagram-official.png), [PDF](diagrams/quanlytro-dbdiagram-official.pdf).',
  '- [Ca kiểm tra DB](database-cases.sql), [kết quả thực thi](database-validation.json).',
  '- [Luồng hóa đơn](diagrams/thuyet-trinh-luong-hoa-don.svg), [luồng trả phòng](diagrams/thuyet-trinh-luong-tra-phong.svg).','',
  '## Phiên bản triển khai','',

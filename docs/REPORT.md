@@ -1,5 +1,7 @@
 # Báo cáo đồ án Java/Web
 
+> Báo cáo lịch sử của prototype trước Flyway V10. Hồ sơ báo cáo bước 1–2 hiện hành nằm trong [DATABASE.md](DATABASE.md); backend/API hiện hành xem [BACKEND-17-TABLES.md](BACKEND-17-TABLES.md).
+
 **Đề tài:** Hệ thống quản lý nhà trọ với hóa đơn minh bạch và cảnh báo tiêu thụ điện nước bất thường.
 
 **Thông tin cần điền trước khi nộp:** họ tên/MSSV, lớp, giảng viên hướng dẫn, tên trường. Chưa có thông tin nhóm trong yêu cầu nên không gán tên tác giả.

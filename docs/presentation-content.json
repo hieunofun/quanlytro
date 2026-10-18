@@ -6,7 +6,9 @@
     "items": [
       "Phân tích yêu cầu và thiết kế cơ sở dữ liệu",
       "Hóa đơn minh bạch — theo dõi công nợ — cảnh báo điện nước",
-      "Một chủ nhà, nhiều khu; ba tác nhân ADMIN / STAFF / TENANT"
+      "Một chủ nhà, nhiều khu; ba tác nhân ADMIN / STAFF / TENANT",
+      "Nhóm: gehihi",
+      "Thành viên: Nguyễn Doãn Huy, Phan Văn Hiếu, Nguyễn Trần Tuấn Khôi, Nie Phương Anh, Trần Đức Nguyên, Nguyễn Quang Trung"
     ]
   },
   {
@@ -44,7 +46,7 @@
       ],
       [
         "Người thuê\nTENANT",
-        "Xem hợp đồng, hóa đơn, giao dịch; gửi và theo dõi sự cố",
+        "Xem hợp đồng, hóa đơn đã phát hành, giao dịch; gửi và theo dõi sự cố",
         "Chỉ hợp đồng mình đại diện; không tự xác nhận thu tiền"
       ]
     ]
@@ -72,13 +74,13 @@
       ],
       [
         "Khu và phòng",
-        "Tạo khu/phòng; cập nhật phòng; chuyển phòng bảo trì",
-        "ADMIN; STAFF theo quyền"
+        "Tạo, cập nhật khu/phòng; ngừng khu; xóa phòng chưa có phụ thuộc",
+        "ADMIN; STAFF chỉ sửa phòng trong khu được giao"
       ],
       [
         "Người thuê",
         "Tạo, cập nhật hồ sơ; tra cứu người thuê",
-        "ADMIN; tra cứu có giới hạn"
+        "ADMIN tạo/sửa; STAFF/TENANT xem theo phạm vi"
       ],
       [
         "Hợp đồng",
@@ -95,31 +97,38 @@
     "table": [
       [
         "Nhóm chức năng",
-        "Use Case chính"
+        "Use Case chính",
+        "Tác nhân"
       ],
       [
         "Dịch vụ",
-        "Thiết lập đơn giá và ngưỡng cảnh báo theo khu"
+        "Thiết lập đơn giá và ngưỡng cảnh báo theo khu",
+        "ADMIN"
       ],
       [
         "Điện nước",
-        "Ghi chỉ số; sửa chỉ số cuối; kiểm tra cảnh báo"
+        "Ghi/sửa chỉ số cuối; kiểm tra cảnh báo",
+        "ADMIN / STAFF"
       ],
       [
         "Hóa đơn",
-        "Lập nháp; xóa nháp; phát hành; tra cứu hóa đơn"
+        "Lập/xóa nháp; phát hành; tra cứu hóa đơn",
+        "ADMIN / STAFF; TENANT xem bản phát hành"
       ],
       [
         "Thanh toán",
-        "Ghi nhận thanh toán; tra cứu công nợ; tổng hợp tiền thu"
+        "Ghi nhận thanh toán; tra cứu công nợ; tổng hợp thu",
+        "ADMIN / STAFF; TENANT xem của mình"
       ],
       [
         "Trả phòng",
-        "Chốt kỳ cuối; quyết toán; cấn cọc; xác định hoàn/thu thêm"
+        "Chốt kỳ cuối; quyết toán; cấn cọc; xác định hoàn/thu thêm",
+        "ADMIN / STAFF"
       ],
       [
         "Sự cố",
-        "Gửi yêu cầu; đính kèm ảnh; cập nhật và theo dõi tiến độ"
+        "Gửi yêu cầu; đính kèm ảnh; cập nhật, theo dõi tiến độ",
+        "TENANT gửi; ADMIN / STAFF xử lý"
       ]
     ]
   },
@@ -241,7 +250,7 @@
       [
         "Tiền, đơn giá",
         "NUMERIC(12,2)",
-        "Thập phân chính xác; làm tròn thành tiền"
+        "Số thập phân chính xác; nợ snapshot: NUMERIC(14,2)"
       ],
       [
         "Chỉ số điện nước",
@@ -289,7 +298,7 @@
       ],
       [
         "EXCLUDE",
-        "Không chồng khoảng thuê phòng hoặc khoảng cư trú của cùng thành viên"
+        "Không trùng khoảng thuê cùng phòng; cùng người không trùng khoảng trong một hợp đồng"
       ],
       [
         "Trigger + khóa hàng",
@@ -309,9 +318,14 @@
         "Cách biểu diễn"
       ],
       [
+        "0..1–0..1",
+        "Tài khoản–hồ sơ; chỉ số–dòng hóa đơn",
+        "FK cho phép NULL + UNIQUE"
+      ],
+      [
         "1–0..1",
-        "Tài khoản–hồ sơ; hợp đồng–quyết toán",
-        "UNIQUE trên FK; liên kết tùy chọn"
+        "Hợp đồng–quyết toán; chỉ số–cảnh báo",
+        "FK NOT NULL + UNIQUE ở bảng con"
       ],
       [
         "1–N",
@@ -353,13 +367,13 @@
       ],
       [
         "2NF",
-        "Thông tin chỉ phụ thuộc một phần khóa ghép",
-        "Không lưu họ tên ở thành viên; không lưu room_id ở chỉ số"
+        "Thuộc tính phi khóa phụ thuộc một phần khóa ứng viên ghép",
+        "tenant_id chỉ là một phần khóa cư trú: họ tên lưu tại tenant_profiles"
       ],
       [
         "3NF",
-        "Thông tin danh mục lặp qua bảng quan hệ",
-        "Hồ sơ người và danh mục dịch vụ lưu tại thực thể riêng"
+        "Phụ thuộc bắc cầu qua thuộc tính không phải siêu khóa",
+        "Sự cố chỉ lưu contract_id; suy ra room_id và property_id qua JOIN"
       ],
       [
         "Dữ liệu suy ra",
@@ -439,7 +453,7 @@
     "title": "Ví dụ hóa đơn và quyết toán",
     "section": "02  THIẾT KẾ CƠ SỞ DỮ LIỆU",
     "items": [
-      "Dữ liệu minh họa; các khoản nợ khác giả định bằng 0.",
+      "Dữ liệu minh họa: trả ngày 01/10/2026; các kỳ trước đã thanh toán, không có khoản nợ khác.",
       "Cấn cọc 1.680.000 tạo DEPOSIT_OFFSET; hóa đơn hết nợ nhưng tiền mới nhận vẫn là 2.000.000."
     ],
     "table": [
@@ -488,27 +502,39 @@
         "Đóng góp"
       ],
       [
+        "Nguyễn Doãn Huy\nMSSV: …………",
         "……………………",
-        "………………………………",
-        "Tài liệu / commit",
+        "…………",
         "…… %"
       ],
       [
+        "Phan Văn Hiếu\nMSSV: …………",
         "……………………",
-        "………………………………",
-        "Tài liệu / commit",
+        "…………",
         "…… %"
       ],
       [
+        "Nguyễn Trần Tuấn Khôi\nMSSV: …………",
         "……………………",
-        "………………………………",
-        "Tài liệu / commit",
+        "…………",
         "…… %"
       ],
       [
+        "Nie Phương Anh\nMSSV: …………",
         "……………………",
-        "………………………………",
-        "Tài liệu / commit",
+        "…………",
+        "…… %"
+      ],
+      [
+        "Trần Đức Nguyên\nMSSV: …………",
+        "……………………",
+        "…………",
+        "…… %"
+      ],
+      [
+        "Nguyễn Quang Trung\nMSSV: …………",
+        "……………………",
+        "…………",
         "…… %"
       ]
     ]

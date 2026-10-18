@@ -66,7 +66,7 @@ field.set(qn('w:instr'), 'PAGE')
 footer._p.append(field)
 
 doc.core_properties.title = 'Nội dung thuyết trình: Phân tích yêu cầu và thiết kế CSDL quản lý nhà trọ'
-doc.core_properties.subject = '20 slide chính, lời trình bày và phụ lục chuẩn bị hỏi đáp'
+doc.core_properties.subject = 'Nội dung 20 slide chính và hai trang ERD phụ lục'
 doc.core_properties.author = 'Nhóm thực hiện'
 
 lines = SOURCE.read_text(encoding='utf-8').splitlines()

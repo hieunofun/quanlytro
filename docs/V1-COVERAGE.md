@@ -1,5 +1,7 @@
 # Đối chiếu tài liệu V1
 
+> Tài liệu lịch sử của prototype trước Flyway V10. Chức năng và phân quyền hiện hành xem [backend 17 bảng](BACKEND-17-TABLES.md) và [API](API.md).
+
 Đối chiếu này mô tả bản triển khai thực tế, không coi các mục mở rộng là đã hoàn thành.
 
 | Nội dung V1 | Bản triển khai |

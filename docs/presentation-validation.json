@@ -1,19 +1,54 @@
 {
+  "recorded_at": "2026-10-18T22:26:04.466657+07:00",
   "slides": 22,
   "main_slides": 20,
   "appendix_slides": 2,
   "pdf_pages": 22,
   "speaker_notes": 0,
   "raster_images_in_deck": 1,
-  "native_objects": 463,
+  "native_objects": 470,
   "text_overflows": 0,
   "objects_outside_slide": 0,
-  "erd_pdf_pages": 1,
-  "erd_tables_verified": 17,
-  "database_cases_passed": 40,
-  "concurrent_payment_test_passed": true,
-  "all_passed": true,
-  "official_erd_tables_verified": 17,
-  "official_erd_columns_verified": 138,
-  "official_erd_foreign_keys_verified": 28
+  "all_pages_visually_reviewed": true,
+  "pdf_semantic_checks_passed": true,
+  "team_names_preserved": 6,
+  "team_rows": 6,
+  "relative_links_checked": 69,
+  "dbdiagram_anonymous_access": {
+    "status": 200,
+    "title": "Quan ly nha tro - ERD chinh thuc - dbdiagram.io",
+    "login_required": false,
+    "pdf_hyperlink_verified": true
+  },
+  "schema": {
+    "tables": 17,
+    "columns": 138,
+    "primary_keys": 17,
+    "foreign_keys": 28,
+    "checks": 55,
+    "exclusion_constraints": 2,
+    "views": 6
+  },
+  "existing_test_evidence": {
+    "database_cases_passed": 40,
+    "concurrent_payment_test_passed": true,
+    "backend_tests_passed": 58,
+    "rerun_during_slide_review": false
+  },
+  "technical_checks_passed": true,
+  "submission_ready": false,
+  "pending": [
+    "Trang 20: MSSV, phan viec, minh chung va ty le dong gop thuc te cua sau thanh vien; tong 100%."
+  ],
+  "artifacts": {
+    "thiet-ke-csdl-va-phan-tich-nghiep-vu.pptx": {
+      "bytes": 486281,
+      "sha256": "9ece36af81ed3c02d641537c9904a158e884f04a728320663d0aab4bc97e43f6"
+    },
+    "thiet-ke-csdl-va-phan-tich-nghiep-vu.pdf": {
+      "bytes": 448012,
+      "sha256": "2780b5b0eb45b7bb2093dc7409c3babebb6605078cf93fac4f12ab1f5163ea06"
+    }
+  },
+  "submitted_pdf_sha256": "f48fd51364ad6c63e3c7865e21bb8118b61b82530b09befb70a9b2abc5fe43c3"
 }

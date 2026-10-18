@@ -47,4 +47,4 @@ Chuẩn hóa không tự bảo đảm tiền thu không vượt nợ, người d
 
 ## Đối chiếu prototype
 
-Tài liệu này đánh giá mô hình mục tiêu 17 bảng. Không khẳng định backend prototype 29 bảng V1–V9 tự đạt các tính chất trên; việc chuyển dữ liệu và API sang mô hình này là công việc của bước triển khai tiếp theo.
+Tài liệu này đánh giá mô hình 17 bảng. Backend đã chuyển sang mô hình này bằng Flyway V10; 29 bảng của prototype V1–V9 được giữ trong schema `prototype_v9`. Các tính chất chuẩn hóa được đối chiếu trên bảng nghiệp vụ hiện hành, không áp dụng ngược cho các bảng lưu trữ. Xem [hướng dẫn chuyển đổi](BACKEND-17-TABLES.md) và [kết quả kiểm chứng backend](backend-validation.json).

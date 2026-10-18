@@ -21,6 +21,8 @@ prs.core_properties.subject='Thiết kế mục tiêu 17 bảng — hồ sơ bư
 prs.core_properties.author='Nhóm thực hiện'
 prs.core_properties.keywords='quản lý nhà trọ, yêu cầu nghiệp vụ, ERD, chuẩn hóa'
 CONTENT=[]
+TEAM=json.loads((DOCS/'presentation-team.json').read_text(encoding='utf-8'))
+DIAGRAM_URL='https://dbdiagram.io/d/Quan-ly-nha-tro-ERD-chinh-thuc-6ad48e63e625619f4bbe6458'
 
 
 def no_effects(o):
@@ -132,8 +134,10 @@ s=base('Hệ thống quản lý nhà trọ','ĐỒ ÁN HỌC PHẦN',[
  'Hóa đơn minh bạch — theo dõi công nợ — cảnh báo điện nước',
  'Một chủ nhà, nhiều khu; ba tác nhân ADMIN / STAFF / TENANT'])
 text(s,.8,2.1,11.6,1.35,'PHÂN TÍCH YÊU CẦU\nVÀ THIẾT KẾ CƠ SỞ DỮ LIỆU',34,True,ACCENT)
-text(s,.8,3.65,11.6,.7,'Hợp đồng • Hóa đơn • Công nợ • Quyết toán',24)
-text(s,.8,5.0,11.6,.9,'Kỹ năng lập trình nâng cao — N03\nNhóm: ………………………………',19,False,MUTED)
+text(s,.8,3.75,11.6,.9,'Kỹ năng lập trình nâng cao — N03\nNhóm: '+TEAM['group'],19,False,MUTED)
+for index,member in enumerate(TEAM['members']):
+    text(s,.8+(index//3)*6.0,4.85+(index%3)*.48,5.8,.37,member['name'],19)
+CONTENT[-1]['items']+=['Nhóm: '+TEAM['group'],'Thành viên: '+', '.join(member['name'] for member in TEAM['members'])]
 
 # 02
 s=base('Bài toán và phạm vi','01  PHÂN TÍCH YÊU CẦU')
@@ -149,7 +153,7 @@ s=base('Tác nhân và phân quyền','01  PHÂN TÍCH YÊU CẦU')
 table(s,[['Tác nhân','Được thực hiện','Giới hạn'],
  ['Chủ nhà\nADMIN','Quản lý tài khoản, phân công, khu/phòng và tài chính','Toàn bộ hệ thống của chủ nhà'],
  ['Nhân viên\nSTAFF','Lập hợp đồng, ghi chỉ số, lập hóa đơn, thu tiền, xử lý sự cố','Khu được phân công; không quản trị tài khoản/quyền'],
- ['Người thuê\nTENANT','Xem hợp đồng, hóa đơn, giao dịch; gửi và theo dõi sự cố','Chỉ hợp đồng mình đại diện; không tự xác nhận thu tiền']],
+ ['Người thuê\nTENANT','Xem hợp đồng, hóa đơn đã phát hành, giao dịch; gửi và theo dõi sự cố','Chỉ hợp đồng mình đại diện; không tự xác nhận thu tiền']],
  [2.0,5.7,4.3],row_h=1.12,size=19)
 text(s,.8,6.48,11.7,.3,'Thành viên ở cùng là hồ sơ cư trú; không mặc nhiên có quyền của người đại diện.',16,False,MUTED)
 
@@ -158,21 +162,21 @@ s=base('Chức năng quản lý và cho thuê','01  PHÂN TÍCH YÊU CẦU')
 table(s,[['Nhóm chức năng','Use Case chính','Tác nhân'],
  ['Tài khoản','Tạo tài khoản; cập nhật, khóa tài khoản','ADMIN'],
  ['Phân công','Phân công nhân viên; thu hồi phân công','ADMIN'],
- ['Khu và phòng','Tạo khu/phòng; cập nhật phòng; chuyển phòng bảo trì','ADMIN; STAFF theo quyền'],
- ['Người thuê','Tạo, cập nhật hồ sơ; tra cứu người thuê','ADMIN; tra cứu có giới hạn'],
+ ['Khu và phòng','Tạo, cập nhật khu/phòng; ngừng khu; xóa phòng chưa có phụ thuộc','ADMIN; STAFF chỉ sửa phòng trong khu được giao'],
+ ['Người thuê','Tạo, cập nhật hồ sơ; tra cứu người thuê','ADMIN tạo/sửa; STAFF/TENANT xem theo phạm vi'],
  ['Hợp đồng','Lập, tra cứu hợp đồng; cập nhật thành viên cư trú','ADMIN / STAFF; TENANT tra cứu']],
  [2.1,7.0,2.9],row_h=.77,size=17.5)
 
 # 05
 s=base('Chức năng tính tiền và vận hành','01  PHÂN TÍCH YÊU CẦU')
-table(s,[['Nhóm chức năng','Use Case chính'],
- ['Dịch vụ','Thiết lập đơn giá và ngưỡng cảnh báo theo khu'],
- ['Điện nước','Ghi chỉ số; sửa chỉ số cuối; kiểm tra cảnh báo'],
- ['Hóa đơn','Lập nháp; xóa nháp; phát hành; tra cứu hóa đơn'],
- ['Thanh toán','Ghi nhận thanh toán; tra cứu công nợ; tổng hợp tiền thu'],
- ['Trả phòng','Chốt kỳ cuối; quyết toán; cấn cọc; xác định hoàn/thu thêm'],
- ['Sự cố','Gửi yêu cầu; đính kèm ảnh; cập nhật và theo dõi tiến độ']],
- [2.2,9.8],row_h=.66,size=18)
+table(s,[['Nhóm chức năng','Use Case chính','Tác nhân'],
+ ['Dịch vụ','Thiết lập đơn giá và ngưỡng cảnh báo theo khu','ADMIN'],
+ ['Điện nước','Ghi/sửa chỉ số cuối; kiểm tra cảnh báo','ADMIN / STAFF'],
+ ['Hóa đơn','Lập/xóa nháp; phát hành; tra cứu hóa đơn','ADMIN / STAFF; TENANT xem bản phát hành'],
+ ['Thanh toán','Ghi nhận thanh toán; tra cứu công nợ; tổng hợp thu','ADMIN / STAFF; TENANT xem của mình'],
+ ['Trả phòng','Chốt kỳ cuối; quyết toán; cấn cọc; xác định hoàn/thu thêm','ADMIN / STAFF'],
+ ['Sự cố','Gửi yêu cầu; đính kèm ảnh; cập nhật, theo dõi tiến độ','TENANT gửi; ADMIN / STAFF xử lý']],
+ [1.7,7.2,3.1],row_h=.71,size=17)
 
 # 06: native editable flowchart
 s=base('Luồng lập và phát hành hóa đơn','01  PHÂN TÍCH YÊU CẦU',[
@@ -186,7 +190,7 @@ node(s,10.0,1.9,2.8,1.2,'Còn cảnh báo\nPENDING?',True)
 route(s,[(3,2.5),(3.5,2.5)]);route(s,[(6.3,2.5),(6.8,2.5)],'Có',(6.35,2.15,.4));route(s,[(9.4,2.5),(10,2.5)])
 node(s,3.5,3.75,2.8,.9,'Dừng; bổ sung\nhoặc sửa dữ liệu')
 route(s,[(4.9,3.1),(4.9,3.75)],'Không',(5,3.35,.65))
-node(s,10,3.75,2.8,1.05,'Quản lý kiểm tra\nXác nhận / sửa chỉ số')
+node(s,10,3.75,2.8,1.05,'Kiểm tra các cảnh báo\nĐúng: xác nhận hết\nSai: xóa nháp, sửa số',size=15)
 route(s,[(11.4,3.1),(11.4,3.75)],'Có',(11.55,3.35,.4))
 node(s,6.8,5.25,2.8,1.15,'Đã đến ngày\nphát hành?',True)
 node(s,3.5,5.45,2.8,.8,'Giữ nháp;\nchờ ngày phát hành')
@@ -206,20 +210,22 @@ s=base('Luồng quyết toán trả phòng','01  PHÂN TÍCH YÊU CẦU',[
 node(s,.6,2.1,2.4,.8,'Chọn hợp đồng\nvà ngày trả')
 node(s,3.5,1.9,2.8,1.2,'Có quyền, hợp lệ,\nchưa quyết toán?',True,15.5)
 node(s,6.8,2.1,2.6,.8,'Chốt chỉ số;\nhoàn tất các kỳ')
-node(s,10,1.9,2.8,1.2,'Đủ hóa đơn,\nkhớp dữ liệu?',True)
+node(s,10,1.9,2.8,1.2,'Đủ hóa đơn ISSUED,\nkhớp ngày/chỉ số?',True,15)
 route(s,[(3,2.5),(3.5,2.5)]);route(s,[(6.3,2.5),(6.8,2.5)],'Có',(6.3,2.15,.5));route(s,[(9.4,2.5),(10,2.5)])
 node(s,3.5,3.65,2.8,.8,'Dừng; thông báo\nlý do cụ thể')
 node(s,10,3.65,2.8,.8,'Dừng; bổ sung\nhoặc kiểm tra lại')
 route(s,[(4.9,3.1),(4.9,3.65)],'Không',(5.0,3.3,.65));route(s,[(11.4,3.1),(11.4,3.65)],'Không',(11.55,3.3,.65))
-node(s,6.65,4.75,3.1,.75,'Cọc − Thiệt hại − Nợ',size=18)
-route(s,[(12.8,2.5),(13,2.5),(13,5.12),(9.75,5.12)],'Có',(12.2,4.85,.5))
+node(s,6.65,4.3,3.1,.65,'Cọc − Thiệt hại − Nợ',size=18)
+route(s,[(12.8,2.5),(13,2.5),(13,4.62),(9.75,4.62)],'Có',(12.2,4.35,.5))
+node(s,5.65,5.12,5.1,.65,'Lưu quyết toán; cấn cọc; kết thúc hợp đồng\nTrong cùng một transaction',size=14.5)
+route(s,[(8.2,4.95),(8.2,5.12)])
 node(s,.65,6.0,3.7,.64,'Dương: hoàn tiền',size=18)
 node(s,4.8,6.0,3.7,.64,'Bằng 0: không hoàn / thu thêm',size=16)
 node(s,8.95,6.0,3.7,.64,'Âm: ghi nhận phải thu thêm',size=17)
-route(s,[(8.2,5.5),(8.2,5.72),(2.5,5.72),(2.5,6)])
-route(s,[(8.2,5.72),(6.65,5.72),(6.65,6)])
-route(s,[(8.2,5.72),(10.8,5.72),(10.8,6)])
-text(s,.8,6.75,11.8,.22,'Cấn cọc không phải tiền thu mới. Phần nợ chưa được thanh toán vẫn được giữ lại.',14.5,False,MUTED)
+route(s,[(8.2,5.77),(8.2,5.89),(2.5,5.89),(2.5,6)])
+route(s,[(8.2,5.89),(6.65,5.89),(6.65,6)])
+route(s,[(8.2,5.89),(10.8,5.89),(10.8,6)])
+text(s,.8,6.75,11.8,.22,'Còn PENDING thì dừng. Cấn cọc không phải tiền thu mới; phần nợ chưa trả vẫn được giữ lại.',14.5,False,MUTED)
 
 # 08
 items=['Khoảng cư trú [ngày vào, ngày ra): trả ngày 16 thì tính đến hết ngày 15.',
@@ -239,7 +245,6 @@ table(s,[['Nhóm dữ liệu','Các bảng'],
  ['Hóa đơn và quyết toán','invoices, invoice_items, payment_transactions, checkout_records'],
  ['Sự cố và ảnh','maintenance_requests, maintenance_images']],
  [3.0,9.0],row_h=.65,size=17)
-text(s,.8,6.55,11.8,.35,'138 cột • 17 PK • 28 FK • 55 CHECK • 2 EXCLUDE • 6 view tính toán',17,True,ACCENT)
 
 # 10
 s=base('ERD — khu nhà, người thuê và hợp đồng','02  THIẾT KẾ CƠ SỞ DỮ LIỆU')
@@ -250,7 +255,7 @@ d=entity(s,9.25,4.55,'tenant_profiles',['PK  id','FK/UQ  user_id (tùy chọn)',
 e=entity(s,4.95,4.55,'contract_members',['PK  id','FK  contract_id','FK  tenant_id','effective_from; effective_to'])
 relation(s,a,b);relation(s,b,c);relation(s,d,c,vertical=True);relation(s,d,e)
 route(s,[(10.4,c[1]+c[3]),(10.4,4.12),(6.5,4.12),(6.5,4.55)],'1 : N',(7.8,3.83,1.0))
-text(s,.8,6.65,11.8,.25,'Một người dùng chung hồ sơ qua nhiều lần cư trú; không sao chép họ tên vào bảng thành viên.',16,False,MUTED)
+text(s,.8,6.65,11.8,.25,'Một người thuê dùng lại hồ sơ qua nhiều lần cư trú; không chép họ tên vào bảng thành viên.',16,False,MUTED)
 CONTENT[-1]['items']=['properties 1–N rooms; rooms 1–N contracts; tenant_profiles 1–N contracts.',
  'contracts N–N tenant_profiles qua contract_members đối với các lần ở cùng.',
  'Mã phòng duy nhất trong khu; khoảng thuê không được chồng nhau.']
@@ -273,11 +278,11 @@ CONTENT[-1]['items']=['Đơn giá riêng cho từng khu–dịch vụ–ngày hi
 s=base('ERD — hóa đơn, giao dịch và quyết toán','02  THIẾT KẾ CƠ SỞ DỮ LIỆU')
 a=entity(s,.65,1.8,'contracts',['PK  id','giá thuê; cọc thỏa thuận'])
 b=entity(s,4.95,1.8,'invoices',['PK  id','FK  contract_id','billing_period; status'])
-c=entity(s,9.25,1.8,'invoice_items',['PK  id','FK  invoice_id','FK  service_item_id / reading','giá snapshot; ngày tính phí'])
+c=entity(s,9.25,1.8,'invoice_items',['PK  id; FK  invoice_id','FK  service_item_id (NULL)','FK/UQ  meter_reading_id (NULL)','giá snapshot; ngày/ngày-người'])
 d=entity(s,.65,4.5,'checkout_records',['PK  id','FK/UQ  contract_id','cọc / nợ snapshot; thiệt hại'])
 e=entity(s,4.95,4.5,'payment_transactions',['PK  id','FK  invoice_id','amount; payment_method'])
-f=entity(s,9.25,4.5,'meter_readings',['PK  id','chỉ số đã được khóa'])
-relation(s,a,b);relation(s,b,c);relation(s,a,d,'1 : 0..1',True);relation(s,b,e,vertical=True);relation(s,f,c,'0..1',True)
+f=entity(s,9.25,4.5,'meter_readings',['PK  id','khóa khi đã dùng ở hóa đơn'])
+relation(s,a,b);relation(s,b,c);relation(s,a,d,'1 : 0..1',True);relation(s,b,e,vertical=True);relation(s,f,c,'0..1 : 0..1',True)
 text(s,.8,6.55,11.8,.35,'Tổng tiền, đã thu, công nợ và số quyết toán được tính qua view từ dữ liệu gốc.',17,False,MUTED)
 CONTENT[-1]['items']=['Một hóa đơn có nhiều dòng và nhiều giao dịch.',
  'Mỗi hợp đồng có tối đa một quyết toán; dòng đo đếm tham chiếu chỉ số cùng hợp đồng/kỳ.',
@@ -287,7 +292,7 @@ CONTENT[-1]['items']=['Một hóa đơn có nhiều dòng và nhiều giao dịc
 s=base('Thuộc tính và kiểu dữ liệu','02  THIẾT KẾ CƠ SỞ DỮ LIỆU')
 table(s,[['Dữ liệu','Kiểu lựa chọn','Căn cứ'],
  ['Khóa nội bộ','BIGINT IDENTITY','Liên kết ổn định bằng PK/FK'],
- ['Tiền, đơn giá','NUMERIC(12,2)','Thập phân chính xác; làm tròn thành tiền'],
+ ['Tiền, đơn giá','NUMERIC(12,2)','Số thập phân chính xác; nợ snapshot: NUMERIC(14,2)'],
  ['Chỉ số điện nước','NUMERIC(10,2)','Có thể có phần thập phân; mới ≥ cũ'],
  ['Điện thoại, giấy tờ','VARCHAR','Giữ số 0 đầu; không dùng làm phép tính'],
  ['Ngày / thời điểm','DATE / TIMESTAMPTZ','Phân biệt ngày nghiệp vụ và thời điểm'],
@@ -300,28 +305,29 @@ table(s,[['Cơ chế','Quy tắc được bảo vệ'],
  ['PK + FK','Mọi bảng có định danh; không tham chiếu bản ghi không tồn tại'],
  ['UNIQUE','Không trùng mã phòng trong khu, hóa đơn/kỳ hoặc mã giao dịch'],
  ['CHECK','Tiền hợp lệ; mới ≥ cũ; ngày hợp lệ; trạng thái đúng tập giá trị'],
- ['EXCLUDE','Không chồng khoảng thuê phòng hoặc khoảng cư trú của cùng thành viên'],
+ ['EXCLUDE','Không trùng khoảng thuê cùng phòng; cùng người không trùng khoảng trong một hợp đồng'],
  ['Trigger + khóa hàng','Không thu vượt nợ; không sửa hóa đơn phát hành; kiểm tra liên bảng']],
  [3.0,9.0],row_h=.80,size=19)
 
 # 15
 s=base('Quan hệ và bảng trung gian','02  THIẾT KẾ CƠ SỞ DỮ LIỆU')
 table(s,[['Quan hệ','Ví dụ','Cách biểu diễn'],
- ['1–0..1','Tài khoản–hồ sơ; hợp đồng–quyết toán','UNIQUE trên FK; liên kết tùy chọn'],
+ ['0..1–0..1','Tài khoản–hồ sơ; chỉ số–dòng hóa đơn','FK cho phép NULL + UNIQUE'],
+ ['1–0..1','Hợp đồng–quyết toán; chỉ số–cảnh báo','FK NOT NULL + UNIQUE ở bảng con'],
  ['1–N','Khu–phòng; hợp đồng–hóa đơn; hóa đơn–giao dịch','FK ở phía nhiều'],
  ['N–N','Nhân viên–khu nhà','employee_assignments'],
  ['N–N theo thời gian','Người thuê–hợp đồng ở cùng','contract_members + khoảng cư trú'],
  ['N–N có lịch sử giá','Khu nhà–dịch vụ','service_price_configs + ngày hiệu lực']],
- [2.7,5.2,4.1],row_h=.80,size=18)
+ [2.7,5.2,4.1],row_h=.70,size=17)
 
 # 16
 s=base('Chuẩn hóa dữ liệu','02  THIẾT KẾ CƠ SỞ DỮ LIỆU')
 table(s,[['Mức','Vấn đề cần tránh','Cách xử lý trong mô hình'],
  ['1NF','Nhiều ảnh trong một cột','maintenance_images: mỗi dòng một ảnh'],
- ['2NF','Thông tin chỉ phụ thuộc một phần khóa ghép','Không lưu họ tên ở thành viên; không lưu room_id ở chỉ số'],
- ['3NF','Thông tin danh mục lặp qua bảng quan hệ','Hồ sơ người và danh mục dịch vụ lưu tại thực thể riêng'],
+ ['2NF','Thuộc tính phi khóa phụ thuộc một phần khóa ứng viên ghép','tenant_id chỉ là một phần khóa cư trú: họ tên lưu tại tenant_profiles'],
+ ['3NF','Phụ thuộc bắc cầu qua thuộc tính không phải siêu khóa','Sự cố chỉ lưu contract_id; suy ra room_id và property_id qua JOIN'],
  ['Dữ liệu suy ra','Nhiều cột tổng hợp có thể cập nhật lệch nhau','Tính lượng dùng, thành tiền, công nợ và trạng thái qua view']],
- [1.8,4.6,5.6],row_h=.94,size=18)
+ [1.8,4.6,5.6],row_h=.94,size=17)
 
 # 17
 s=base('Phụ thuộc dữ liệu và bảo toàn lịch sử','02  THIẾT KẾ CƠ SỞ DỮ LIỆU')
@@ -331,7 +337,7 @@ table(s,[['Phụ thuộc','Quyết định thiết kế'],
  ['Chỉ số mới − chỉ số cũ → lượng dùng','Tính lượng dùng; không nhập lại tại cảnh báo/hóa đơn'],
  ['Dòng hóa đơn + giao dịch → công nợ','Một view tính tổng, đã thu và số còn nợ']],
  [5.1,6.9],row_h=.90,size=18.5)
-text(s,.8,6.48,11.9,.4,'Tên, đơn vị và giá snapshot là dữ kiện tại lúc lập hóa đơn; không đổi theo danh mục hiện tại.',17,True,ACCENT)
+text(s,.8,6.48,11.9,.4,'Snapshot tên, đơn vị, giá ghi nhận tại lúc lập hóa đơn; đổi danh mục không đổi hóa đơn cũ.',17,True,ACCENT)
 
 # 18
 s=base('Đối chiếu nghiệp vụ và kiểm tra dữ liệu','02  THIẾT KẾ CƠ SỞ DỮ LIỆU')
@@ -342,7 +348,6 @@ table(s,[['Nghiệp vụ','Dữ liệu chính','Tình huống đã kiểm tra'],
  ['Trả phòng','checkout_records và giao dịch cấn cọc','Snapshot trước cấn; không tính điện nước hai lần'],
  ['Gửi sự cố','maintenance_requests, maintenance_images','Sai người gửi; sai người đính kèm; ảnh rỗng']],
  [2.3,4.4,5.3],row_h=.78,size=17)
-text(s,.8,6.62,11.8,.3,'PostgreSQL: 40 ca đạt; thu đồng thời 600 + 600 trên nợ 1.000 → nhận một lần, còn 400.',16,True,ACCENT)
 
 # 19
 s=base('Ví dụ hóa đơn và quyết toán','02  THIẾT KẾ CƠ SỞ DỮ LIỆU')
@@ -355,18 +360,19 @@ table(s,[['Khoản thu — ở đủ tháng 09/2026','Công thức','Thành ti�
  [5.0,4.3,2.7],y=1.7,row_h=.59,size=18)
 text(s,.8,5.5,11.9,.4,'Đã thu 2.000.000 đ → còn nợ 1.680.000 đ.',22,True)
 text(s,.8,6.1,11.9,.5,'Cọc 3.000.000 − thiệt hại 200.000 − nợ 1.680.000 = hoàn 1.120.000 đ.',19,False,ACCENT)
-CONTENT[-1]['items']=['Dữ liệu minh họa; các khoản nợ khác giả định bằng 0.',
+text(s,.8,6.65,11.9,.22,'Minh họa: trả ngày 01/10/2026; các kỳ trước đã thanh toán, không có khoản nợ khác.',13.5,False,MUTED)
+CONTENT[-1]['items']=['Dữ liệu minh họa: trả ngày 01/10/2026; các kỳ trước đã thanh toán, không có khoản nợ khác.',
  'Cấn cọc 1.680.000 tạo DEPOSIT_OFFSET; hóa đơn hết nợ nhưng tiền mới nhận vẫn là 2.000.000.']
 
 # 20
 s=base('Phân công thực hiện','THÀNH VIÊN NHÓM')
-table(s,[['Họ tên — MSSV','Phần việc thực hiện','Minh chứng','Đóng góp'],
- ['……………………','………………………………','Tài liệu / commit','…… %'],
- ['……………………','………………………………','Tài liệu / commit','…… %'],
- ['……………………','………………………………','Tài liệu / commit','…… %'],
- ['……………………','………………………………','Tài liệu / commit','…… %']],
- [3.2,4.4,2.6,1.8],row_h=.9,size=18)
-text(s,.8,6.55,11.8,.3,'Tổng tỷ lệ đóng góp: 100%.',19,True)
+table(s,[['Họ tên — MSSV','Phần việc thực hiện','Minh chứng','Đóng góp']]+[
+ [member['name']+'\nMSSV: '+(member['student_id'] or '…………'),
+  member['work'] or '……………………',member['evidence'] or '…………',
+  (str(member['percentage']) if member['percentage']!='' else '……')+' %']
+ for member in TEAM['members']],
+ [3.6,4.2,2.5,1.7],row_h=.65,size=15.5)
+text(s,.8,6.55,11.8,.3,'Tổng tỷ lệ đóng góp: …… / 100%.',18,True)
 
 # 21: supporting ERD, no presenter notes or instructions.
 s=base('ERD — yêu cầu sửa chữa và ảnh','PHỤ LỤC')
@@ -389,7 +395,8 @@ picture=s.shapes.add_picture(str(DOCS/'diagrams/quanlytro-dbdiagram-official.png
 scale=min(Inches(12.1)/picture.width,Inches(5.05)/picture.height)
 picture.width=int(picture.width*scale);picture.height=int(picture.height*scale)
 picture.left=int((prs.slide_width-picture.width)/2);picture.top=Inches(1.6)
-text(s,.8,6.72,11.8,.25,'17 bảng • 28 khóa ngoại • Bản xuất từ dbdiagram.io',13,False,MUTED)
+diagram_link=text(s,.8,6.72,11.8,.25,'Xem đầy đủ và phóng to: dbdiagram.io — Quản lý nhà trọ',13,False,ACCENT)
+diagram_link.text_frame.paragraphs[0].runs[0].hyperlink.address=DIAGRAM_URL
 
 assert len(prs.slides)==22
 prs.save(OUT)
@@ -401,7 +408,8 @@ with zipfile.ZipFile(OUT) as archive:
 lines=['# Hệ thống quản lý nhà trọ','',
  'Phân tích yêu cầu và thiết kế cơ sở dữ liệu — học phần Kỹ năng lập trình nâng cao, N03.','',
  '**Phạm vi:** Mô hình mục tiêu 17 bảng; một chủ nhà, nhân viên theo khu và người đại diện hợp đồng.','',
- '**Nhóm:** ………………………………','']
+ '**Nhóm:** '+TEAM['group'],'',
+ '**Thành viên:** '+', '.join(member['name'] for member in TEAM['members'])+'.','']
 for slide in CONTENT:
     lines+=['## Slide '+f'{slide["slide"]:02}'+ ' — '+slide['title'],'']
     for item in slide['items']:lines+=['- '+item]
@@ -447,6 +455,7 @@ lines+=['','## Quy tắc dữ liệu','',
  '- [Thiết kế và ràng buộc](DATABASE.md).',
  '- [Chứng minh chuẩn hóa](NORMALIZATION.md).',
  '- [DBML](quanlytro.dbml), [SQL](quanlytro.sql), [view và trigger](database-rules.sql).',
+ '- [ERD trực tuyến trên dbdiagram.io]('+DIAGRAM_URL+').',
  '- [ERD chính thức — SVG](diagrams/quanlytro-dbdiagram-official.svg), [PNG](diagrams/quanlytro-dbdiagram-official.png), [PDF](diagrams/quanlytro-dbdiagram-official.pdf).',
  '- [Ca kiểm tra DB](database-cases.sql), [kết quả thực thi](database-validation.json).',
  '- [Luồng hóa đơn](diagrams/thuyet-trinh-luong-hoa-don.svg), [luồng trả phòng](diagrams/thuyet-trinh-luong-tra-phong.svg).','',

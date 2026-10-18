@@ -4,6 +4,7 @@ Thiết kế mục tiêu cho MVP quản lý nhà trọ: **17 bảng, 138 cột, 
 
 ## Bộ hồ sơ thống nhất
 
+- **[ERD trực tuyến trên dbdiagram.io — mở được khi chưa đăng nhập](https://dbdiagram.io/d/Quan-ly-nha-tro-ERD-chinh-thuc-6ad48e63e625619f4bbe6458).**
 - [Slide PowerPoint](thiet-ke-csdl-va-phan-tich-nghiep-vu.pptx).
 - [Slide PDF](thiet-ke-csdl-va-phan-tich-nghiep-vu.pdf).
 - [Nội dung slide và danh mục yêu cầu](NOI-DUNG-THUYET-TRINH-BUOC-1-2.md).
@@ -58,7 +59,7 @@ python scripts/create-class-presentation.py
 python scripts/export-presentation-text.py
 ```
 
-PowerPoint có 20 trang chính và hai trang ERD phụ lục. Văn bản, bảng và các sơ đồ chi tiết là đối tượng chỉnh sửa được; trang 22 dùng ảnh xuất chính thức từ dbdiagram.io. Không có speaker notes. PDF là bản xuất để trình chiếu dự phòng. Tên nhóm ở trang 1 và thông tin thành viên, phần việc, tỷ lệ đóng góp ở trang 20 cần được nhóm điền theo thực tế.
+PowerPoint có 20 trang chính và hai trang ERD phụ lục. Văn bản, bảng và các sơ đồ chi tiết là đối tượng chỉnh sửa được; trang 22 dùng ảnh xuất chính thức từ dbdiagram.io và có liên kết mở sơ đồ. Không có speaker notes. PDF là bản xuất để trình chiếu dự phòng. Tên nhóm và sáu thành viên được giữ theo PDF nhóm gửi; MSSV, phần việc, minh chứng và tỷ lệ đóng góp ở trang 20 còn cần bổ sung theo thực tế. Khi tạo lại slide, thông tin nhóm đọc từ `presentation-team.json` để không mất tên đã điền. Xem [biên bản rà soát slide](SLIDE-REVIEW.md).
 
 Đã thực thi **40 ca trên PostgreSQL 18.4**, cùng một ca thu tiền đồng thời: hóa đơn 1.000, hai kết nối cùng thu 600; một kết nối thành công, một bị từ chối, còn nợ 400. Chi tiết và số lượng đối tượng nằm trong `database-validation.json`.
 

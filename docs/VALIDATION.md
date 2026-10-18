@@ -1,5 +1,7 @@
 # Kết quả kiểm tra bản bàn giao
 
+> Kết quả lịch sử của prototype trước Flyway V10. Kết quả hiện hành nằm trong [backend-validation.json](backend-validation.json); kiểm chứng thiết kế bước 1–2 nằm trong [database-validation.json](database-validation.json).
+
 Ngày kiểm tra: **02/10/2026**, múi giờ Asia/Ho_Chi_Minh. Môi trường: Windows, Java 21, Maven Wrapper, PostgreSQL 16.4, Node.js 24, Chrome headless. Database kiểm thử và demo riêng tại cổng 55432.
 
 ## Java / PostgreSQL

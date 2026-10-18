@@ -4,13 +4,17 @@ Phân tích yêu cầu và thiết kế cơ sở dữ liệu — học phần K�
 
 **Phạm vi:** Mô hình mục tiêu 17 bảng; một chủ nhà, nhân viên theo khu và người đại diện hợp đồng.
 
-**Nhóm:** ………………………………
+**Nhóm:** gehihi
+
+**Thành viên:** Nguyễn Doãn Huy, Phan Văn Hiếu, Nguyễn Trần Tuấn Khôi, Nie Phương Anh, Trần Đức Nguyên, Nguyễn Quang Trung.
 
 ## Slide 01 — Hệ thống quản lý nhà trọ
 
 - Phân tích yêu cầu và thiết kế cơ sở dữ liệu
 - Hóa đơn minh bạch — theo dõi công nợ — cảnh báo điện nước
 - Một chủ nhà, nhiều khu; ba tác nhân ADMIN / STAFF / TENANT
+- Nhóm: gehihi
+- Thành viên: Nguyễn Doãn Huy, Phan Văn Hiếu, Nguyễn Trần Tuấn Khôi, Nie Phương Anh, Trần Đức Nguyên, Nguyễn Quang Trung
 
 ## Slide 02 — Bài toán và phạm vi
 
@@ -26,7 +30,7 @@ Phân tích yêu cầu và thiết kế cơ sở dữ liệu — học phần K�
 | --- | --- | --- |
 | Chủ nhà / ADMIN | Quản lý tài khoản, phân công, khu/phòng và tài chính | Toàn bộ hệ thống của chủ nhà |
 | Nhân viên / STAFF | Lập hợp đồng, ghi chỉ số, lập hóa đơn, thu tiền, xử lý sự cố | Khu được phân công; không quản trị tài khoản/quyền |
-| Người thuê / TENANT | Xem hợp đồng, hóa đơn, giao dịch; gửi và theo dõi sự cố | Chỉ hợp đồng mình đại diện; không tự xác nhận thu tiền |
+| Người thuê / TENANT | Xem hợp đồng, hóa đơn đã phát hành, giao dịch; gửi và theo dõi sự cố | Chỉ hợp đồng mình đại diện; không tự xác nhận thu tiền |
 
 ## Slide 04 — Chức năng quản lý và cho thuê
 
@@ -34,20 +38,20 @@ Phân tích yêu cầu và thiết kế cơ sở dữ liệu — học phần K�
 | --- | --- | --- |
 | Tài khoản | Tạo tài khoản; cập nhật, khóa tài khoản | ADMIN |
 | Phân công | Phân công nhân viên; thu hồi phân công | ADMIN |
-| Khu và phòng | Tạo khu/phòng; cập nhật phòng; chuyển phòng bảo trì | ADMIN; STAFF theo quyền |
-| Người thuê | Tạo, cập nhật hồ sơ; tra cứu người thuê | ADMIN; tra cứu có giới hạn |
+| Khu và phòng | Tạo, cập nhật khu/phòng; ngừng khu; xóa phòng chưa có phụ thuộc | ADMIN; STAFF chỉ sửa phòng trong khu được giao |
+| Người thuê | Tạo, cập nhật hồ sơ; tra cứu người thuê | ADMIN tạo/sửa; STAFF/TENANT xem theo phạm vi |
 | Hợp đồng | Lập, tra cứu hợp đồng; cập nhật thành viên cư trú | ADMIN / STAFF; TENANT tra cứu |
 
 ## Slide 05 — Chức năng tính tiền và vận hành
 
-| Nhóm chức năng | Use Case chính |
-| --- | --- |
-| Dịch vụ | Thiết lập đơn giá và ngưỡng cảnh báo theo khu |
-| Điện nước | Ghi chỉ số; sửa chỉ số cuối; kiểm tra cảnh báo |
-| Hóa đơn | Lập nháp; xóa nháp; phát hành; tra cứu hóa đơn |
-| Thanh toán | Ghi nhận thanh toán; tra cứu công nợ; tổng hợp tiền thu |
-| Trả phòng | Chốt kỳ cuối; quyết toán; cấn cọc; xác định hoàn/thu thêm |
-| Sự cố | Gửi yêu cầu; đính kèm ảnh; cập nhật và theo dõi tiến độ |
+| Nhóm chức năng | Use Case chính | Tác nhân |
+| --- | --- | --- |
+| Dịch vụ | Thiết lập đơn giá và ngưỡng cảnh báo theo khu | ADMIN |
+| Điện nước | Ghi/sửa chỉ số cuối; kiểm tra cảnh báo | ADMIN / STAFF |
+| Hóa đơn | Lập/xóa nháp; phát hành; tra cứu hóa đơn | ADMIN / STAFF; TENANT xem bản phát hành |
+| Thanh toán | Ghi nhận thanh toán; tra cứu công nợ; tổng hợp thu | ADMIN / STAFF; TENANT xem của mình |
+| Trả phòng | Chốt kỳ cuối; quyết toán; cấn cọc; xác định hoàn/thu thêm | ADMIN / STAFF |
+| Sự cố | Gửi yêu cầu; đính kèm ảnh; cập nhật, theo dõi tiến độ | TENANT gửi; ADMIN / STAFF xử lý |
 
 ## Slide 06 — Luồng lập và phát hành hóa đơn
 
@@ -104,7 +108,7 @@ Phân tích yêu cầu và thiết kế cơ sở dữ liệu — học phần K�
 | Dữ liệu | Kiểu lựa chọn | Căn cứ |
 | --- | --- | --- |
 | Khóa nội bộ | BIGINT IDENTITY | Liên kết ổn định bằng PK/FK |
-| Tiền, đơn giá | NUMERIC(12,2) | Thập phân chính xác; làm tròn thành tiền |
+| Tiền, đơn giá | NUMERIC(12,2) | Số thập phân chính xác; nợ snapshot: NUMERIC(14,2) |
 | Chỉ số điện nước | NUMERIC(10,2) | Có thể có phần thập phân; mới ≥ cũ |
 | Điện thoại, giấy tờ | VARCHAR | Giữ số 0 đầu; không dùng làm phép tính |
 | Ngày / thời điểm | DATE / TIMESTAMPTZ | Phân biệt ngày nghiệp vụ và thời điểm |
@@ -117,14 +121,15 @@ Phân tích yêu cầu và thiết kế cơ sở dữ liệu — học phần K�
 | PK + FK | Mọi bảng có định danh; không tham chiếu bản ghi không tồn tại |
 | UNIQUE | Không trùng mã phòng trong khu, hóa đơn/kỳ hoặc mã giao dịch |
 | CHECK | Tiền hợp lệ; mới ≥ cũ; ngày hợp lệ; trạng thái đúng tập giá trị |
-| EXCLUDE | Không chồng khoảng thuê phòng hoặc khoảng cư trú của cùng thành viên |
+| EXCLUDE | Không trùng khoảng thuê cùng phòng; cùng người không trùng khoảng trong một hợp đồng |
 | Trigger + khóa hàng | Không thu vượt nợ; không sửa hóa đơn phát hành; kiểm tra liên bảng |
 
 ## Slide 15 — Quan hệ và bảng trung gian
 
 | Quan hệ | Ví dụ | Cách biểu diễn |
 | --- | --- | --- |
-| 1–0..1 | Tài khoản–hồ sơ; hợp đồng–quyết toán | UNIQUE trên FK; liên kết tùy chọn |
+| 0..1–0..1 | Tài khoản–hồ sơ; chỉ số–dòng hóa đơn | FK cho phép NULL + UNIQUE |
+| 1–0..1 | Hợp đồng–quyết toán; chỉ số–cảnh báo | FK NOT NULL + UNIQUE ở bảng con |
 | 1–N | Khu–phòng; hợp đồng–hóa đơn; hóa đơn–giao dịch | FK ở phía nhiều |
 | N–N | Nhân viên–khu nhà | employee_assignments |
 | N–N theo thời gian | Người thuê–hợp đồng ở cùng | contract_members + khoảng cư trú |
@@ -135,8 +140,8 @@ Phân tích yêu cầu và thiết kế cơ sở dữ liệu — học phần K�
 | Mức | Vấn đề cần tránh | Cách xử lý trong mô hình |
 | --- | --- | --- |
 | 1NF | Nhiều ảnh trong một cột | maintenance_images: mỗi dòng một ảnh |
-| 2NF | Thông tin chỉ phụ thuộc một phần khóa ghép | Không lưu họ tên ở thành viên; không lưu room_id ở chỉ số |
-| 3NF | Thông tin danh mục lặp qua bảng quan hệ | Hồ sơ người và danh mục dịch vụ lưu tại thực thể riêng |
+| 2NF | Thuộc tính phi khóa phụ thuộc một phần khóa ứng viên ghép | tenant_id chỉ là một phần khóa cư trú: họ tên lưu tại tenant_profiles |
+| 3NF | Phụ thuộc bắc cầu qua thuộc tính không phải siêu khóa | Sự cố chỉ lưu contract_id; suy ra room_id và property_id qua JOIN |
 | Dữ liệu suy ra | Nhiều cột tổng hợp có thể cập nhật lệch nhau | Tính lượng dùng, thành tiền, công nợ và trạng thái qua view |
 
 ## Slide 17 — Phụ thuộc dữ liệu và bảo toàn lịch sử
@@ -160,7 +165,7 @@ Phân tích yêu cầu và thiết kế cơ sở dữ liệu — học phần K�
 
 ## Slide 19 — Ví dụ hóa đơn và quyết toán
 
-- Dữ liệu minh họa; các khoản nợ khác giả định bằng 0.
+- Dữ liệu minh họa: trả ngày 01/10/2026; các kỳ trước đã thanh toán, không có khoản nợ khác.
 - Cấn cọc 1.680.000 tạo DEPOSIT_OFFSET; hóa đơn hết nợ nhưng tiền mới nhận vẫn là 2.000.000.
 
 | Khoản thu — ở đủ tháng 09/2026 | Công thức | Thành tiền |
@@ -175,10 +180,12 @@ Phân tích yêu cầu và thiết kế cơ sở dữ liệu — học phần K�
 
 | Họ tên — MSSV | Phần việc thực hiện | Minh chứng | Đóng góp |
 | --- | --- | --- | --- |
-| …………………… | ……………………………… | Tài liệu / commit | …… % |
-| …………………… | ……………………………… | Tài liệu / commit | …… % |
-| …………………… | ……………………………… | Tài liệu / commit | …… % |
-| …………………… | ……………………………… | Tài liệu / commit | …… % |
+| Nguyễn Doãn Huy / MSSV: ………… | …………………… | ………… | …… % |
+| Phan Văn Hiếu / MSSV: ………… | …………………… | ………… | …… % |
+| Nguyễn Trần Tuấn Khôi / MSSV: ………… | …………………… | ………… | …… % |
+| Nie Phương Anh / MSSV: ………… | …………………… | ………… | …… % |
+| Trần Đức Nguyên / MSSV: ………… | …………………… | ………… | …… % |
+| Nguyễn Quang Trung / MSSV: ………… | …………………… | ………… | …… % |
 
 ## Slide 21 — ERD — yêu cầu sửa chữa và ảnh
 
@@ -256,6 +263,7 @@ Phân tích yêu cầu và thiết kế cơ sở dữ liệu — học phần K�
 - [Thiết kế và ràng buộc](DATABASE.md).
 - [Chứng minh chuẩn hóa](NORMALIZATION.md).
 - [DBML](quanlytro.dbml), [SQL](quanlytro.sql), [view và trigger](database-rules.sql).
+- [ERD trực tuyến trên dbdiagram.io](https://dbdiagram.io/d/Quan-ly-nha-tro-ERD-chinh-thuc-6ad48e63e625619f4bbe6458).
 - [ERD chính thức — SVG](diagrams/quanlytro-dbdiagram-official.svg), [PNG](diagrams/quanlytro-dbdiagram-official.png), [PDF](diagrams/quanlytro-dbdiagram-official.pdf).
 - [Ca kiểm tra DB](database-cases.sql), [kết quả thực thi](database-validation.json).
 - [Luồng hóa đơn](diagrams/thuyet-trinh-luong-hoa-don.svg), [luồng trả phòng](diagrams/thuyet-trinh-luong-tra-phong.svg).

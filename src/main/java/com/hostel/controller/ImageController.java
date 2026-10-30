@@ -14,6 +14,7 @@ import java.io.*;
 import java.nio.file.*;
 import java.util.*;
 import static com.hostel.service.Database.*;
+@org.springframework.context.annotation.Profile("!model49")
 @RestController
 @RequestMapping("/api")
 public class ImageController {

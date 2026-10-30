@@ -3,6 +3,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.util.*;
 import static com.hostel.service.Database.*;
+@org.springframework.context.annotation.Profile("!model49")
 @Service
 public class PricingService {
     private final Database db;

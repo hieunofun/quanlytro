@@ -1,5 +1,7 @@
 ﻿param([string]$BaseUrl='http://localhost:8080',[string]$AdminPassword='DemoAdmin#2026')
 $ErrorActionPreference='Stop'
+$schema=(Invoke-RestMethod "$BaseUrl/api/health").schemaVersion
+if ($schema -ne 17) { throw 'verify-demo.ps1 checks the V10 fixture only. For V11 run frontend/tests/model49.mjs; no fixture data was changed.' }
 $auth=Invoke-RestMethod "$BaseUrl/api/auth/login" -Method Post -ContentType 'application/json' -Body (@{username='admin';password=$AdminPassword}|ConvertTo-Json)
 $headers=@{Authorization="Bearer $($auth.accessToken)"}
 function Request([string]$Path,[hashtable]$Body,[string]$Method='POST') {

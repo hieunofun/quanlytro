@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.*;
 import static com.hostel.service.Database.*;
+@org.springframework.context.annotation.Profile("!model49")
 @RestController @RequestMapping("/api")
 public class MeterController {
  private final Database db;private final Access access;private final MeterService meters;

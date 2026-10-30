@@ -1,31 +1,26 @@
 {
-  "schema": "presentation-v2",
-  "tables": 17,
-  "columns": 138,
-  "primary_keys": 17,
-  "foreign_keys": 28,
-  "check_constraints": 55,
-  "exclusion_constraints": 2,
+  "schema": "V13-model49",
+  "validated_on": "2026-10-30",
+  "tables": 49,
+  "columns": 455,
+  "primary_keys": 49,
+  "foreign_keys": 151,
+  "check_constraints": 132,
+  "exclusion_constraints": 7,
   "views": [
-    "v_checkout_totals",
-    "v_consumption_alerts",
-    "v_invoice_balances",
-    "v_invoice_lines",
-    "v_meter_consumption",
-    "v_room_status"
+    "v_billing_lines",
+    "v_contract_current",
+    "v_document_balances",
+    "v_fund_balances",
+    "v_fund_movements",
+    "v_item_applications",
+    "v_item_balances",
+    "v_maintenance",
+    "v_room_status",
+    "v_segments"
   ],
-  "database_cases_passed": 40,
-  "concurrent_payment_test": {
-    "passed": true,
-    "lock_wait_observed": true,
-    "invoice_total": 1000,
-    "attempts": [
-      600,
-      600
-    ],
-    "accepted_payments": 1,
-    "remaining_balance": 400
-  },
-  "postgresql": "18.4",
-  "all_passed": true
+  "database_cases_passed": 20,
+  "postgresql": "18.6",
+  "all_passed": true,
+  "scope": "DDL/rules only; Java, HTTP, migration and concurrency results are separate in implementation-validation49.json"
 }

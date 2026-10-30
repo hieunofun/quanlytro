@@ -1,3 +1,5 @@
+> Cập nhật 26/10/2026: bản trình bày bên dưới vẫn thuộc mô hình 17 bảng trước đây. Mô hình hiện tại gồm 49 bảng; đọc [bản triển khai và ERD mới](TRIEN-KHAI-MO-HINH-49-BANG.md) trước khi sửa slide.
+
 # Hệ thống quản lý nhà trọ
 
 Phân tích yêu cầu và thiết kế cơ sở dữ liệu — học phần Kỹ năng lập trình nâng cao, N03.

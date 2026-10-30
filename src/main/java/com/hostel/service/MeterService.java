@@ -7,6 +7,7 @@ import java.math.*;
 import java.time.*;
 import java.util.*;
 import static com.hostel.service.Database.*;
+@org.springframework.context.annotation.Profile("!model49")
 @Service @Transactional
 public class MeterService {
  private final Database db;private final Access access;private final BillingCalendar calendar;

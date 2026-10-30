@@ -16,7 +16,7 @@ public class ApiErrors {
     @ExceptionHandler(DataIntegrityViolationException.class) ResponseEntity<?> conflict(DataIntegrityViolationException e) {
         return ResponseEntity.status(409).body(Map.of("message", "Duplicate record, invalid reference, or conflicting contract"));
     }
-    @ExceptionHandler({MethodArgumentNotValidException.class, org.springframework.http.converter.HttpMessageNotReadableException.class, IllegalArgumentException.class})
+    @ExceptionHandler({MethodArgumentNotValidException.class, org.springframework.http.converter.HttpMessageNotReadableException.class, IllegalArgumentException.class, java.time.DateTimeException.class})
     ResponseEntity<?> invalid(Exception e) {
         String message = e instanceof MethodArgumentNotValidException v ? v.getBindingResult().getFieldErrors().stream()
             .map(f -> f.getField()+": "+f.getDefaultMessage()).reduce((a,b) -> a+"; "+b).orElse("Invalid request") : "Invalid request values";

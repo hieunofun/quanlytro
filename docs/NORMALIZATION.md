@@ -1,50 +1,43 @@
-# Chuẩn hóa mô hình quản lý nhà trọ
+# Chuẩn hóa và dữ kiện lịch sử — mô hình 49 bảng
 
-Phạm vi là 17 bảng trong `quanlytro.sql`. Các view là dữ liệu suy ra, không thêm bản sao có thể cập nhật độc lập. Phân tích chuẩn hóa xét cả khóa chính và khóa ứng viên nghiệp vụ, không lấy sự tồn tại của cột id làm bằng chứng.
+Phạm vi là các bảng trong [quanlytro.sql](quanlytro.sql). Từ điển và khóa thực thi xem [Từ điển dữ liệu](TU-DIEN-DU-LIEU-49-BANG.md). Không dùng việc mỗi bảng có cột id để kết luận chuẩn hóa.
 
-## 1NF — Loại bỏ nhóm giá trị lặp
+## 1. Các nhóm lặp và phụ thuộc được tách
 
-- Mỗi `maintenance_images` lưu một URL. Không có cột chứa một danh sách ảnh ghép bằng dấu phẩy/xuống dòng.
-- Một dòng `contract_members` lưu một người trong một khoảng cư trú. Một dòng `employee_assignments` lưu một cặp nhân viên–khu.
-- Mô tả phòng và ghi chú là văn bản tự do, không được dùng như danh sách mã tiện nghi để lọc/đếm. Danh mục tiện nghi độc lập nằm ngoài MVP.
+| Dữ kiện | Nơi lưu và ý nghĩa |
+| --- | --- |
+| Hồ sơ một người | tenant_profiles; người ký, người liên hệ và người ở tham chiếu cùng hồ sơ |
+| Nhiều người / nhiều khoảng ở | contract_residencies, mỗi người và khoảng một dòng |
+| Giá niêm yết thay đổi | room_price_history, khóa nghiệp vụ (room_id,effective_from) |
+| Điều kiện đã ký | contract_terms, (contract_id,version_no), mốc hiệu lực của phiên bản |
+| Dịch vụ khách đăng ký | contract_service_subscriptions, khoảng hiệu lực không chồng cùng hợp đồng/dịch vụ |
+| Giá dịch vụ theo khu | service_price_configs, (property_id,service_item_id,effective_from) |
+| Điểm đo vật lý | meter_readings, (meter_id,observed_at,revision_no); mỗi sửa đổi là bản mới |
+| Khoảng tiêu thụ | consumption_segments tham chiếu hai điểm; không lưu lại consumption để sửa tay |
+| Nhiều tài sản/vị trí | asset_placements, mỗi lần bố trí một khoảng |
+| Nhiều tệp | stored_files giữ một tệp; file_attachments giữ một liên kết đúng đối tượng bằng FK |
+| Nhiều người nhận | notification_recipients, (notification_id,user_id), trạng thái đọc riêng |
+| Nhân viên và phạm vi | employee_assignments chọn khu XOR phòng; staff_permission_grants theo phân công/quyền |
 
-## 2NF — Phụ thuộc đầy đủ vào mọi khóa ứng viên
+Các khóa ghép/UNIQUE/EXCLUDE và đầy đủ FK nằm trong SQL. Những điều kiện như sức chứa theo thời gian, nợ được phép trả và số dư có thể hoàn có trigger/giao dịch riêng.
 
-| Bảng / khóa ứng viên nghiệp vụ | Phụ thuộc có ý nghĩa |
-|---|---|
-| employee_assignments: (user_id, property_id) | Ngày và trạng thái của chính cặp phân công |
-| rooms: (property_id, room_code) | Thuộc tính của phòng cụ thể trong khu |
-| contract_members: (contract_id, tenant_id, effective_from) | Quan hệ và ngày rời của lần cư trú đó |
-| service_price_configs: (property_id, service_item_id, effective_from) | Giá của dịch vụ tại khu và mốc hiệu lực cụ thể |
-| meter_readings: (contract_id, billing_period, service_item_id) | Chỉ số, ngày ghi và người ghi của đúng kỳ/loại dịch vụ |
-| invoices: (contract_id, billing_period) | Ngày phát hành, hạn thu và trạng thái của hóa đơn kỳ đó |
-| maintenance_images: (maintenance_request_id, url) | Thông tin ảnh thuộc yêu cầu cụ thể |
+## 2. Tránh lưu đồng thời dữ kiện và kết quả suy ra
 
-`contract_id → room_id` nên đã bỏ room_id khỏi meter_readings; `tenant_id → full_name, identity_number, phone...` nên đã bỏ thông tin cá nhân khỏi contract_members. Bảng chỉ số không chứa tên/đơn vị dịch vụ vì chúng thuộc service_items. Dòng đo đếm trên hóa đơn không lặp service_item_id hoặc quantity đã được xác định qua meter_reading_id.
+- Chỉ số thuộc công tơ, công tơ thuộc phòng. Khoảng tiêu thụ không lưu lại room_id/service_item_id của công tơ.
+- Mức dùng = điểm cuối − điểm đầu; thời lượng lấy từ thời điểm đo.
+- Số dư quỹ = bút toán vào/ra/đảo; số có thể dùng trừ phần tạm giữ chưa giải tỏa.
+- Số nợ = khoản phải thu sau điều chỉnh − phân bổ đã ghi; không chỉnh tay tổng hóa đơn/paid_amount/balance_due.
+- Tình trạng đang thuê theo lần chiếm hữu thực tế; hết ngày trên hợp đồng không tự sinh sự kiện trả phòng.
+- Tiền thu/chi thực lấy từ cash_transactions; PAYMENT/TRANSFER không được cộng như tiền mới nhận.
 
-## 3NF — Không lặp thuộc tính phụ thuộc qua thực thể khác
+## 3. Snapshot được giữ có chủ đích
 
-- `users` chỉ chứa dữ liệu đăng nhập. Thông tin cá nhân của người cư trú nằm tại tenant_profiles; các lần cư trú tham chiếu cùng hồ sơ.
-- `maintenance_requests.contract_id → contracts.room_id → rooms.property_id`: chỉ lưu contract_id ở yêu cầu. Khu và phòng được truy ra bằng JOIN, không có ba FK độc lập có thể ghép sai.
-- Tên và cách tính dịch vụ nằm tại service_items; lịch sử giá riêng tại service_price_configs.
-- Cảnh báo tham chiếu duy nhất một bản ghi chỉ số. Loại dịch vụ, phòng, lượng dùng và phần trăm tăng không được nhập lại trong cảnh báo.
-- Lượng dùng, thành tiền, tổng hóa đơn, đã thu, công nợ và trạng thái thanh toán được tính trong view. Không có nhiều cột tổng hợp phải tự đồng bộ sau mỗi giao dịch.
-- Trạng thái phòng đang thuê được tính theo thời gian hợp đồng; rooms chỉ lưu tình trạng khai thác thực tế.
+Tên dòng, đơn vị, giá, số lượng tính và khoảng dịch vụ trên billing_items là dữ kiện lúc lập chứng từ. Chúng không có nghĩa phải bằng danh mục hiện tại; cập nhật tên dịch vụ/giá tương lai không sửa chứng từ quá khứ.
 
-Các thuộc tính phi khóa của bảng quan hệ mô tả sự kiện do khóa xác định. Không có phụ thuộc xác định tên người, tên dịch vụ hoặc thông tin khu qua một FK rồi lưu lại như thuộc tính danh mục hiện tại trong cùng bảng quan hệ.
+Bàn giao giữ tên và tình trạng đồ vật lúc giao. Quyết toán giữ số dư trước cấn ở lần duyệt. Cảnh báo giữ ngưỡng và nguồn baseline tại lần đánh giá. Đây là dữ kiện thời điểm khác với trạng thái hiện tại.
 
-## Snapshot lịch sử và lượng tính phí
+Nhật ký before_data/after_data phục vụ tra soát, không thay quan hệ nghiệp vụ hoặc sổ tiền. Đối tượng nghiệp vụ quan trọng có FK cụ thể; resource_id của nhật ký chỉ là định danh tra cứu.
 
-`item_name_snapshot`, `unit_name_snapshot`, `unit_price_snapshot` là tên/đơn vị/giá đã áp dụng cho dòng hóa đơn, không phải bản sao có nghĩa “giá hiện tại”. Chúng được giữ khi danh mục đổi. Thuộc tính snapshot mô tả sự kiện giao dịch theo thời điểm, không được coi là phụ thuộc vào giá hiện tại của service_items.
+## 4. Giới hạn kết luận
 
-Dòng đo đếm dùng chỉ số đã khóa để lấy lượng dùng; không có thêm cột chênh chỉ số có thể sai. Dòng tiền phòng/phí tháng giữ lượng tính phí là ngày/ngày-người của kỳ. Mẫu số số ngày tháng lấy từ kỳ của hóa đơn qua view, không lưu lại trên từng dòng; kết quả thành tiền làm tròn đến hai chữ số thập phân.
-
-`checkout_records.contract_id` là khóa ứng viên UNIQUE. Cọc và công nợ snapshot mô tả trạng thái trước cấn tại lần quyết toán đó; chúng không bị tính lại từ công nợ hiện tại sau cấn. Số quyết toán tính từ ba đầu vào trong view. Vì vậy giữ được lịch sử mà không lưu thêm bản sao của kết quả phép trừ.
-
-## Các quy tắc ngoài phạm vi chuẩn hóa
-
-Chuẩn hóa không tự bảo đảm tiền thu không vượt nợ, người dùng có quyền truy cập, khoảng thuê không chồng lấn hoặc thao tác đồng thời an toàn. Các quy tắc này được tách rõ thành CHECK, FK, UNIQUE, EXCLUDE, trigger hoặc kiểm tra tại tầng API. Không dùng việc có 17 bảng hay 55 CHECK để thay cho chứng minh phụ thuộc dữ liệu.
-
-## Đối chiếu prototype
-
-Tài liệu này đánh giá mô hình 17 bảng. Backend đã chuyển sang mô hình này bằng Flyway V10; 29 bảng của prototype V1–V9 được giữ trong schema `prototype_v9`. Các tính chất chuẩn hóa được đối chiếu trên bảng nghiệp vụ hiện hành, không áp dụng ngược cho các bảng lưu trữ. Xem [hướng dẫn chuyển đổi](BACKEND-17-TABLES.md) và [kết quả kiểm chứng backend](backend-validation.json).
+49 bảng không tự chứng minh toàn bộ BCNF hoặc toàn bộ yêu cầu thực tế đã nghiệm thu. Thiết kế đã thực thi các khóa/phụ thuộc quan trọng và kiểm thử giao dịch/chuyển dữ liệu. Một số quy tắc thời gian, chuyển trạng thái và phân quyền còn phụ thuộc nghiệp vụ ứng dụng; xem [kết quả và giới hạn triển khai](TRIEN-KHAI-MO-HINH-49-BANG.md).

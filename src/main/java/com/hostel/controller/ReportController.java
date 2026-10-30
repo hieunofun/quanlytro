@@ -4,6 +4,7 @@ import com.hostel.service.Database;
 import org.springframework.web.bind.annotation.*;
 import java.time.YearMonth;
 import java.util.*;
+@org.springframework.context.annotation.Profile("!model49")
 @RestController
 @RequestMapping("/api")
 public class ReportController {

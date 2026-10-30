@@ -1,360 +1,606 @@
--- View tính toán và ràng buộc liên bảng cho quanlytro.sql.
-CREATE VIEW v_meter_consumption AS
-SELECT m.*, c.room_id, r.property_id, s.service_code, s.unit_name,
-       m.new_index - m.old_index AS consumption
-FROM meter_readings m JOIN contracts c ON c.id=m.contract_id
-JOIN rooms r ON r.id=c.room_id JOIN service_items s ON s.id=m.service_item_id;
-
-CREATE VIEW v_invoice_lines AS
-SELECT x.*, COALESCE(x.service_item_id,m.service_item_id) AS resolved_service_id,
-       COALESCE(m.new_index-m.old_index,x.quantity::numeric) AS billed_quantity,
-       CASE WHEN x.meter_reading_id IS NOT NULL
-         THEN round(x.unit_price_snapshot*(m.new_index-m.old_index),2)
-         ELSE round(x.unit_price_snapshot*x.quantity /
-           extract(day FROM i.billing_period + interval '1 month - 1 day'),2)
-       END AS subtotal
-FROM invoice_items x JOIN invoices i ON i.id=x.invoice_id
-LEFT JOIN meter_readings m ON m.id=x.meter_reading_id;
-
-CREATE VIEW v_invoice_balances AS
-SELECT i.*, COALESCE(l.total_amount,0)::numeric(14,2) AS total_amount,
-       COALESCE(p.paid_amount,0)::numeric(14,2) AS paid_amount,
-       (COALESCE(l.total_amount,0)-COALESCE(p.paid_amount,0))::numeric(14,2) AS balance_due,
-       COALESCE(p.cash_received,0)::numeric(14,2) AS cash_received,
-       CASE WHEN COALESCE(p.paid_amount,0)>=COALESCE(l.total_amount,0) THEN 'PAID'
-            WHEN COALESCE(p.paid_amount,0)=0 THEN 'UNPAID' ELSE 'PARTIALLY_PAID' END AS payment_status
-FROM invoices i
-LEFT JOIN (SELECT invoice_id,sum(subtotal) total_amount FROM v_invoice_lines GROUP BY invoice_id) l ON l.invoice_id=i.id
-LEFT JOIN (SELECT invoice_id,sum(amount) paid_amount,
-  sum(amount) FILTER (WHERE payment_method<>'DEPOSIT_OFFSET') cash_received
-  FROM payment_transactions GROUP BY invoice_id) p ON p.invoice_id=i.id;
-
-CREATE VIEW v_consumption_alerts AS
-SELECT a.*, v.contract_id, v.room_id, v.service_item_id, v.consumption,
-  round((v.consumption-a.baseline_average)*100/a.baseline_average,2) AS percentage_increase,
-  CASE WHEN (v.consumption-a.baseline_average)*100/a.baseline_average >= 2*a.applied_threshold_percentage
-       THEN 'CRITICAL' ELSE 'WARNING' END AS alert_severity
-FROM consumption_alerts a JOIN v_meter_consumption v ON v.id=a.meter_reading_id;
-
-CREATE VIEW v_checkout_totals AS
-SELECT x.*, c.actual_checkout_date AS checkout_date,
-       x.deposit_snapshot-x.damage_amount-x.outstanding_snapshot AS settlement_amount
-FROM checkout_records x JOIN contracts c ON c.id=x.contract_id;
+-- Current rules through V13. Use after docs/quanlytro.sql on a fresh database.
+-- Views and transactional guards for the approved 49-table model.
+CREATE VIEW v_contract_current AS
+SELECT c.*,r.property_id,p.tenant_id primary_tenant_id,t.lease_end end_date,a.rental_price,
+ a.deposit_required deposit_amount,a.payment_day payment_cycle_day,a.terms,a.collection_timing,
+ a.id term_id,(SELECT max(x.returned_at)::date FROM room_possessions x WHERE x.contract_id=c.id AND x.returned_at IS NOT NULL) actual_checkout_date
+FROM contracts c JOIN rooms r ON r.id=c.room_id
+LEFT JOIN contract_parties p ON p.contract_id=c.id AND p.party_role='PRIMARY'
+LEFT JOIN LATERAL(SELECT * FROM contract_terms x WHERE x.contract_id=c.id AND status='APPROVED'
+ ORDER BY effective_from DESC,version_no DESC LIMIT 1)t ON true
+LEFT JOIN LATERAL(SELECT * FROM contract_terms x WHERE x.contract_id=c.id AND status='APPROVED' AND effective_from<=greatest(current_date,c.start_date)
+ ORDER BY effective_from DESC,version_no DESC LIMIT 1)a ON true;
 
 CREATE VIEW v_room_status AS
-SELECT r.*, CASE WHEN operational_status='MAINTENANCE' THEN 'MAINTENANCE'
-  WHEN EXISTS(SELECT 1 FROM contracts c WHERE c.room_id=r.id AND c.status<>'CANCELLED'
-    AND daterange(c.start_date,COALESCE(c.actual_checkout_date,c.end_date),'[)') @>
-      (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date)
-  THEN 'RENTED' ELSE 'AVAILABLE' END AS display_status
-FROM rooms r;
+SELECT r.*,price.amount base_price,coalesce(op.status,'READY') operational_status,
+ CASE WHEN EXISTS(SELECT 1 FROM room_possessions x JOIN contracts c ON c.id=x.contract_id
+ WHERE c.room_id=r.id AND x.taken_at<=clock_timestamp() AND x.returned_at IS NULL) THEN 'RENTED'
+ WHEN coalesce(op.status,'READY')='READY' THEN 'AVAILABLE' ELSE op.status END display_status
+FROM rooms r
+LEFT JOIN LATERAL(SELECT amount FROM room_price_history WHERE room_id=r.id AND effective_from<=CURRENT_DATE ORDER BY effective_from DESC LIMIT 1)price ON true
+LEFT JOIN LATERAL(SELECT status FROM room_operating_periods WHERE room_id=r.id AND valid_from<=clock_timestamp() AND (valid_to IS NULL OR valid_to>clock_timestamp()) LIMIT 1)op ON true;
 
-CREATE FUNCTION can_manage_property(actor bigint, target_property bigint) RETURNS boolean
-LANGUAGE sql STABLE AS $$
-  SELECT EXISTS(SELECT 1 FROM users u WHERE u.id=actor AND u.status='ACTIVE' AND
-    (u.role='ADMIN' OR (u.role='STAFF' AND EXISTS(SELECT 1 FROM employee_assignments a
-      WHERE a.user_id=u.id AND a.property_id=target_property AND a.is_active))));
+CREATE VIEW v_segments AS
+SELECT s.*,a.meter_id,m.room_id,r.property_id,m.service_item_id,a.observed_at service_start,b.observed_at service_end,
+ a.reading_value old_index,b.reading_value new_index,b.reading_value-a.reading_value consumption,
+ extract(epoch FROM b.observed_at-a.observed_at)/86400.0 duration_days
+FROM consumption_segments s JOIN meter_readings a ON a.id=s.start_reading_id JOIN meter_readings b ON b.id=s.end_reading_id
+JOIN meters m ON m.id=a.meter_id JOIN rooms r ON r.id=m.room_id;
+
+CREATE VIEW v_billing_lines AS
+SELECT i.*,d.contract_id,d.reservation_id,d.status document_status,d.document_type,d.due_date,
+ coalesce(s.consumption,i.quantity_snapshot) billed_quantity,
+ round(i.unit_price_snapshot*coalesce(s.consumption,i.quantity_snapshot)/CASE WHEN i.calculation_basis='PRORATED'
+ THEN extract(day FROM i.calculation_period+interval '1 month - 1 day') ELSE 1 END,2)::numeric(16,2) subtotal,
+ s.old_index,s.new_index
+FROM billing_items i JOIN billing_documents d ON d.id=i.document_id LEFT JOIN v_segments s ON s.id=i.segment_id;
+
+CREATE VIEW v_fund_movements AS
+SELECT id entry_id,to_fund_id fund_id,amount delta FROM fund_entries WHERE to_fund_id IS NOT NULL
+UNION ALL SELECT id,from_fund_id,-amount FROM fund_entries WHERE from_fund_id IS NOT NULL
+UNION ALL SELECT r.id,o.to_fund_id,-r.amount FROM fund_entries r JOIN fund_entries o ON o.id=r.original_entry_id WHERE r.entry_type='REVERSAL' AND o.to_fund_id IS NOT NULL
+UNION ALL SELECT r.id,o.from_fund_id,r.amount FROM fund_entries r JOIN fund_entries o ON o.id=r.original_entry_id WHERE r.entry_type='REVERSAL' AND o.from_fund_id IS NOT NULL;
+
+CREATE VIEW v_fund_balances AS
+SELECT f.*,coalesce(x.balance,0)::numeric(16,2) balance,coalesce(h.held,0)::numeric(16,2) held_amount,
+ (coalesce(x.balance,0)-coalesce(h.held,0))::numeric(16,2) available
+FROM fund_accounts f LEFT JOIN(SELECT fund_id,sum(delta) balance FROM v_fund_movements GROUP BY fund_id)x ON x.fund_id=f.id
+LEFT JOIN(SELECT fund_account_id,sum(amount) held FROM fund_holds WHERE released_at IS NULL GROUP BY fund_account_id)h ON h.fund_account_id=f.id;
+
+CREATE VIEW v_item_applications AS
+SELECT id entry_id,debit_item_id item_id,amount amount FROM fund_entries WHERE entry_type='PAYMENT'
+UNION ALL SELECT r.id,o.debit_item_id,-r.amount FROM fund_entries r JOIN fund_entries o ON o.id=r.original_entry_id WHERE r.entry_type IN ('REVERSAL','ADJUSTMENT_RELEASE') AND o.entry_type='PAYMENT'
+UNION ALL SELECT r.id,p.debit_item_id,r.amount FROM fund_entries r JOIN fund_entries o ON o.id=r.original_entry_id JOIN fund_entries p ON p.id=o.original_entry_id WHERE r.entry_type='REVERSAL' AND o.entry_type='ADJUSTMENT_RELEASE';
+
+CREATE VIEW v_item_balances AS
+SELECT l.*, (l.subtotal+coalesce(adj.delta,0))::numeric(16,2) charge_amount,
+ coalesce(pay.paid,0)::numeric(16,2) paid_amount,
+ greatest(l.subtotal+coalesce(adj.delta,0)-coalesce(pay.paid,0),0)::numeric(16,2) balance_due,
+ greatest(coalesce(pay.paid,0)-l.subtotal-coalesce(adj.delta,0),0)::numeric(16,2) overpayment
+FROM v_billing_lines l
+LEFT JOIN(SELECT adjusts_item_id,sum(CASE direction WHEN 'DEBIT' THEN subtotal ELSE -subtotal END) delta
+ FROM v_billing_lines WHERE document_status='ISSUED' AND adjusts_item_id IS NOT NULL GROUP BY adjusts_item_id)adj ON adj.adjusts_item_id=l.id
+LEFT JOIN(SELECT item_id,sum(amount) paid FROM v_item_applications GROUP BY item_id)pay ON pay.item_id=l.id
+WHERE l.direction='DEBIT' AND l.adjusts_item_id IS NULL;
+
+CREATE VIEW v_document_balances AS
+SELECT d.*,coalesce(a.total,0)::numeric(16,2) total_amount,coalesce(a.paid,0)::numeric(16,2) paid_amount,
+ coalesce(a.debt,0)::numeric(16,2) balance_due,
+ CASE WHEN coalesce(a.debt,0)=0 AND coalesce(a.paid,0)>0 THEN 'PAID' WHEN coalesce(a.paid,0)>0 THEN 'PARTIALLY_PAID' ELSE 'UNPAID' END payment_status
+FROM billing_documents d LEFT JOIN(SELECT document_id,sum(charge_amount) total,sum(paid_amount) paid,sum(balance_due) debt FROM v_item_balances GROUP BY document_id)a ON a.document_id=d.id;
+
+CREATE VIEW v_maintenance AS
+SELECT m.*,coalesce(m.room_id,ap.room_id) resolved_room_id,
+ coalesce(m.property_id,ap.property_id,r.property_id) resolved_property_id,
+ coalesce(cost.total,0)::numeric(16,2) actual_cost,
+ (SELECT note FROM maintenance_events e WHERE e.request_id=m.id ORDER BY e.id DESC LIMIT 1) progress_note
+FROM maintenance_requests m LEFT JOIN asset_placements ap ON ap.id=m.asset_placement_id
+LEFT JOIN rooms r ON r.id=coalesce(m.room_id,ap.room_id)
+LEFT JOIN(SELECT request_id,sum(amount) total FROM maintenance_costs GROUP BY request_id)cost ON cost.request_id=m.id;
+
+CREATE OR REPLACE FUNCTION can_manage_property(actor bigint,target_property bigint) RETURNS boolean LANGUAGE sql STABLE AS $$
+ SELECT EXISTS(SELECT 1 FROM users u WHERE u.id=actor AND u.status='ACTIVE' AND (u.role='ADMIN' OR
+ (u.role='STAFF' AND EXISTS(SELECT 1 FROM employee_assignments a WHERE a.user_id=u.id AND a.property_id=target_property AND a.assigned_at<=clock_timestamp() AND a.revoked_at IS NULL))));
+$$;
+CREATE FUNCTION can_manage_room(actor bigint,target_room bigint) RETURNS boolean LANGUAGE sql STABLE AS $$
+ SELECT EXISTS(SELECT 1 FROM rooms r JOIN users u ON u.id=actor WHERE r.id=target_room AND u.status='ACTIVE' AND
+ (u.role='ADMIN' OR (u.role='STAFF' AND EXISTS(SELECT 1 FROM employee_assignments a WHERE a.user_id=u.id AND a.assigned_at<=clock_timestamp() AND a.revoked_at IS NULL AND
+ (a.room_id=r.id OR a.property_id=r.property_id)))));
 $$;
 
-CREATE FUNCTION guard_assignment() RETURNS trigger LANGUAGE plpgsql AS $$
-BEGIN
-  IF NOT EXISTS(SELECT 1 FROM users WHERE id=NEW.user_id AND role='STAFF') THEN
-    RAISE EXCEPTION 'Assignments require STAFF' USING ERRCODE='23514';
-  END IF;
-  RETURN NEW;
-END $$;
-CREATE TRIGGER trg_assignment BEFORE INSERT OR UPDATE ON employee_assignments
-FOR EACH ROW EXECUTE FUNCTION guard_assignment();
+CREATE FUNCTION guard49_append_only() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN RAISE EXCEPTION '% is append-only; create a linked correction',TG_TABLE_NAME USING ERRCODE='23514'; END $$;
+CREATE TRIGGER immutable_fund_entry BEFORE UPDATE OR DELETE ON fund_entries FOR EACH ROW EXECUTE FUNCTION guard49_append_only();
+CREATE TRIGGER immutable_audit BEFORE UPDATE OR DELETE ON audit_events FOR EACH ROW EXECUTE FUNCTION guard49_append_only();
+CREATE TRIGGER immutable_reading BEFORE UPDATE OR DELETE ON meter_readings FOR EACH ROW EXECUTE FUNCTION guard49_append_only();
+CREATE TRIGGER immutable_segment BEFORE UPDATE OR DELETE ON consumption_segments FOR EACH ROW EXECUTE FUNCTION guard49_append_only();
 
-CREATE FUNCTION guard_contract() RETURNS trigger LANGUAGE plpgsql AS $$
-DECLARE r rooms%ROWTYPE;
+CREATE FUNCTION guard49_terms() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE c contracts%ROWTYPE; proposed_end date;
 BEGIN
-  SELECT * INTO r FROM rooms WHERE id=NEW.room_id FOR UPDATE;
-  IF NOT FOUND THEN RETURN NEW; END IF;
-  IF TG_OP='UPDATE' AND EXISTS(SELECT 1 FROM checkout_records WHERE contract_id=OLD.id) THEN
-    RAISE EXCEPTION 'Settled contract is immutable' USING ERRCODE='23514';
-  END IF;
-  IF NEW.status IN ('ACTIVE','PENDING') AND
-    (r.operational_status='MAINTENANCE' OR EXISTS(SELECT 1 FROM properties WHERE id=r.property_id AND status<>'ACTIVE')) THEN
-    RAISE EXCEPTION 'Property/room unavailable' USING ERRCODE='23514';
-  END IF;
-  IF TG_OP='UPDATE' AND EXISTS(SELECT 1 FROM invoices WHERE contract_id=OLD.id AND status='ISSUED') AND
-    ROW(NEW.room_id,NEW.primary_tenant_id,NEW.start_date,NEW.end_date,NEW.rental_price,NEW.deposit_amount)
-    IS DISTINCT FROM ROW(OLD.room_id,OLD.primary_tenant_id,OLD.start_date,OLD.end_date,OLD.rental_price,OLD.deposit_amount) THEN
-    RAISE EXCEPTION 'Issued contract terms are immutable' USING ERRCODE='23514';
-  END IF;
-  IF NEW.status='CANCELLED' AND EXISTS(SELECT 1 FROM invoices WHERE contract_id=NEW.id) THEN
-    RAISE EXCEPTION 'Cannot cancel a billed contract' USING ERRCODE='23514';
-  END IF;
-  RETURN NEW;
+ IF TG_OP<>'INSERT' AND OLD.status='APPROVED' THEN RAISE EXCEPTION 'Approved terms are immutable' USING ERRCODE='23514'; END IF;
+ IF TG_OP='DELETE' THEN RETURN OLD; END IF;
+ SELECT * INTO c FROM contracts WHERE id=NEW.contract_id;
+ PERFORM id FROM rooms WHERE id=c.room_id FOR UPDATE;
+ PERFORM id FROM contracts WHERE id=c.id FOR UPDATE;
+ IF NEW.effective_from<c.start_date THEN RAISE EXCEPTION 'Terms precede contract' USING ERRCODE='23514'; END IF;
+ IF NEW.status='APPROVED' THEN
+  IF EXISTS(SELECT 1 FROM contract_terms t WHERE t.contract_id=NEW.contract_id AND t.status='APPROVED' AND t.id<>NEW.id AND
+  (t.version_no>=NEW.version_no OR t.effective_from>=NEW.effective_from)) THEN RAISE EXCEPTION 'New terms must follow approved versions' USING ERRCODE='23514'; END IF;
+  IF EXISTS(SELECT 1 FROM billing_items i JOIN billing_documents d ON d.id=i.document_id WHERE d.contract_id=NEW.contract_id AND d.status='ISSUED' AND i.contract_term_id IS NOT NULL AND i.service_to>NEW.effective_from) THEN
+  RAISE EXCEPTION 'Terms affect issued period; use linked adjustment' USING ERRCODE='23514'; END IF;
+  proposed_end:=NEW.lease_end;
+  IF EXISTS(SELECT 1 FROM v_contract_current x WHERE x.room_id=c.room_id AND x.id<>c.id AND x.status IN ('ACTIVE','PENDING')
+   AND daterange(x.start_date,x.end_date,'[)') && daterange(c.start_date,proposed_end,'[)')) THEN
+   RAISE EXCEPTION 'Contract period overlaps another contract' USING ERRCODE='23514'; END IF;
+  IF EXISTS(SELECT 1 FROM reservations r WHERE r.room_id=c.room_id AND r.status='HELD' AND r.expires_at>clock_timestamp()
+   AND r.id IS DISTINCT FROM c.reservation_id AND daterange(r.start_date,r.end_date,'[)') && daterange(c.start_date,proposed_end,'[)')) THEN
+   RAISE EXCEPTION 'Contract conflicts with held reservation' USING ERRCODE='23514'; END IF;
+ END IF;
+ RETURN NEW;
 END $$;
-CREATE TRIGGER trg_contract BEFORE INSERT OR UPDATE ON contracts FOR EACH ROW EXECUTE FUNCTION guard_contract();
+CREATE TRIGGER guard_terms BEFORE INSERT OR UPDATE OR DELETE ON contract_terms FOR EACH ROW EXECUTE FUNCTION guard49_terms();
 
-CREATE FUNCTION guard_member() RETURNS trigger LANGUAGE plpgsql AS $$
-DECLARE c contracts%ROWTYPE; limit_date date; b record; old_days integer; new_days integer;
+CREATE FUNCTION guard49_contract() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-  SELECT * INTO c FROM contracts WHERE id=CASE WHEN TG_OP='DELETE' THEN OLD.contract_id ELSE NEW.contract_id END FOR UPDATE;
-  IF NOT FOUND THEN RETURN NEW; END IF;
-  limit_date := COALESCE(c.actual_checkout_date,c.end_date);
-  IF TG_OP='UPDATE' AND ROW(NEW.contract_id,NEW.tenant_id) IS DISTINCT FROM ROW(OLD.contract_id,OLD.tenant_id) THEN
-    RAISE EXCEPTION 'Membership identity is immutable' USING ERRCODE='23514';
+ PERFORM id FROM rooms WHERE id=NEW.room_id FOR UPDATE;
+ IF TG_OP='UPDATE' AND ROW(NEW.room_id,NEW.start_date) IS DISTINCT FROM ROW(OLD.room_id,OLD.start_date) AND
+ EXISTS(SELECT 1 FROM contract_terms WHERE contract_id=OLD.id AND status='APPROVED') THEN
+ RAISE EXCEPTION 'Signed contract identity cannot change' USING ERRCODE='23514'; END IF;
+ IF NEW.previous_contract_id IS NOT NULL AND EXISTS(WITH RECURSIVE chain AS(SELECT id,previous_contract_id FROM contracts WHERE id=NEW.previous_contract_id
+ UNION SELECT c.id,c.previous_contract_id FROM contracts c JOIN chain p ON c.id=p.previous_contract_id)SELECT 1 FROM chain WHERE id=NEW.id) THEN
+ RAISE EXCEPTION 'Contract continuation cycle' USING ERRCODE='23514'; END IF;
+ IF NEW.status IN ('ACTIVE','PENDING') AND EXISTS(SELECT 1 FROM v_contract_current x JOIN
+ (SELECT lease_end FROM contract_terms WHERE contract_id=NEW.id AND status='APPROVED' ORDER BY effective_from DESC LIMIT 1)t ON true
+ WHERE x.room_id=NEW.room_id AND x.id<>NEW.id AND x.status IN ('ACTIVE','PENDING')
+ AND daterange(x.start_date,x.end_date,'[)') && daterange(NEW.start_date,t.lease_end,'[)')) THEN
+ RAISE EXCEPTION 'Active contract overlaps another tenancy' USING ERRCODE='23514'; END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER guard_contract49 BEFORE INSERT OR UPDATE ON contracts FOR EACH ROW EXECUTE FUNCTION guard49_contract();
+
+CREATE FUNCTION check49_contract_complete() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF EXISTS(SELECT 1 FROM contracts c WHERE c.id=NEW.id AND c.status IN ('ACTIVE','PENDING') AND
+ (NOT EXISTS(SELECT 1 FROM contract_terms t WHERE t.contract_id=c.id AND t.status='APPROVED') OR
+ NOT EXISTS(SELECT 1 FROM contract_parties p WHERE p.contract_id=c.id AND p.party_role='PRIMARY'))) THEN
+ RAISE EXCEPTION 'Active contract requires approved terms and primary party' USING ERRCODE='23514'; END IF;
+ RETURN NULL;
+END $$;
+CREATE CONSTRAINT TRIGGER complete_contract49 AFTER INSERT OR UPDATE ON contracts DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION check49_contract_complete();
+
+CREATE FUNCTION guard49_residency() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE c v_contract_current%ROWTYPE; cap integer; peak integer;
+BEGIN
+ SELECT * INTO c FROM v_contract_current WHERE id=NEW.contract_id;
+ PERFORM id FROM contracts WHERE id=c.id FOR UPDATE;
+ IF NEW.effective_from<c.start_date OR NEW.effective_from>=c.end_date OR (NEW.effective_to IS NOT NULL AND NEW.effective_to>c.end_date) THEN
+ RAISE EXCEPTION 'Residency outside contract' USING ERRCODE='23514'; END IF;
+ SELECT max_occupants INTO cap FROM rooms WHERE id=c.room_id;
+ SELECT coalesce(max(n),0) INTO peak FROM(SELECT count(*) n FROM contract_residencies a
+ CROSS JOIN LATERAL(SELECT DISTINCT b.effective_from d FROM contract_residencies b WHERE b.contract_id=c.id) days
+ WHERE a.contract_id=c.id AND a.effective_from<=days.d AND (a.effective_to IS NULL OR a.effective_to>days.d) GROUP BY days.d) counts;
+ IF peak>cap THEN RAISE EXCEPTION 'Room capacity exceeded' USING ERRCODE='23514'; END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER capacity49 AFTER INSERT OR UPDATE ON contract_residencies FOR EACH ROW EXECUTE FUNCTION guard49_residency();
+
+CREATE FUNCTION guard49_possession() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE room bigint;
+BEGIN
+ SELECT room_id INTO room FROM contracts WHERE id=NEW.contract_id;
+ PERFORM id FROM rooms WHERE id=room FOR UPDATE;
+ IF EXISTS(SELECT 1 FROM room_possessions p JOIN contracts c ON c.id=p.contract_id WHERE c.room_id=room AND p.id<>NEW.id
+ AND tstzrange(p.taken_at,p.returned_at,'[)') && tstzrange(NEW.taken_at,NEW.returned_at,'[)')) THEN
+ RAISE EXCEPTION 'Room is still possessed by another tenancy' USING ERRCODE='23514'; END IF;
+ IF TG_OP='INSERT' AND EXISTS(SELECT 1 FROM room_operating_periods o WHERE o.room_id=room AND o.status<>'READY'
+ AND tstzrange(o.valid_from,o.valid_to,'[)') @> NEW.taken_at) THEN RAISE EXCEPTION 'Room is not ready for handover' USING ERRCODE='23514'; END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER possession49 BEFORE INSERT OR UPDATE ON room_possessions FOR EACH ROW EXECUTE FUNCTION guard49_possession();
+
+CREATE FUNCTION guard49_segment() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE a meter_readings%ROWTYPE;b meter_readings%ROWTYPE; room bigint;
+BEGIN
+ SELECT * INTO a FROM meter_readings WHERE id=NEW.start_reading_id; SELECT * INTO b FROM meter_readings WHERE id=NEW.end_reading_id;
+ IF a.meter_id<>b.meter_id OR a.observed_at>=b.observed_at OR a.reading_value>b.reading_value THEN
+ RAISE EXCEPTION 'Consumption endpoints must increase on the same meter' USING ERRCODE='23514'; END IF;
+ SELECT room_id INTO room FROM meters WHERE id=a.meter_id;
+ PERFORM id FROM meters WHERE id=a.meter_id FOR UPDATE;
+ IF NEW.contract_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM contracts WHERE id=NEW.contract_id AND room_id=room) THEN
+ RAISE EXCEPTION 'Segment belongs to another room' USING ERRCODE='23514'; END IF;
+ IF NEW.supersedes_segment_id IS NOT NULL AND (NOT EXISTS(SELECT 1 FROM v_segments s WHERE s.id=NEW.supersedes_segment_id AND s.meter_id=a.meter_id AND s.contract_id IS NOT DISTINCT FROM NEW.contract_id)
+ OR EXISTS(SELECT 1 FROM billing_items WHERE segment_id=NEW.supersedes_segment_id)) THEN
+ RAISE EXCEPTION 'Billed segment requires linked billing correction; replacement scope must match' USING ERRCODE='23514'; END IF;
+ IF EXISTS(SELECT 1 FROM meter_readings n WHERE n.supersedes_reading_id IN(a.id,b.id)) THEN
+ RAISE EXCEPTION 'Use current reading versions' USING ERRCODE='23514'; END IF;
+ IF EXISTS(SELECT 1 FROM v_segments s WHERE s.meter_id=a.meter_id AND s.id IS DISTINCT FROM NEW.supersedes_segment_id
+ AND NOT EXISTS(SELECT 1 FROM consumption_segments n WHERE n.supersedes_segment_id=s.id)
+ AND tstzrange(s.service_start,s.service_end,'[)') && tstzrange(a.observed_at,b.observed_at,'[)')) THEN
+ RAISE EXCEPTION 'Consumption interval overlaps an existing interval' USING ERRCODE='23514'; END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER segment49 BEFORE INSERT ON consumption_segments FOR EACH ROW EXECUTE FUNCTION guard49_segment();
+
+CREATE FUNCTION guard49_item() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE d billing_documents%ROWTYPE; source_contract bigint;
+BEGIN
+ SELECT * INTO d FROM billing_documents WHERE id=CASE WHEN TG_OP='DELETE' THEN OLD.document_id ELSE NEW.document_id END FOR UPDATE;
+ IF d.status<>'DRAFT' THEN RAISE EXCEPTION 'Issued billing lines are immutable' USING ERRCODE='23514'; END IF;
+ IF TG_OP='DELETE' THEN RETURN OLD; END IF;
+ IF NEW.adjusts_item_id IS NOT NULL THEN
+ SELECT bd.contract_id INTO source_contract FROM billing_items i JOIN billing_documents bd ON bd.id=i.document_id WHERE i.id=NEW.adjusts_item_id;
+ IF d.document_type<>'ADJUSTMENT' OR d.contract_id IS DISTINCT FROM source_contract THEN RAISE EXCEPTION 'Adjustment scope invalid' USING ERRCODE='23514'; END IF;
+ IF NOT EXISTS(SELECT 1 FROM v_item_balances WHERE id=NEW.adjusts_item_id AND document_status='ISSUED') THEN
+ RAISE EXCEPTION 'Adjustment must target original issued debit' USING ERRCODE='23514'; END IF;
+ END IF;
+ IF NEW.segment_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM consumption_segments WHERE id=NEW.segment_id AND contract_id=d.contract_id) THEN
+ RAISE EXCEPTION 'Meter segment does not belong to billed contract' USING ERRCODE='23514'; END IF;
+ IF NEW.contract_term_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM contract_terms WHERE id=NEW.contract_term_id AND contract_id=d.contract_id) THEN
+ RAISE EXCEPTION 'Terms do not belong to billed contract' USING ERRCODE='23514'; END IF;
+ IF NEW.subscription_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM contract_service_subscriptions WHERE id=NEW.subscription_id AND contract_id=d.contract_id) THEN
+ RAISE EXCEPTION 'Subscription does not belong to billed contract' USING ERRCODE='23514'; END IF;
+ IF NEW.handover_item_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM handover_items i JOIN handovers h ON h.id=i.handover_id WHERE i.id=NEW.handover_item_id AND h.contract_id=d.contract_id) THEN RAISE EXCEPTION 'Handover charge scope differs' USING ERRCODE='23514'; END IF;
+ IF NEW.violation_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM contract_violations WHERE id=NEW.violation_id AND contract_id=d.contract_id) THEN RAISE EXCEPTION 'Violation charge scope differs' USING ERRCODE='23514'; END IF;
+ IF NEW.maintenance_cost_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM maintenance_costs cost JOIN v_maintenance m ON m.id=cost.request_id JOIN contracts c ON c.id=d.contract_id JOIN rooms r ON r.id=c.room_id WHERE cost.id=NEW.maintenance_cost_id AND (m.resolved_room_id=c.room_id OR (m.resolved_room_id IS NULL AND m.resolved_property_id=r.property_id))) THEN RAISE EXCEPTION 'Maintenance cost scope differs' USING ERRCODE='23514'; END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER item49 BEFORE INSERT OR UPDATE OR DELETE ON billing_items FOR EACH ROW EXECUTE FUNCTION guard49_item();
+
+CREATE FUNCTION guard49_document() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF TG_OP<>'INSERT' AND OLD.status='ISSUED' THEN RAISE EXCEPTION 'Issued documents are immutable' USING ERRCODE='23514'; END IF;
+ IF TG_OP='DELETE' THEN RETURN OLD; END IF;
+ IF TG_OP='INSERT' AND NEW.status<>'DRAFT' THEN RAISE EXCEPTION 'Create draft before issue' USING ERRCODE='23514'; END IF;
+ IF NEW.status='ISSUED' THEN
+  PERFORM b.id FROM billing_items b WHERE b.id IN(SELECT adjusts_item_id FROM billing_items WHERE document_id=NEW.id) ORDER BY b.id FOR UPDATE;
+  IF EXISTS(SELECT 1 FROM v_item_balances b JOIN
+   (SELECT adjusts_item_id,sum(CASE direction WHEN 'DEBIT' THEN subtotal ELSE -subtotal END) delta FROM v_billing_lines WHERE document_id=NEW.id AND adjusts_item_id IS NOT NULL GROUP BY adjusts_item_id)a
+   ON a.adjusts_item_id=b.id WHERE b.charge_amount+a.delta<0) THEN
+  RAISE EXCEPTION 'Adjustment cannot reduce charge below zero' USING ERRCODE='23514'; END IF;
+  IF NEW.issue_date>(clock_timestamp() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date OR NOT EXISTS(SELECT 1 FROM billing_items WHERE document_id=NEW.id) THEN
+  RAISE EXCEPTION 'Issue date or missing lines prevents issue' USING ERRCODE='23514'; END IF;
+  IF EXISTS(SELECT 1 FROM billing_items WHERE document_id=NEW.id AND verification_status IN ('PENDING','DISPUTED')) OR
+  EXISTS(SELECT 1 FROM billing_items i JOIN consumption_alerts a ON a.segment_id=i.segment_id WHERE i.document_id=NEW.id AND a.status='PENDING') THEN
+  RAISE EXCEPTION 'Unresolved verification or consumption alert' USING ERRCODE='23514'; END IF;
+  NEW.issued_at:=clock_timestamp();
+ END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER document49 BEFORE INSERT OR UPDATE OR DELETE ON billing_documents FOR EACH ROW EXECUTE FUNCTION guard49_document();
+
+CREATE FUNCTION guard49_entry() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE source v_fund_balances%ROWTYPE; target fund_accounts%ROWTYPE; line v_item_balances%ROWTYPE;
+ original fund_entries%ROWTYPE; cash cash_transactions%ROWTYPE; credit v_billing_lines%ROWTYPE; used numeric; allowed numeric; cid bigint;
+BEGIN
+ -- Every writer locks affected funds in stable ID order before re-reading totals.
+ IF NEW.original_entry_id IS NOT NULL THEN SELECT * INTO original FROM fund_entries WHERE id=NEW.original_entry_id; END IF;
+ PERFORM id FROM fund_accounts WHERE id IN(NEW.from_fund_id,NEW.to_fund_id,original.from_fund_id,original.to_fund_id) ORDER BY id FOR UPDATE;
+ IF NEW.from_fund_id IS NOT NULL THEN
+  SELECT * INTO source FROM v_fund_balances WHERE id=NEW.from_fund_id;
+  IF source.reconciliation_status<>'VERIFIED' THEN RAISE EXCEPTION 'Fund requires reconciliation before use' USING ERRCODE='23514'; END IF;
+  IF source.available<NEW.amount THEN RAISE EXCEPTION 'Insufficient available funds' USING ERRCODE='23514'; END IF;
+ END IF;
+ IF NEW.to_fund_id IS NOT NULL THEN SELECT * INTO target FROM fund_accounts WHERE id=NEW.to_fund_id; END IF;
+ IF NEW.cash_transaction_id IS NOT NULL THEN
+  SELECT * INTO cash FROM cash_transactions WHERE id=NEW.cash_transaction_id FOR UPDATE;
+  IF cash.status<>'CONFIRMED' OR (NEW.entry_type='RECEIVE' AND cash.direction<>'IN') OR (NEW.entry_type='REFUND' AND cash.direction<>'OUT') THEN
+  RAISE EXCEPTION 'Cash must be confirmed with matching direction' USING ERRCODE='23514'; END IF;
+  SELECT coalesce(sum(amount),0) INTO used FROM fund_entries WHERE cash_transaction_id=cash.id;
+  IF used+NEW.amount>cash.amount THEN RAISE EXCEPTION 'Cash allocation exceeds actual cash' USING ERRCODE='23514'; END IF;
+ END IF;
+ IF NEW.entry_type='PAYMENT' THEN
+  SELECT * INTO line FROM v_item_balances WHERE id=NEW.debit_item_id;
+  PERFORM id FROM billing_items WHERE id=NEW.debit_item_id FOR UPDATE;
+  SELECT * INTO line FROM v_item_balances WHERE id=NEW.debit_item_id;
+  IF NOT FOUND OR line.document_status<>'ISSUED' OR line.verification_status NOT IN ('VERIFIED','ESTIMATED') OR line.balance_due<NEW.amount THEN
+  RAISE EXCEPTION 'Allocation exceeds eligible debt or targets draft' USING ERRCODE='23514'; END IF;
+  IF source.contract_id IS DISTINCT FROM line.contract_id OR source.reservation_id IS DISTINCT FROM line.reservation_id THEN
+  RAISE EXCEPTION 'Fund and charge scopes differ; transfer explicitly first' USING ERRCODE='23514'; END IF;
+ END IF;
+ IF NEW.entry_type='TRANSFER' AND source.contract_id IS NOT NULL AND target.contract_id IS NOT NULL AND source.contract_id<>target.contract_id
+ AND source.beneficiary_tenant_id IS DISTINCT FROM target.beneficiary_tenant_id THEN
+ RAISE EXCEPTION 'Cannot transfer ownership without a separate agreement' USING ERRCODE='23514'; END IF;
+ IF NEW.entry_type IN ('CREDIT_TO_FUND','ADJUSTMENT_RELEASE') THEN
+  SELECT * INTO credit FROM v_billing_lines WHERE id=NEW.credit_item_id;
+  PERFORM id FROM billing_items WHERE id=NEW.credit_item_id FOR UPDATE;
+  IF credit.direction<>'CREDIT' OR credit.document_status<>'ISSUED' OR target.contract_id IS DISTINCT FROM credit.contract_id THEN
+  RAISE EXCEPTION 'Invalid credit source or fund scope' USING ERRCODE='23514'; END IF;
+  SELECT coalesce(sum(e.amount-coalesce((SELECT sum(r.amount) FROM fund_entries r WHERE r.entry_type='REVERSAL' AND r.original_entry_id=e.id),0)),0)
+  INTO used FROM fund_entries e WHERE e.credit_item_id=credit.id;
+  IF used+NEW.amount>credit.subtotal THEN RAISE EXCEPTION 'Credit already consumed' USING ERRCODE='23514'; END IF;
+  IF NEW.entry_type='CREDIT_TO_FUND' AND credit.adjusts_item_id IS NOT NULL THEN RAISE EXCEPTION 'Adjustment cannot also mint fund credit' USING ERRCODE='23514'; END IF;
+  IF NEW.entry_type='ADJUSTMENT_RELEASE' THEN
+   IF original.entry_type<>'PAYMENT' OR original.debit_item_id IS DISTINCT FROM credit.adjusts_item_id OR target.id<>original.from_fund_id THEN
+   RAISE EXCEPTION 'Release must restore original payment source' USING ERRCODE='23514'; END IF;
+   SELECT overpayment INTO allowed FROM v_item_balances WHERE id=original.debit_item_id;
+   IF allowed<NEW.amount THEN RAISE EXCEPTION 'Release exceeds actual overpayment' USING ERRCODE='23514'; END IF;
+   SELECT coalesce(sum(CASE WHEN e.entry_type IN ('REVERSAL','ADJUSTMENT_RELEASE') THEN e.amount ELSE 0 END),0)
+    -coalesce((SELECT sum(r.amount) FROM fund_entries r JOIN fund_entries e ON e.id=r.original_entry_id WHERE r.entry_type='REVERSAL' AND e.entry_type='ADJUSTMENT_RELEASE' AND e.original_entry_id=original.id),0)
+    INTO used FROM fund_entries e WHERE e.original_entry_id=original.id;
+   IF used+NEW.amount>original.amount THEN RAISE EXCEPTION 'Release exceeds remaining original payment' USING ERRCODE='23514'; END IF;
   END IF;
-  IF TG_OP<>'DELETE' AND (NEW.tenant_id=c.primary_tenant_id OR NEW.effective_from<c.start_date OR
-    NEW.effective_from>=limit_date OR (NEW.effective_to IS NOT NULL AND NEW.effective_to>limit_date)) THEN
-    RAISE EXCEPTION 'Member/occupancy interval invalid' USING ERRCODE='23514';
+ END IF;
+ IF NEW.entry_type='REVERSAL' THEN
+  IF original.entry_type NOT IN ('PAYMENT','TRANSFER','CREDIT_TO_FUND','ADJUSTMENT_RELEASE') THEN RAISE EXCEPTION 'Cash corrections require explicit cash reconciliation' USING ERRCODE='23514'; END IF;
+  SELECT coalesce(sum(amount),0) INTO used FROM fund_entries WHERE entry_type='REVERSAL' AND original_entry_id=original.id;
+  IF used+NEW.amount>original.amount THEN RAISE EXCEPTION 'Reversal exceeds original entry' USING ERRCODE='23514'; END IF;
+  IF original.entry_type='PAYMENT' THEN
+   SELECT coalesce(sum(e.amount),0)-coalesce((SELECT sum(r.amount) FROM fund_entries r JOIN fund_entries e ON e.id=r.original_entry_id WHERE r.entry_type='REVERSAL' AND e.entry_type='ADJUSTMENT_RELEASE' AND e.original_entry_id=original.id),0)
+    INTO allowed FROM fund_entries e WHERE e.entry_type='ADJUSTMENT_RELEASE' AND e.original_entry_id=original.id;
+   IF used+NEW.amount+allowed>original.amount THEN RAISE EXCEPTION 'Reverse only unreturned payment amount' USING ERRCODE='23514'; END IF;
   END IF;
-  FOR b IN SELECT billing_period FROM invoices WHERE contract_id=c.id LOOP
-    old_days := 0; new_days := 0;
-    IF TG_OP<>'INSERT' THEN
-      old_days := GREATEST(0,LEAST(COALESCE(OLD.effective_to,limit_date),limit_date,(b.billing_period+interval '1 month')::date)
-        -GREATEST(OLD.effective_from,c.start_date,b.billing_period));
-    END IF;
-    IF TG_OP<>'DELETE' THEN
-      new_days := GREATEST(0,LEAST(COALESCE(NEW.effective_to,limit_date),limit_date,(b.billing_period+interval '1 month')::date)
-        -GREATEST(NEW.effective_from,c.start_date,b.billing_period));
-    END IF;
-    IF old_days<>new_days THEN RAISE EXCEPTION 'Membership change affects existing invoice' USING ERRCODE='23514'; END IF;
+  IF original.to_fund_id IS NOT NULL AND (SELECT available FROM v_fund_balances WHERE id=original.to_fund_id)<NEW.amount THEN
+  RAISE EXCEPTION 'Reverse dependent uses first' USING ERRCODE='23514'; END IF;
+ END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER entry49 BEFORE INSERT ON fund_entries FOR EACH ROW EXECUTE FUNCTION guard49_entry();
+
+CREATE FUNCTION check49_cash_allocated() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE cid bigint;expected numeric;actual numeric;st text;
+BEGIN
+ IF TG_TABLE_NAME='cash_transactions' THEN cid:=NEW.id; ELSE cid:=NEW.cash_transaction_id; END IF;
+ IF cid IS NULL THEN RETURN NULL; END IF;
+ SELECT amount,status INTO expected,st FROM cash_transactions WHERE id=cid;
+ SELECT coalesce(sum(amount),0) INTO actual FROM fund_entries WHERE cash_transaction_id=cid;
+ IF st='CONFIRMED' AND actual<>expected THEN RAISE EXCEPTION 'Confirmed cash must be fully classified, including unapplied money' USING ERRCODE='23514'; END IF;
+ RETURN NULL;
+END $$;
+CREATE CONSTRAINT TRIGGER cash_complete49 AFTER INSERT OR UPDATE ON cash_transactions DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION check49_cash_allocated();
+CREATE CONSTRAINT TRIGGER entry_cash_complete49 AFTER INSERT ON fund_entries DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION check49_cash_allocated();
+
+CREATE FUNCTION guard49_hold() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ PERFORM id FROM fund_accounts WHERE id=NEW.fund_account_id FOR UPDATE;
+ IF NEW.released_at IS NULL AND NEW.amount>coalesce((SELECT balance FROM v_fund_balances WHERE id=NEW.fund_account_id),0)
+ -coalesce((SELECT sum(amount) FROM fund_holds WHERE fund_account_id=NEW.fund_account_id AND released_at IS NULL AND id<>NEW.id),0) THEN
+ RAISE EXCEPTION 'Hold exceeds fund balance' USING ERRCODE='23514'; END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER hold49 BEFORE INSERT OR UPDATE ON fund_holds FOR EACH ROW EXECUTE FUNCTION guard49_hold();
+
+CREATE FUNCTION guard49_parent_locked() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE locked boolean;
+BEGIN
+ IF TG_TABLE_NAME='handover_items' THEN SELECT status='CONFIRMED' INTO locked FROM handovers WHERE id=CASE WHEN TG_OP='DELETE' THEN OLD.handover_id ELSE NEW.handover_id END FOR UPDATE;
+ ELSIF TG_TABLE_NAME='handovers' THEN locked:=OLD.status='CONFIRMED';
+ ELSIF TG_TABLE_NAME='checkout_records' THEN locked:=OLD.status IN ('APPROVED','LEGACY_RECORDED');
+ END IF;
+ IF locked THEN RAISE EXCEPTION 'Confirmed record is immutable' USING ERRCODE='23514'; END IF;
+ IF TG_OP='DELETE' THEN RETURN OLD; END IF;RETURN NEW;
+END $$;
+CREATE TRIGGER handover_lock49 BEFORE UPDATE OR DELETE ON handovers FOR EACH ROW EXECUTE FUNCTION guard49_parent_locked();
+CREATE TRIGGER handover_item_lock49 BEFORE INSERT OR UPDATE OR DELETE ON handover_items FOR EACH ROW EXECUTE FUNCTION guard49_parent_locked();
+CREATE TRIGGER checkout_lock49 BEFORE UPDATE OR DELETE ON checkout_records FOR EACH ROW EXECUTE FUNCTION guard49_parent_locked();
+
+CREATE FUNCTION guard49_cash_immutable() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF OLD.status IN ('CONFIRMED','VOID') THEN RAISE EXCEPTION 'Confirmed/void cash is immutable; record an explicit correction' USING ERRCODE='23514'; END IF;
+ IF TG_OP='DELETE' THEN RETURN OLD; END IF;RETURN NEW;
+END $$;
+CREATE TRIGGER cash_immutable49 BEFORE UPDATE OR DELETE ON cash_transactions FOR EACH ROW EXECUTE FUNCTION guard49_cash_immutable();
+
+CREATE FUNCTION guard49_reading() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE m meters%ROWTYPE; p meter_readings%ROWTYPE;
+BEGIN
+ SELECT * INTO m FROM meters WHERE id=NEW.meter_id FOR UPDATE;
+ IF NEW.observed_at<m.installed_at OR NEW.observed_at>coalesce(m.retired_at,'infinity') THEN RAISE EXCEPTION 'Reading outside meter life' USING ERRCODE='23514'; END IF;
+ IF NEW.supersedes_reading_id IS NOT NULL THEN
+  SELECT * INTO p FROM meter_readings WHERE id=NEW.supersedes_reading_id;
+  IF p.meter_id<>NEW.meter_id OR p.observed_at<>NEW.observed_at OR NEW.revision_no<>p.revision_no+1 OR nullif(btrim(NEW.reason),'') IS NULL THEN
+  RAISE EXCEPTION 'Invalid reading revision' USING ERRCODE='23514'; END IF;
+  IF EXISTS(SELECT 1 FROM consumption_segments s JOIN billing_items b ON b.segment_id=s.id WHERE p.id IN(s.start_reading_id,s.end_reading_id)) THEN
+  RAISE EXCEPTION 'Billed reading cannot be revised; use financial adjustment' USING ERRCODE='23514'; END IF;
+ ELSIF NEW.revision_no<>1 THEN RAISE EXCEPTION 'Revision chain required' USING ERRCODE='23514'; END IF;
+ IF EXISTS(SELECT 1 FROM meter_readings r WHERE r.meter_id=NEW.meter_id AND NOT EXISTS(SELECT 1 FROM meter_readings n WHERE n.supersedes_reading_id=r.id)
+ AND ((r.observed_at<NEW.observed_at AND r.reading_value>NEW.reading_value) OR (r.observed_at>NEW.observed_at AND r.reading_value<NEW.reading_value))) THEN
+ RAISE EXCEPTION 'Reading must be monotonic on one physical meter' USING ERRCODE='23514'; END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER reading49 BEFORE INSERT ON meter_readings FOR EACH ROW EXECUTE FUNCTION guard49_reading();
+
+CREATE FUNCTION guard49_party() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF OLD.party_role='PRIMARY' AND EXISTS(SELECT 1 FROM contract_terms WHERE contract_id=OLD.contract_id AND status='APPROVED') THEN
+ RAISE EXCEPTION 'Signed primary party is immutable; use successor contract' USING ERRCODE='23514'; END IF;
+ IF TG_OP='DELETE' THEN RETURN OLD; END IF;RETURN NEW;
+END $$;
+CREATE TRIGGER party49 BEFORE UPDATE OR DELETE ON contract_parties FOR EACH ROW EXECUTE FUNCTION guard49_party();
+
+CREATE FUNCTION guard49_reservation() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ PERFORM id FROM rooms WHERE id=NEW.room_id FOR UPDATE;
+ IF NEW.status='HELD' AND NEW.expires_at>clock_timestamp() AND (
+ EXISTS(SELECT 1 FROM reservations r WHERE r.room_id=NEW.room_id AND r.id<>NEW.id AND r.status='HELD' AND r.expires_at>clock_timestamp() AND daterange(r.start_date,r.end_date,'[)') && daterange(NEW.start_date,NEW.end_date,'[)')) OR
+ EXISTS(SELECT 1 FROM v_contract_current c WHERE c.room_id=NEW.room_id AND c.reservation_id IS DISTINCT FROM NEW.id AND c.status IN ('ACTIVE','PENDING') AND daterange(c.start_date,c.end_date,'[)') && daterange(NEW.start_date,NEW.end_date,'[)'))) THEN
+ RAISE EXCEPTION 'Reservation conflicts with held or contracted period' USING ERRCODE='23514'; END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER reservation49 BEFORE INSERT OR UPDATE ON reservations FOR EACH ROW EXECUTE FUNCTION guard49_reservation();
+
+CREATE FUNCTION guard49_handover_scope() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF NEW.possession_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM room_possessions WHERE id=NEW.possession_id AND contract_id=NEW.contract_id) THEN RAISE EXCEPTION 'Possession belongs to another contract' USING ERRCODE='23514'; END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER handover_scope49 BEFORE INSERT OR UPDATE ON handovers FOR EACH ROW EXECUTE FUNCTION guard49_handover_scope();
+
+CREATE FUNCTION guard49_alert_history() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF TG_TABLE_NAME='alert_policies' THEN
+  IF EXISTS(SELECT 1 FROM consumption_alerts WHERE policy_id=OLD.id) THEN RAISE EXCEPTION 'Used alert policy is immutable; add effective version' USING ERRCODE='23514'; END IF;
+ ELSE
+  IF EXISTS(SELECT 1 FROM billing_items i JOIN billing_documents d ON d.id=i.document_id WHERE i.segment_id=OLD.segment_id AND d.status='ISSUED') THEN RAISE EXCEPTION 'Issued alert history is immutable' USING ERRCODE='23514'; END IF;
+  IF TG_OP='UPDATE' AND ROW(NEW.segment_id,NEW.policy_id,NEW.baseline_daily_average,NEW.applied_threshold) IS DISTINCT FROM ROW(OLD.segment_id,OLD.policy_id,OLD.baseline_daily_average,OLD.applied_threshold) THEN RAISE EXCEPTION 'Baseline is immutable; create a linked evaluation' USING ERRCODE='23514'; END IF;
+ END IF;
+ IF TG_OP='DELETE' THEN RETURN OLD; END IF;RETURN NEW;
+END $$;
+CREATE TRIGGER alert_policy49 BEFORE UPDATE OR DELETE ON alert_policies FOR EACH ROW EXECUTE FUNCTION guard49_alert_history();
+CREATE TRIGGER alert_history49 BEFORE UPDATE OR DELETE ON consumption_alerts FOR EACH ROW EXECUTE FUNCTION guard49_alert_history();
+CREATE TRIGGER baseline_history49 BEFORE UPDATE OR DELETE ON alert_baseline_sources FOR EACH ROW EXECUTE FUNCTION guard49_append_only();
+CREATE TRIGGER maintenance_history49 BEFORE UPDATE OR DELETE ON maintenance_events FOR EACH ROW EXECUTE FUNCTION guard49_append_only();
+CREATE TRIGGER file_identity49 BEFORE UPDATE OR DELETE ON stored_files FOR EACH ROW EXECUTE FUNCTION guard49_append_only();
+CREATE TRIGGER file_link_history49 BEFORE UPDATE OR DELETE ON file_attachments FOR EACH ROW EXECUTE FUNCTION guard49_append_only();
+
+CREATE FUNCTION guard49_fund_identity() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF ROW(OLD.fund_type,OLD.contract_id,OLD.reservation_id,OLD.unapplied_receipt_id,OLD.beneficiary_tenant_id) IS DISTINCT FROM
+ ROW(NEW.fund_type,NEW.contract_id,NEW.reservation_id,NEW.unapplied_receipt_id,NEW.beneficiary_tenant_id) THEN RAISE EXCEPTION 'Fund ownership is immutable; transfer with a ledger entry' USING ERRCODE='23514'; END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER fund_identity49 BEFORE UPDATE ON fund_accounts FOR EACH ROW EXECUTE FUNCTION guard49_fund_identity();
+
+-- Forward migration. V11 remains unchanged; no table or column is added.
+CREATE FUNCTION check12_meter_responsibility(target_contract bigint, measured_from timestamptz, measured_to timestamptz)
+RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+ IF target_contract IS NULL THEN RETURN; END IF;
+ PERFORM id FROM contracts WHERE id=target_contract FOR UPDATE;
+ IF NOT EXISTS(SELECT 1 FROM room_possessions p WHERE p.contract_id=target_contract
+  AND p.taken_at<=measured_from AND (p.returned_at IS NULL OR p.returned_at>=measured_to)) THEN
+  RAISE EXCEPTION 'Meter interval is outside actual possession; split at handover readings before assigning tenant responsibility'
+   USING ERRCODE='23514';
+ END IF;
+END $$;
+
+CREATE FUNCTION guard12_segment_bounds() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE a timestamptz; b timestamptz;
+BEGIN
+ IF NEW.contract_id IS NOT NULL THEN
+  SELECT observed_at INTO a FROM meter_readings WHERE id=NEW.start_reading_id;
+  SELECT observed_at INTO b FROM meter_readings WHERE id=NEW.end_reading_id;
+  PERFORM check12_meter_responsibility(NEW.contract_id,a,b);
+ END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER segment_bounds12 BEFORE INSERT ON consumption_segments FOR EACH ROW EXECUTE FUNCTION guard12_segment_bounds();
+
+CREATE FUNCTION guard12_meter_item() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE segment v_segments%ROWTYPE; target_contract bigint;
+BEGIN
+ IF NEW.segment_id IS NOT NULL THEN
+  IF NEW.calculation_basis<>'METER' THEN RAISE EXCEPTION 'A meter-source line must use measured quantity' USING ERRCODE='23514'; END IF;
+  SELECT * INTO segment FROM v_segments WHERE id=NEW.segment_id;
+  SELECT contract_id INTO target_contract FROM billing_documents WHERE id=NEW.document_id;
+  IF target_contract IS DISTINCT FROM segment.contract_id THEN RAISE EXCEPTION 'Meter responsibility differs from document' USING ERRCODE='23514'; END IF;
+  PERFORM check12_meter_responsibility(target_contract,segment.service_start,segment.service_end);
+ END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER meter_item_bounds12 BEFORE INSERT OR UPDATE ON billing_items FOR EACH ROW EXECUTE FUNCTION guard12_meter_item();
+
+CREATE FUNCTION guard12_issue_meter_bounds() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE measured record;
+BEGIN
+ IF NEW.status='ISSUED' AND OLD.status='DRAFT' THEN
+  FOR measured IN SELECT s.* FROM billing_items i JOIN v_segments s ON s.id=i.segment_id WHERE i.document_id=NEW.id LOOP
+   PERFORM check12_meter_responsibility(NEW.contract_id,measured.service_start,measured.service_end);
   END LOOP;
-  IF TG_OP='DELETE' THEN RETURN OLD; END IF;
-  RETURN NEW;
+ END IF;
+ RETURN NEW;
 END $$;
-CREATE TRIGGER trg_member BEFORE INSERT OR UPDATE OR DELETE ON contract_members FOR EACH ROW EXECUTE FUNCTION guard_member();
+CREATE TRIGGER meter_issue_bounds12 BEFORE UPDATE ON billing_documents FOR EACH ROW EXECUTE FUNCTION guard12_issue_meter_bounds();
 
-CREATE FUNCTION check_member_capacity() RETURNS trigger LANGUAGE plpgsql AS $$
-DECLARE capacity integer; peak integer;
+CREATE FUNCTION guard12_reading_dependency() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-  SELECT r.max_occupants INTO capacity FROM contracts c JOIN rooms r ON r.id=c.room_id WHERE c.id=NEW.contract_id;
-  SELECT COALESCE(max(1+(SELECT count(*) FROM contract_members m
-    WHERE m.contract_id=NEW.contract_id AND m.effective_from<=d.day AND (m.effective_to IS NULL OR m.effective_to>d.day))),1)
-    INTO peak FROM (SELECT effective_from AS day FROM contract_members WHERE contract_id=NEW.contract_id) d;
-  IF peak>capacity THEN RAISE EXCEPTION 'Room capacity exceeded' USING ERRCODE='23514'; END IF;
-  RETURN NEW;
+ IF NEW.supersedes_reading_id IS NOT NULL AND EXISTS(SELECT 1 FROM consumption_segments s
+  WHERE s.start_reading_id=NEW.supersedes_reading_id
+  AND NOT EXISTS(SELECT 1 FROM consumption_segments later WHERE later.supersedes_segment_id=s.id)) THEN
+  RAISE EXCEPTION 'A subsequent interval uses this opening point; reconcile the dependent intervals explicitly' USING ERRCODE='23514';
+ END IF;
+ RETURN NEW;
 END $$;
-CREATE TRIGGER trg_member_capacity AFTER INSERT OR UPDATE ON contract_members FOR EACH ROW EXECUTE FUNCTION check_member_capacity();
+CREATE TRIGGER reading_dependency12 BEFORE INSERT ON meter_readings FOR EACH ROW EXECUTE FUNCTION guard12_reading_dependency();
 
-CREATE FUNCTION guard_reading() RETURNS trigger LANGUAGE plpgsql AS $$
-DECLARE c contracts%ROWTYPE; p bigint; previous numeric;
+-- V13 functions/triggers. Schema changes are in quanlytro.sql or Flyway V13.
+CREATE FUNCTION guard13_cash_purpose() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE target billing_documents%ROWTYPE; account_property bigint; target_property bigint;
 BEGIN
-  IF TG_OP IN ('UPDATE','DELETE') THEN
-    IF EXISTS(SELECT 1 FROM invoices WHERE contract_id=OLD.contract_id AND billing_period=OLD.billing_period) OR
-       EXISTS(SELECT 1 FROM meter_readings WHERE contract_id=OLD.contract_id AND service_item_id=OLD.service_item_id AND billing_period>OLD.billing_period) THEN
-      RAISE EXCEPTION 'Only latest, unbilled reading may change' USING ERRCODE='23514';
-    END IF;
-    IF TG_OP='DELETE' THEN RETURN OLD; END IF;
-    IF ROW(NEW.contract_id,NEW.service_item_id,NEW.billing_period,NEW.old_index)
-      IS DISTINCT FROM ROW(OLD.contract_id,OLD.service_item_id,OLD.billing_period,OLD.old_index) THEN
-      RAISE EXCEPTION 'Reading identity and opening index are immutable' USING ERRCODE='23514';
-    END IF;
-    DELETE FROM consumption_alerts WHERE meter_reading_id=OLD.id;
+ IF NEW.payment_document_id IS NOT NULL THEN
+  SELECT * INTO target FROM billing_documents WHERE id=NEW.payment_document_id;
+  SELECT property_id INTO account_property FROM cash_accounts WHERE id=NEW.cash_account_id;
+  SELECT r.property_id INTO target_property FROM contracts c JOIN rooms r ON r.id=c.room_id WHERE c.id=target.contract_id;
+  IF NEW.direction<>'IN' OR target.contract_id IS NULL OR target.status<>'ISSUED'
+   OR (account_property IS NOT NULL AND account_property IS DISTINCT FROM target_property) THEN
+   RAISE EXCEPTION 'Receipt invoice must be issued and belong to its receiving property' USING ERRCODE='23514';
   END IF;
-  SELECT * INTO c FROM contracts WHERE id=NEW.contract_id FOR UPDATE;
-  IF NOT FOUND THEN RETURN NEW; END IF;
-  SELECT property_id INTO p FROM rooms WHERE id=c.room_id;
-  IF NOT can_manage_property(NEW.recorded_by,p) OR
-    NOT EXISTS(SELECT 1 FROM service_items WHERE id=NEW.service_item_id AND calculation_type='METER_BASED') OR
-    NEW.billing_period>=COALESCE(c.actual_checkout_date,c.end_date) OR NEW.billing_period+interval '1 month'<=c.start_date THEN
-    RAISE EXCEPTION 'Reading scope/type/period invalid' USING ERRCODE='23514';
-  END IF;
-  SELECT new_index INTO previous FROM meter_readings WHERE contract_id=c.id
-    AND service_item_id=NEW.service_item_id AND billing_period<NEW.billing_period ORDER BY billing_period DESC LIMIT 1;
-  IF previous IS NOT NULL AND NEW.old_index<>previous THEN
-    RAISE EXCEPTION 'Opening index does not match previous closing index' USING ERRCODE='23514';
-  END IF;
-  RETURN NEW;
+ END IF;
+ RETURN NEW;
 END $$;
-CREATE TRIGGER trg_reading BEFORE INSERT OR UPDATE OR DELETE ON meter_readings FOR EACH ROW EXECUTE FUNCTION guard_reading();
+CREATE TRIGGER cash_purpose13 BEFORE INSERT OR UPDATE ON cash_transactions FOR EACH ROW EXECUTE FUNCTION guard13_cash_purpose();
 
-CREATE FUNCTION guard_alert() RETURNS trigger LANGUAGE plpgsql AS $$
-DECLARE m meter_readings%ROWTYPE; p bigint;
+CREATE FUNCTION guard13_document_scope() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE related billing_documents%ROWTYPE;
 BEGIN
-  SELECT * INTO m FROM meter_readings WHERE id=CASE WHEN TG_OP='DELETE' THEN OLD.meter_reading_id ELSE NEW.meter_reading_id END;
-  IF FOUND AND EXISTS(SELECT 1 FROM invoices WHERE contract_id=m.contract_id AND billing_period=m.billing_period AND status='ISSUED') THEN
-    RAISE EXCEPTION 'Issued period alert is immutable' USING ERRCODE='23514';
+ IF NEW.related_document_id IS NOT NULL THEN
+  SELECT * INTO related FROM billing_documents WHERE id=NEW.related_document_id;
+  IF related.contract_id IS DISTINCT FROM NEW.contract_id OR related.reservation_id IS DISTINCT FROM NEW.reservation_id THEN
+   RAISE EXCEPTION 'Related documents must belong to the same tenancy or reservation' USING ERRCODE='23514';
   END IF;
-  IF TG_OP='DELETE' THEN RETURN OLD; END IF;
-  IF TG_OP='INSERT' AND NEW.status<>'PENDING' THEN RAISE EXCEPTION 'Alert starts pending' USING ERRCODE='23514'; END IF;
-  SELECT r.property_id INTO p FROM contracts c JOIN rooms r ON r.id=c.room_id WHERE c.id=m.contract_id;
-  IF NEW.status<>'PENDING' AND NOT can_manage_property(NEW.checked_by,p) THEN
-    RAISE EXCEPTION 'Alert reviewer outside property' USING ERRCODE='23514';
-  END IF;
-  RETURN NEW;
+ END IF;
+ IF NEW.checkout_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM checkout_records WHERE id=NEW.checkout_id AND contract_id=NEW.contract_id) THEN
+  RAISE EXCEPTION 'Checkout belongs to a different tenancy' USING ERRCODE='23514';
+ END IF;
+ RETURN NEW;
 END $$;
-CREATE TRIGGER trg_alert BEFORE INSERT OR UPDATE OR DELETE ON consumption_alerts FOR EACH ROW EXECUTE FUNCTION guard_alert();
+CREATE TRIGGER document_scope13 BEFORE INSERT OR UPDATE ON billing_documents FOR EACH ROW EXECUTE FUNCTION guard13_document_scope();
 
-CREATE FUNCTION guard_invoice_item() RETURNS trigger LANGUAGE plpgsql AS $$
-DECLARE i invoices%ROWTYPE; m meter_readings%ROWTYPE;
+CREATE FUNCTION guard13_reading_chain() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE device meters%ROWTYPE; previous meter_readings%ROWTYPE; correction v_billing_lines%ROWTYPE;
+ original v_billing_lines%ROWTYPE; endpoint v_segments%ROWTYPE; delta numeric;
 BEGIN
-  SELECT * INTO i FROM invoices WHERE id=CASE WHEN TG_OP='DELETE' THEN OLD.invoice_id ELSE NEW.invoice_id END FOR UPDATE;
-  IF NOT FOUND AND TG_OP='DELETE' THEN RETURN OLD; END IF;
-  IF i.status<>'DRAFT' THEN RAISE EXCEPTION 'Issued invoice items are immutable' USING ERRCODE='23514'; END IF;
-  IF TG_OP='DELETE' THEN RETURN OLD; END IF;
-  IF TG_OP='UPDATE' AND NEW.invoice_id<>OLD.invoice_id THEN
-    RAISE EXCEPTION 'Cannot move invoice item' USING ERRCODE='23514';
+ SELECT * INTO device FROM meters WHERE id=NEW.meter_id FOR UPDATE;
+ IF NEW.observed_at<device.installed_at OR (device.retired_at IS NOT NULL AND NEW.observed_at>device.retired_at) OR NEW.observed_at>clock_timestamp() THEN
+  RAISE EXCEPTION 'Measurement must be within the physical meter lifetime and cannot be in the future' USING ERRCODE='23514';
+ END IF;
+ IF NEW.supersedes_reading_id IS NOT NULL THEN
+  SELECT * INTO previous FROM meter_readings WHERE id=NEW.supersedes_reading_id;
+  IF previous.meter_id<>NEW.meter_id OR previous.observed_at<>NEW.observed_at OR NEW.revision_no<>previous.revision_no+1 OR btrim(coalesce(NEW.reason,''))='' THEN
+   RAISE EXCEPTION 'A revision must describe the same meter and instant with a reason' USING ERRCODE='23514';
   END IF;
-  IF NEW.meter_reading_id IS NOT NULL THEN
-    SELECT * INTO m FROM meter_readings WHERE id=NEW.meter_reading_id;
-    IF FOUND AND (m.contract_id<>i.contract_id OR m.billing_period<>i.billing_period) THEN
-      RAISE EXCEPTION 'Reading must match invoice contract and period' USING ERRCODE='23514';
-    END IF;
-  ELSIF EXISTS(SELECT 1 FROM service_items WHERE id=NEW.service_item_id AND calculation_type='METER_BASED') THEN
-    RAISE EXCEPTION 'Meter service requires a reading reference' USING ERRCODE='23514';
+  IF NEW.correction_item_id IS NOT NULL THEN
+   SELECT * INTO correction FROM v_billing_lines WHERE id=NEW.correction_item_id;
+   SELECT * INTO original FROM v_billing_lines WHERE id=correction.adjusts_item_id;
+   SELECT * INTO endpoint FROM v_segments WHERE id=original.segment_id;
+   IF correction.document_status IS DISTINCT FROM 'ISSUED' OR original.calculation_basis IS DISTINCT FROM 'METER'
+    OR endpoint.meter_id IS DISTINCT FROM NEW.meter_id OR endpoint.service_end IS DISTINCT FROM NEW.observed_at
+    OR correction.source_key IS DISTINCT FROM 'METER-CORRECTION-'||original.id||'-'||(SELECT document_code FROM billing_documents WHERE id=correction.document_id) THEN
+    RAISE EXCEPTION 'Meter revision requires its issued, linked correction at the same endpoint' USING ERRCODE='23514';
+   END IF;
+   SELECT coalesce(sum(CASE direction WHEN 'DEBIT' THEN billed_quantity ELSE -billed_quantity END),0) INTO delta
+    FROM v_billing_lines WHERE adjusts_item_id=original.id AND document_status='ISSUED' AND source_key LIKE 'METER-CORRECTION-'||original.id||'-%';
+   IF NEW.reading_value<>original.old_index+original.billed_quantity+delta THEN
+    RAISE EXCEPTION 'Corrected point disagrees with the issued usage corrections' USING ERRCODE='23514';
+   END IF;
+  ELSIF previous.correction_item_id IS NOT NULL OR EXISTS(SELECT 1 FROM consumption_segments s JOIN billing_items i ON i.segment_id=s.id
+   WHERE s.start_reading_id=previous.id OR s.end_reading_id=previous.id) THEN
+   RAISE EXCEPTION 'Remove unissued draft first; issued measurement requires a linked financial correction' USING ERRCODE='23514';
   END IF;
-  RETURN NEW;
+ ELSIF NEW.revision_no<>1 OR NEW.correction_item_id IS NOT NULL THEN
+  RAISE EXCEPTION 'A later reading version must reference its predecessor' USING ERRCODE='23514';
+ END IF;
+ IF EXISTS(SELECT 1 FROM meter_readings r WHERE r.meter_id=NEW.meter_id AND r.observed_at=NEW.observed_at
+   AND r.id IS DISTINCT FROM NEW.supersedes_reading_id AND NOT EXISTS(SELECT 1 FROM meter_readings n WHERE n.supersedes_reading_id=r.id)) THEN
+  RAISE EXCEPTION 'A current measurement exists at this instant; use a revision' USING ERRCODE='23514';
+ END IF;
+ IF EXISTS(SELECT 1 FROM meter_readings r WHERE r.meter_id=NEW.meter_id
+   AND NOT EXISTS(SELECT 1 FROM meter_readings n WHERE n.supersedes_reading_id=r.id)
+   AND ((r.observed_at<NEW.observed_at AND r.reading_value>NEW.reading_value) OR (r.observed_at>NEW.observed_at AND r.reading_value<NEW.reading_value))) THEN
+  RAISE EXCEPTION 'Measurement conflicts with an earlier or later reading on this meter' USING ERRCODE='23514';
+ END IF;
+ RETURN NEW;
 END $$;
-CREATE TRIGGER trg_invoice_item BEFORE INSERT OR UPDATE OR DELETE ON invoice_items FOR EACH ROW EXECUTE FUNCTION guard_invoice_item();
+-- Replaces V11's blanket revision ban with the checked correction path above.
+DROP TRIGGER reading49 ON meter_readings;
+CREATE TRIGGER reading_chain13 BEFORE INSERT ON meter_readings FOR EACH ROW EXECUTE FUNCTION guard13_reading_chain();
 
-CREATE FUNCTION guard_invoice() RETURNS trigger LANGUAGE plpgsql AS $$
-DECLARE c contracts%ROWTYPE; p bigint; occupied integer; people_days integer; row_item record; price numeric;
+CREATE FUNCTION guard13_possession_history() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-  IF TG_OP='DELETE' THEN
-    IF OLD.status='ISSUED' THEN RAISE EXCEPTION 'Issued invoice cannot be deleted' USING ERRCODE='23514'; END IF;
-    RETURN OLD;
-  END IF;
-  IF TG_OP='INSERT' AND NEW.status<>'DRAFT' THEN RAISE EXCEPTION 'Create DRAFT first' USING ERRCODE='23514'; END IF;
-  IF TG_OP='UPDATE' AND OLD.status='ISSUED' THEN RAISE EXCEPTION 'Issued invoice is immutable' USING ERRCODE='23514'; END IF;
-  SELECT * INTO c FROM contracts WHERE id=NEW.contract_id;
-  IF NOT FOUND THEN RETURN NEW; END IF;
-  occupied := LEAST(COALESCE(c.actual_checkout_date,c.end_date),(NEW.billing_period+interval '1 month')::date)
-    - GREATEST(c.start_date,NEW.billing_period);
-  IF occupied<=0 OR c.status IN ('PENDING','CANCELLED') THEN
-    RAISE EXCEPTION 'No billable occupancy' USING ERRCODE='23514';
-  END IF;
-  IF NEW.status='ISSUED' THEN
-    IF NEW.issue_date>(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date OR
-      EXISTS(SELECT 1 FROM consumption_alerts a JOIN meter_readings m ON m.id=a.meter_reading_id
-        WHERE m.contract_id=c.id AND m.billing_period=NEW.billing_period AND a.status='PENDING') THEN
-      RAISE EXCEPTION 'Issue date or pending alerts block issuance' USING ERRCODE='23514';
-    END IF;
-    IF NOT EXISTS(SELECT 1 FROM invoice_items WHERE invoice_id=NEW.id AND service_item_id IS NULL AND meter_reading_id IS NULL) THEN
-      RAISE EXCEPTION 'Room charge required' USING ERRCODE='23514';
-    END IF;
-    SELECT property_id INTO p FROM rooms WHERE id=c.room_id;
-    SELECT occupied+COALESCE(sum(GREATEST(0,
-      LEAST(COALESCE(effective_to,COALESCE(c.actual_checkout_date,c.end_date)),COALESCE(c.actual_checkout_date,c.end_date),(NEW.billing_period+interval '1 month')::date)
-      -GREATEST(effective_from,c.start_date,NEW.billing_period))),0) INTO people_days
-      FROM contract_members WHERE contract_id=c.id;
-    IF EXISTS(SELECT 1 FROM service_items s WHERE s.is_mandatory AND
-      NOT EXISTS(SELECT 1 FROM v_invoice_lines l WHERE l.invoice_id=NEW.id AND l.resolved_service_id=s.id)) THEN
-      RAISE EXCEPTION 'Mandatory service charge missing' USING ERRCODE='23514';
-    END IF;
-    FOR row_item IN SELECT l.*,s.calculation_type FROM v_invoice_lines l
-      LEFT JOIN service_items s ON s.id=l.resolved_service_id WHERE l.invoice_id=NEW.id LOOP
-      IF row_item.resolved_service_id IS NULL THEN
-        IF row_item.quantity<>occupied OR row_item.unit_price_snapshot<>c.rental_price THEN
-          RAISE EXCEPTION 'Room amount must match contract and days' USING ERRCODE='23514';
-        END IF;
-      ELSE
-        SELECT unit_price INTO price FROM service_price_configs WHERE property_id=p
-          AND service_item_id=row_item.resolved_service_id AND effective_from<=NEW.billing_period ORDER BY effective_from DESC LIMIT 1;
-        IF price IS NULL OR row_item.unit_price_snapshot<>price THEN
-          RAISE EXCEPTION 'Missing or wrong effective price' USING ERRCODE='23514';
-        END IF;
-        IF (row_item.calculation_type='PER_ROOM' AND row_item.quantity<>occupied) OR
-           (row_item.calculation_type='PER_PERSON' AND row_item.quantity<>people_days) THEN
-          RAISE EXCEPTION 'Wrong occupied/person days' USING ERRCODE='23514';
-        END IF;
-      END IF;
-    END LOOP;
-    NEW.issued_at := CURRENT_TIMESTAMP;
-  END IF;
-  RETURN NEW;
+ IF EXISTS(SELECT 1 FROM v_segments s WHERE s.contract_id=NEW.contract_id
+   AND NOT EXISTS(SELECT 1 FROM consumption_segments n WHERE n.supersedes_segment_id=s.id)
+   AND (s.service_start<NEW.taken_at OR (NEW.returned_at IS NOT NULL AND s.service_end>NEW.returned_at))) THEN
+  RAISE EXCEPTION 'Possession change conflicts with assigned consumption; reconcile the measured intervals first' USING ERRCODE='23514';
+ END IF;
+ RETURN NEW;
 END $$;
-CREATE TRIGGER trg_invoice BEFORE INSERT OR UPDATE OR DELETE ON invoices FOR EACH ROW EXECUTE FUNCTION guard_invoice();
+CREATE TRIGGER possession_history13 BEFORE UPDATE ON room_possessions FOR EACH ROW EXECUTE FUNCTION guard13_possession_history();
 
-CREATE FUNCTION guard_payment() RETURNS trigger LANGUAGE plpgsql AS $$
-DECLARE i invoices%ROWTYPE; available numeric; p bigint; x checkout_records%ROWTYPE;
+CREATE FUNCTION guard13_hold_scope() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE contract bigint;
 BEGIN
-  IF TG_OP<>'INSERT' THEN RAISE EXCEPTION 'Payments are append-only' USING ERRCODE='23514'; END IF;
-  SELECT * INTO i FROM invoices WHERE id=NEW.invoice_id FOR UPDATE;
-  IF NOT FOUND THEN RETURN NEW; END IF;
-  SELECT r.property_id INTO p FROM contracts c JOIN rooms r ON r.id=c.room_id WHERE c.id=i.contract_id;
-  IF i.status<>'ISSUED' OR NOT can_manage_property(NEW.received_by,p) THEN
-    RAISE EXCEPTION 'Payment scope/status invalid' USING ERRCODE='23514';
-  END IF;
-  SELECT balance_due INTO available FROM v_invoice_balances WHERE id=i.id;
-  IF NEW.amount>available THEN RAISE EXCEPTION 'Payment exceeds debt' USING ERRCODE='23514'; END IF;
-  IF NEW.payment_method='DEPOSIT_OFFSET' THEN
-    SELECT * INTO x FROM checkout_records WHERE contract_id=i.contract_id FOR UPDATE;
-    IF NOT FOUND THEN RAISE EXCEPTION 'Checkout required for deposit offset' USING ERRCODE='23514'; END IF;
-    SELECT GREATEST(x.deposit_snapshot-x.damage_amount,0)-COALESCE(sum(t.amount),0) INTO available
-      FROM payment_transactions t JOIN invoices j ON j.id=t.invoice_id
-      WHERE j.contract_id=i.contract_id AND t.payment_method='DEPOSIT_OFFSET';
-    IF NEW.amount>available THEN RAISE EXCEPTION 'Deposit offset exceeds available deposit' USING ERRCODE='23514'; END IF;
-  END IF;
-  RETURN NEW;
+ SELECT contract_id INTO contract FROM fund_accounts WHERE id=NEW.fund_account_id;
+ IF NEW.related_billing_item_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM billing_items i JOIN billing_documents d ON d.id=i.document_id
+   WHERE i.id=NEW.related_billing_item_id AND d.contract_id=contract) THEN
+  RAISE EXCEPTION 'Held money and its supporting charge must belong to the same tenancy' USING ERRCODE='23514';
+ END IF;
+ IF TG_OP='UPDATE' AND ROW(NEW.fund_account_id,NEW.related_billing_item_id,NEW.amount,NEW.reason,NEW.review_on,NEW.created_by)
+   IS DISTINCT FROM ROW(OLD.fund_account_id,OLD.related_billing_item_id,OLD.amount,OLD.reason,OLD.review_on,OLD.created_by) THEN
+  RAISE EXCEPTION 'Release the hold and record a new justified hold instead of overwriting its history' USING ERRCODE='23514';
+ END IF;
+ IF TG_OP='UPDATE' AND OLD.released_at IS NOT NULL AND NEW.released_at IS DISTINCT FROM OLD.released_at THEN
+  RAISE EXCEPTION 'Released hold cannot be reopened' USING ERRCODE='23514';
+ END IF;
+ RETURN NEW;
 END $$;
-CREATE TRIGGER trg_payment BEFORE INSERT OR UPDATE OR DELETE ON payment_transactions FOR EACH ROW EXECUTE FUNCTION guard_payment();
-
-CREATE FUNCTION guard_checkout() RETURNS trigger LANGUAGE plpgsql AS $$
-DECLARE c contracts%ROWTYPE; p bigint; month_day date;
-BEGIN
-  IF TG_OP<>'INSERT' THEN RAISE EXCEPTION 'Checkout is immutable' USING ERRCODE='23514'; END IF;
-  SELECT * INTO c FROM contracts WHERE id=NEW.contract_id FOR UPDATE;
-  IF NOT FOUND THEN RETURN NEW; END IF;
-  SELECT property_id INTO p FROM rooms WHERE id=c.room_id;
-  IF c.status<>'TERMINATED' OR NOT can_manage_property(NEW.settled_by,p) THEN
-    RAISE EXCEPTION 'Checkout requires terminated contract and authorized manager' USING ERRCODE='23514';
-  END IF;
-  PERFORM id FROM invoices WHERE contract_id=c.id ORDER BY id FOR UPDATE;
-  FOR month_day IN SELECT d::date FROM generate_series(date_trunc('month',c.start_date)::date,
-    date_trunc('month',c.actual_checkout_date-1)::date,interval '1 month') d LOOP
-    IF NOT EXISTS(SELECT 1 FROM invoices WHERE contract_id=c.id AND billing_period=month_day AND status='ISSUED') THEN
-      RAISE EXCEPTION 'All occupied months must be billed' USING ERRCODE='23514';
-    END IF;
-    IF EXISTS(SELECT 1 FROM invoices i JOIN invoice_items l ON l.invoice_id=i.id
-      WHERE i.contract_id=c.id AND i.billing_period=month_day AND l.service_item_id IS NULL AND l.meter_reading_id IS NULL
-      AND l.quantity<>(LEAST(c.actual_checkout_date,(month_day+interval '1 month')::date)-GREATEST(c.start_date,month_day))) THEN
-      RAISE EXCEPTION 'Issued days do not match checkout' USING ERRCODE='23514';
-    END IF;
-  END LOOP;
-  NEW.deposit_snapshot := c.deposit_amount;
-  SELECT COALESCE(sum(balance_due),0) INTO NEW.outstanding_snapshot FROM v_invoice_balances WHERE contract_id=c.id AND status='ISSUED';
-  RETURN NEW;
-END $$;
-CREATE TRIGGER trg_checkout BEFORE INSERT OR UPDATE OR DELETE ON checkout_records FOR EACH ROW EXECUTE FUNCTION guard_checkout();
-
-CREATE FUNCTION check_checkout_pair() RETURNS trigger LANGUAGE plpgsql AS $$
-BEGIN
-  IF EXISTS(SELECT 1 FROM contracts c WHERE c.id=NEW.id AND c.status='TERMINATED'
-    AND NOT EXISTS(SELECT 1 FROM checkout_records x WHERE x.contract_id=c.id)) THEN
-    RAISE EXCEPTION 'Terminated contract requires checkout in same transaction' USING ERRCODE='23514';
-  END IF;
-  RETURN NULL;
-END $$;
-CREATE CONSTRAINT TRIGGER trg_checkout_pair AFTER INSERT OR UPDATE ON contracts
-DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION check_checkout_pair();
-
-CREATE FUNCTION guard_maintenance() RETURNS trigger LANGUAGE plpgsql AS $$
-DECLARE owner_id bigint; p bigint;
-BEGIN
-  SELECT t.user_id,r.property_id INTO owner_id,p FROM contracts c
-    JOIN tenant_profiles t ON t.id=c.primary_tenant_id JOIN rooms r ON r.id=c.room_id WHERE c.id=NEW.contract_id;
-  IF FOUND AND (NEW.submitted_by IS DISTINCT FROM owner_id) AND NOT can_manage_property(NEW.submitted_by,p) THEN
-    RAISE EXCEPTION 'Maintenance request outside user contract' USING ERRCODE='23514';
-  END IF;
-  IF NEW.assigned_to IS NOT NULL AND NOT can_manage_property(NEW.assigned_to,p) THEN
-    RAISE EXCEPTION 'Assignee outside property' USING ERRCODE='23514';
-  END IF;
-  IF TG_OP='UPDATE' AND ROW(NEW.contract_id,NEW.submitted_by) IS DISTINCT FROM ROW(OLD.contract_id,OLD.submitted_by) THEN
-    RAISE EXCEPTION 'Request ownership is immutable' USING ERRCODE='23514';
-  END IF;
-  IF TG_OP='UPDATE' AND NEW.status<>OLD.status AND NOT
-    ((OLD.status='NEW' AND NEW.status='ACCEPTED') OR (OLD.status='ACCEPTED' AND NEW.status='IN_PROGRESS') OR
-     (OLD.status='IN_PROGRESS' AND NEW.status='COMPLETED')) THEN
-    RAISE EXCEPTION 'Invalid maintenance transition' USING ERRCODE='23514';
-  END IF;
-  RETURN NEW;
-END $$;
-CREATE TRIGGER trg_maintenance BEFORE INSERT OR UPDATE ON maintenance_requests FOR EACH ROW EXECUTE FUNCTION guard_maintenance();
-
-CREATE FUNCTION guard_maintenance_image() RETURNS trigger LANGUAGE plpgsql AS $$
-DECLARE requester bigint; p bigint;
-BEGIN
-  SELECT m.submitted_by,r.property_id INTO requester,p FROM maintenance_requests m
-    JOIN contracts c ON c.id=m.contract_id JOIN rooms r ON r.id=c.room_id WHERE m.id=NEW.maintenance_request_id;
-  IF FOUND AND NEW.uploaded_by<>requester AND NOT can_manage_property(NEW.uploaded_by,p) THEN
-    RAISE EXCEPTION 'Image uploader outside request' USING ERRCODE='23514';
-  END IF;
-  RETURN NEW;
-END $$;
-CREATE TRIGGER trg_maintenance_image BEFORE INSERT OR UPDATE ON maintenance_images FOR EACH ROW EXECUTE FUNCTION guard_maintenance_image();
+CREATE TRIGGER hold_scope13 BEFORE INSERT OR UPDATE ON fund_holds FOR EACH ROW EXECUTE FUNCTION guard13_hold_scope();

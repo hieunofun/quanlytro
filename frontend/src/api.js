@@ -12,7 +12,6 @@ export function saveSession(value) {
 }
 let refreshing;
 export async function api(path, method = "GET", data, retry = true) {
-  if(path === "/meter-readings" && method === "POST" && data?.settlement) path="/meter-readings/settlement";
   const originalSession = session;
   const response = await fetch("/api" + path, {
     method,

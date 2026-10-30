@@ -1,5 +1,7 @@
 ﻿param([string]$BaseUrl='http://localhost:8080',[Parameter(Mandatory=$true)][string]$AdminPassword)
 $ErrorActionPreference='Stop'
+$schema=(Invoke-RestMethod "$BaseUrl/api/health").schemaVersion
+if ($schema -ne 17) { throw 'seed-demo.ps1 is a V10 fixture. For V11 use run-model49-review.ps1 and frontend/tests/model49.mjs; no fixture data was written.' }
 $login=Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/auth/login" -ContentType 'application/json' -Body (@{username='admin';password=$AdminPassword}|ConvertTo-Json)
 $headers=@{Authorization="Bearer $($login.accessToken)"}
 function Request([string]$Path,[hashtable]$Body,[string]$Method='POST') {

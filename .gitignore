@@ -6,3 +6,5 @@ frontend/node_modules/
 submission/
 .idea/
 .vscode/
+__pycache__/
+*.pyc

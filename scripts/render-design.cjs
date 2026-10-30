@@ -10,7 +10,9 @@ const out = path.join(root,'docs/diagrams');
   const metadata=JSON.parse(fs.readFileSync(path.join(root,'docs/design-schema.json'),'utf8'));
   const model=new Parser().parse(fs.readFileSync(path.join(root,'docs/quanlytro.dbml'),'utf8'),'dbmlv2');
   const tables=model.schemas.flatMap(s=>s.tables),refs=model.schemas.flatMap(s=>s.refs);
-  if(tables.length!==17 || refs.length!==28 || tables.reduce((n,t)=>n+t.fields.length,0)!==138) throw new Error('DBML differs from verified schema');
+  const expectedTables=new Set(metadata.columns.map(c=>c.table_name)).size;
+  const expectedRefs=metadata.constraints.filter(c=>c.kind==='f').length;
+  if(tables.length!==expectedTables || refs.length!==expectedRefs || tables.reduce((n,t)=>n+t.fields.length,0)!==metadata.columns.length) throw new Error('DBML differs from verified schema');
   for(const t of tables){
     const cols=metadata.columns.filter(c=>c.table_name===t.name);
     if(JSON.stringify(t.fields.map(f=>f.name))!==JSON.stringify(cols.map(c=>c.name))) throw new Error(t.name);
@@ -33,5 +35,5 @@ const out = path.join(root,'docs/diagrams');
       console.log(name+': SVG/PNG'+(name==='quanlytro-dbdiagram'?'/PDF':''));
     }
   }finally{await browser.close();}
-  console.log('DBML validated: 17 tables, 138 columns, 28 foreign keys, 55 checks.');
+  console.log(`DBML validated: ${tables.length} tables, ${metadata.columns.length} columns, ${refs.length} foreign keys.`);
 })().catch(error=>{console.error(error);process.exit(1);});

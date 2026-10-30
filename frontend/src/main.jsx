@@ -29,6 +29,7 @@ import "@fontsource/inter/700.css";
 import { api, download, upload, imageBlob, getSession, saveSession } from "./api";
 import "./tokens.css";
 import "./style.css";
+import {Contract49Panel,Workflow49Panel} from './Model49Panels';
 const money = (n) =>
   new Intl.NumberFormat("vi-VN", {
     style: "currency",
@@ -85,6 +86,13 @@ const labels = {
   BANK_TRANSFER_MANUAL: "Chuyển khoản",
   OTHER: "Khác",
   DEPOSIT_OFFSET: "Cấn trừ tiền cọc",
+  FUNDS_ALLOCATION: "Phân bổ từ tiền đã giữ",
+  ENDED: "Đã kết thúc",
+  TURNOVER: "Chờ chuẩn bị phòng",
+  VERIFIED: "Đã đối soát",
+  INSUFFICIENT_HISTORY: "Chưa đủ lịch sử",
+  INCOMPARABLE: "Khác nhóm thuê, cần xem bối cảnh",
+  LEGACY_RECORDED: "Lịch sử cũ, cần đối soát",
 };
 const Badge = ({ value }) => (
   <span
@@ -110,6 +118,7 @@ const routes = {
   invoices: ["Hóa đơn", Receipt],
   "maintenance-requests": ["Sự cố", Wrench],
   settings: ["Thiết lập", Settings],
+  operations: ["Vận hành", Wrench],
 };
 const columns = {
   properties: [
@@ -225,6 +234,8 @@ function App() {
         if (!current()) return;
         setDash(d);
         setAlerts(a);
+      } else if (route === "operations") {
+        if(current())setRows([]);
       } else if (route === "settings") {
         const [p, s, prices, th, u, a] = await Promise.all([
           api("/properties"),
@@ -354,7 +365,7 @@ function App() {
             f("startDate", "Ngày bắt đầu", "date"),
             f("endDate", "Ngày kết thúc (không tính ngày này)", "date"),
             f("rentalPrice", "Tiền thuê / tháng", "number"),
-            f("deposit", "Tiền cọc đã nhận", "number"),
+            f("deposit", "Tiền cọc cam kết (thu tiền ở bước riêng)", "number"),
             f("paymentDay", "Ngày thanh toán (1–28)", "number"),
           ],
           "/contracts",
@@ -367,7 +378,7 @@ function App() {
         );
       }
       if (route === "meter-readings") {
-        const c = await api("/contracts");
+        const [c, devices] = await Promise.all([api("/contracts"),api("/catalog/meters")]);
         showForm(
           "Ghi chỉ số điện nước",
           [
@@ -377,21 +388,15 @@ function App() {
                 (v) => v.room_code + " · " + v.full_name,
               ),
             }),
-            f("period", "Kỳ", "month"),
-            f("meterType", "Đồng hồ", "select", {
-              options: [
-                ["ELECTRICITY", "Điện"],
-                ["WATER", "Nước"],
-              ],
-            }),
-            f("settlement", "Chốt chỉ số để trả phòng trước ngày chốt tháng", "boolean", { optional: true }),
-            f("oldIndex", "Chỉ số đầu (bắt buộc lần ghi đầu tiên)", "number", { optional: true }),
+            f("meterId", "Công tơ vật lý", "select", {options:devices.map(v=>[v.id,v.meter_code+" · phòng ID "+v.room_id])}),
+            f("startAt", "Thời điểm đo đầu (giờ Việt Nam)", "datetime-local"),
+            f("endAt", "Thời điểm đo cuối (giờ Việt Nam)", "datetime-local"),
+            f("oldIndex", "Chỉ số đầu thực đo", "number"),
             f("newIndex", "Chỉ số mới", "number"),
-            f("readingDate", "Ngày ghi", "date"),
           ],
           "/meter-readings",
           "POST",
-          { period: period(), readingDate: date() },
+          {},
         );
       }
       if (route === "invoices") {
@@ -412,19 +417,18 @@ function App() {
         );
       }
       if (route === "maintenance-requests") {
-        const c = await api("/contracts");
+        const rooms = await api("/rooms");
         showForm(
           "Báo sự cố",
           [
-            f("contractId", "Phòng / hợp đồng", "select", {
-              options: options(
-                c.filter((v) => v.status === "ACTIVE"),
-                (v) => v.room_code + " · " + v.contract_code,
-              ),
+            f("roomId", "Phòng xảy ra sự cố", "select", {
+              optional:!tenant,
+              options: options(rooms,(v)=>v.room_code),
             }),
+            ...(!tenant?[f("propertyId","Khu vực chung (chọn phòng hoặc khu)","select",{optional:true,options:prop})]:[]),
             f("title", "Tiêu đề"),
             f("description", "Mô tả", "textarea"),
-            f("category", "Loại sự cố", "select", {
+            f("incidentType", "Loại sự cố", "select", {
               options: [
                 ["ELECTRICITY", "Điện"],
                 ["WATER", "Nước"],
@@ -440,13 +444,10 @@ function App() {
                 ["LOW", "Không gấp"],
               ],
             }),
-            f("imageUrls", "Link ảnh (mỗi dòng một ảnh)", "urls", {
-              optional: true,
-            }),
           ],
           "/maintenance-requests",
           "POST",
-          { priority: "NORMAL", category: "OTHER" },
+          { priority: "NORMAL", incidentType: "OTHER" },
         );
       }
     });
@@ -580,7 +581,7 @@ function App() {
               </p>
             </div>
             {!detail &&
-              !["dashboard", "settings", "notifications"].includes(route) &&
+              !["dashboard", "settings", "notifications", "operations"].includes(route) &&
               (!tenant || route === "maintenance-requests") && (admin || !["properties","rooms","tenants"].includes(route)) && (
                 <button className="primary" onClick={create}>
                   <Plus size={16} />
@@ -629,6 +630,8 @@ function App() {
               navigate={navigate}
               run={run}
             />
+          ) : route === "operations" ? (
+            <Workflow49Panel showForm={showForm} run={run}/>
           ) : route === "settings" ? (
             <SettingsPanel
               data={rows}
@@ -644,9 +647,9 @@ function App() {
                   <article key={n.id} className={n.is_read ? "read" : ""}>
                     <Bell size={18} />
                     <div>
-                      <strong>{n.message}</strong>
+                      <strong>{n.title}</strong><p>{n.body}</p>
                       <small>
-                        {new Date(n.created_at).toLocaleString("vi-VN")}
+                        {new Date(n.sent_at).toLocaleString("vi-VN")}
                       </small>
                     </div>
                     {!n.is_read && (
@@ -760,7 +763,7 @@ function App() {
             await load();
             if (form.endpoint.endsWith("/checkout") && form.method === "POST") {
               setDetail(await api("/contracts/" + saved.contract_id));
-              setNotice("Đã trả phòng và lập quyết toán cọc.");
+              setNotice("Đã ghi nhận trả phòng. Cần duyệt quyết toán và ghi hoàn tiền riêng.");
             }
             await form.after?.(saved);
           }}
@@ -960,7 +963,7 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate }) {
         result.accounts = await api("/users");
       if (route === "maintenance-requests" && !tenant)
         result.assignees = await api(
-          "/rooms/" + d.room_id + "/assignees",
+          (d.resolved_room_id?"/rooms/"+d.resolved_room_id:"/properties/"+d.resolved_property_id)+"/assignees",
         );
       if (mounted) setLookups(result);
     });
@@ -974,7 +977,7 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate }) {
     start_date: "Ngày bắt đầu",
     end_date: "Ngày kết thúc",
     rental_price: "Giá thuê",
-    deposit_amount: "Tiền cọc",
+    deposit_amount: "Cọc cam kết",
     status: "Trạng thái",
     billing_period: "Kỳ",
     issue_date: "Ngày phát hành",
@@ -1070,7 +1073,8 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate }) {
                   "Ghi nhận thanh toán",
                   [
                     f("code", "Mã giao dịch"),
-                    f("amount", "Số tiền", "number", { max: d.balance_due }),
+                    f("amount", "Số tiền thực nhận (phần dư giữ trả trước)", "number"),
+                    f("occurredAt", "Thời điểm thực nhận (giờ Việt Nam)", "datetime-local"),
                     f("method", "Phương thức", "select", {
                       options: [
                         ["CASH", "Tiền mặt"],
@@ -1125,6 +1129,7 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate }) {
             ))}
         </dl>
       </section>
+      {route==='contracts'&&<Contract49Panel contract={d} tenant={tenant} showForm={showForm} run={run}/>}
       {route === "contracts" && d.checkout && (
         <section className="card" aria-label="Quyết toán trả phòng">
           <h2>Quyết toán trả phòng</h2>
@@ -1133,9 +1138,12 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate }) {
             <div><dt>Tiền cọc ban đầu</dt><dd>{money(d.checkout.initial_deposit)}</dd></div>
             <div><dt>Công nợ trước cấn cọc</dt><dd>{money(d.checkout.unpaid_invoices_amount)}</dd></div>
             <div><dt>Khấu trừ thiệt hại</dt><dd>{money(d.checkout.damage_amount)}</dd></div>
-            <div><dt>{Number(d.checkout.actual_refund_amount) < 0 ? "Cần thu thêm" : "Tiền hoàn cọc"}</dt><dd><strong>{money(Math.abs(Number(d.checkout.actual_refund_amount)))}</strong></dd></div>
+            <div><dt>Trạng thái quyết toán</dt><dd><Badge value={d.checkout.status}/></dd></div>
+            <div><dt>Số dư quỹ hiện còn giữ</dt><dd><strong>{money(d.checkout.held_balance)}</strong></dd></div>
+            <div><dt>Tiền đã hoàn thực tế</dt><dd>{money(d.checkout.actual_refund_amount)}</dd></div>
           </dl>
-          <p className="muted">Điện nước kỳ cuối đã nằm trong hóa đơn; số tiền quyết toán chỉ khấu trừ công nợ một lần.</p>
+          <p className="muted">Số dư còn giữ chưa phải tiền đã hoàn. Chốt số điện nước và các khoản còn thiếu trước khi duyệt; hoàn tiền phải có phiếu chi thực tế.</p>
+          {!tenant&&d.checkout.status==="DRAFT"&&<button onClick={()=>showForm("Duyệt quyết toán",[f("reason","Căn cứ duyệt","textarea"),f("pendingUtilityReason","Khoản điện nước còn chờ (phải tạm giữ trước)","textarea",{optional:true}),f("applyAdvance","Dùng tiền trả trước cấn nợ","boolean",{optional:true}),f("useDeposit","Dùng cọc cấn nợ đã xác minh","boolean",{optional:true})],"/contracts/"+d.id+"/checkout/approve")}>Duyệt quyết toán</button>}
           {d.checkout.notes && <p>{d.checkout.notes}</p>}
         </section>
       )}
@@ -1194,6 +1202,7 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate }) {
           </section>
           <section className="card">
             <h2>Lịch sử thanh toán</h2>
+            {!!d.adjustments?.length&&<div><h3>Chứng từ điều chỉnh liên quan</h3>{d.adjustments.map(a=><p key={a.id}>{a.adjustment_code} · {a.adjustment_date} · {a.item_name_snapshot}: {a.direction==='CREDIT'?'−':'+'}{money(a.subtotal)}</p>)}</div>}
             {d.payments?.length ? (
               d.payments.map((p) => (
                 <div className="metric" key={p.id}>
@@ -1216,13 +1225,12 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate }) {
             showForm(
               "Sửa chỉ số",
               [
-                f("oldIndex", "Chỉ số đầu (bắt buộc lần ghi đầu tiên)", "number", { optional: true }),
-            f("newIndex", "Chỉ số mới", "number"),
+                f("newIndex", "Chỉ số cuối đúng", "number"),
                 f("reason", "Lý do chỉnh sửa", "textarea"),
               ],
-              "/meter-readings/" + d.id,
-              "PUT",
-              { newIndex: d.new_index },
+              "/consumption-segments/"+d.id+"/revise",
+              "POST",
+              { newIndex:d.new_index },
             )
           }
         >
@@ -1258,19 +1266,19 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate }) {
               </div>
             ))
           ) : (
-            <p className="muted">Chỉ có người đại diện.</p>
+            <p className="muted">Chưa ghi nhận người thực tế cư trú. Người đứng tên không được tự tính là đang ở.</p>
           )}
           {!tenant && d.status === "ACTIVE" && (
             <div className="actions">
               <button onClick={()=>run(async()=>{const people=await api("/tenants");showForm("Thêm thành viên",[
-                f("tenantId","Hồ sơ người thuê","select",{options:people.filter(t=>t.id!==d.primary_tenant_id).map(t=>[t.id,t.full_name])}),
+                f("tenantId","Hồ sơ người thực tế ở","select",{options:people.map(t=>[t.id,t.full_name])}),
                 f("relationship","Quan hệ","text",{optional:true}),f("effectiveFrom","Ngày vào ở","date")
               ],"/contracts/"+d.id+"/members");})}>Thêm thành viên</button>
               <button
                 onClick={() =>
                   showForm(
                     "Gia hạn hợp đồng",
-                    [f("endDate", "Ngày kết thúc mới", "date")],
+                    [f("endDate", "Ngày kết thúc mới", "date"),f("signedAt","Ngày giờ đã ký phụ lục (giờ Việt Nam)","datetime-local"),f("reason","Căn cứ gia hạn","textarea")],
                     "/contracts/" + d.id + "/renew",
                   )
                 }
@@ -1280,39 +1288,33 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate }) {
               <button
                 onClick={() =>
                   showForm(
-                    "Điều khoản và vi phạm",
+                    "Ghi nhận vi phạm",
                     [
-                      f("terms", "Điều khoản", "textarea"),
-                      f("violationNote", "Ghi chú vi phạm", "textarea", {
-                        optional: true,
-                      }),
+                      f("violationType", "Loại vi phạm"),
+                      f("description", "Mô tả và căn cứ", "textarea"),
+                      f("occurredOn", "Ngày xảy ra", "date"),
                     ],
-                    "/contracts/" + d.id + "/notes",
-                    "PUT",
-                    {
-                      terms: d.terms || "",
-                      violationNote: d.violation_note || "",
-                    },
+                    "/catalog/violations",
+                    "POST",
+                    {contractId:d.id},
                   )
                 }
               >
-                Điều khoản
+                Vi phạm
               </button>
               <button
                 className="danger"
                 onClick={() =>
                   showForm(
-                    "Trả phòng và quyết toán cọc",
+                    "Ghi nhận trả phòng thực tế",
                     [
-                      f("date", "Ngày trả phòng (không tính ngày này)", "date"),
-                      f("electricIndex", "Chỉ số điện cuối", "number"),
-                      f("waterIndex", "Chỉ số nước cuối", "number"),
-                      f("damage", "Khấu trừ thiệt hại", "number"),
+                      f("billingEnd", "Ngày kết thúc tính tiền đã thỏa thuận (không tính ngày này)", "date"),
+                      f("returnedAt", "Thời điểm giao trả thực tế (giờ Việt Nam)", "datetime-local"),
                       f("notes", "Ghi chú", "textarea", { optional: true }),
                     ],
                     "/contracts/" + d.id + "/checkout",
                     "POST",
-                    { date: date(), damage: 0 },
+                    { billingEnd: date() },
                   )
                 }
               >
@@ -1559,9 +1561,7 @@ function FormDialog({ spec: s, onClose, onSave }) {
                           .split("\n")
                           .map((x) => x.trim())
                           .filter(Boolean)
-                      : field.optional &&
-                          (field.type === "date" || field.type === "email") &&
-                          !v
+                      : field.optional && !v
                         ? null
                         : (v ?? "");
             });

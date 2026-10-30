@@ -2,6 +2,7 @@ package com.hostel.service;
 import org.springframework.stereotype.Service;
 import java.time.*;
 import java.util.*;
+@org.springframework.context.annotation.Profile("!model49")
 @Service
 public class BillingCalendar {
     private final Database db;

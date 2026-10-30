@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 METADATA_SQL = """
 WITH t AS (SELECT c.oid,c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-  WHERE n.nspname='public' AND c.relkind='r'), cols AS (
+  WHERE n.nspname='public' AND c.relkind='r' AND c.relname<>'flyway_schema_history'), cols AS (
  SELECT t.relname AS table_name,a.attname AS name,a.attnum AS position,
  format_type(a.atttypid,a.atttypmod) AS type,a.attnotnull AS not_null,a.attidentity AS identity,
  pg_get_expr(d.adbin,d.adrelid) AS default_value,col_description(t.oid,a.attnum) AS note
@@ -48,6 +48,10 @@ SELECT json_build_object('columns',(SELECT json_agg(cols ORDER BY table_name,pos
 
 
 def main():
+    if (ROOT/'docs/schema49-tables.json').exists():
+        import sys
+        subprocess.run([sys.executable,str(ROOT/'scripts/verify-model49.py'),*sys.argv[1:]],check=True)
+        return
     ap = argparse.ArgumentParser()
     ap.add_argument('--host', default='127.0.0.1')
     ap.add_argument('--port', default='55436')

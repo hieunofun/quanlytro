@@ -1,5 +1,5 @@
 // Thiết kế mục tiêu bước 1–2. Nguồn: quanlytro.sql + database-rules.sql.
-// 17 bảng; các giá trị tính toán nằm trong 6 view, không tạo bảng trùng dữ kiện.
+// 49 bảng V13; nguồn là metadata PostgreSQL đã thực thi. Tổng và số dư tính bằng view.
 Project QuanLyNhaTro {
   database_type: 'PostgreSQL'
 }
@@ -10,7 +10,7 @@ Table users [headercolor: #315775] {
   password_hash varchar(255) [not null]
   role varchar(20) [not null]
   status varchar(20) [not null, default: 'ACTIVE']
-  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  created_at timestamptz [not null, default: `clock_timestamp()`]
 
   checks {
     `((role)::text = ANY ((ARRAY['ADMIN'::character varying, 'STAFF'::character varying, 'TENANT'::character varying])::text[]))` [name: 'users_role_check']
@@ -19,15 +19,89 @@ Table users [headercolor: #315775] {
   }
 }
 
+Table tenant_profiles [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  user_id bigint [unique]
+  full_name varchar(150) [not null]
+  identity_number varchar(30) [unique]
+  phone varchar(30)
+  email varchar(150)
+  date_of_birth date
+  hometown text
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  checks {
+    `(btrim((full_name)::text) <> ''::text)` [name: 'tenant_profiles_full_name_check']
+    `((identity_number IS NULL) OR (btrim((identity_number)::text) <> ''::text))` [name: 'tenant_profiles_identity_number_check']
+  }
+}
+
 Table employee_assignments [headercolor: #315775] {
   id bigint [pk, not null, increment]
   user_id bigint [not null]
-  property_id bigint [not null]
-  assigned_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
-  is_active boolean [not null, default: true]
+  property_id bigint
+  room_id bigint
+  assigned_at timestamptz [not null, default: `clock_timestamp()`]
+  revoked_at timestamptz
+
+  checks {
+    `(num_nonnulls(property_id, room_id) = 1)` [name: 'employee_assignments_check']
+    `((revoked_at IS NULL) OR (revoked_at >= assigned_at))` [name: 'employee_assignments_check1']
+  }
+
+  Note: 'PostgreSQL: CREATE UNIQUE INDEX uq_active_assignment_property ON public.employee_assignments USING btree (user_id, property_id) WHERE ((revoked_at IS NULL) AND (property_id IS NOT NULL)); CREATE UNIQUE INDEX uq_active_assignment_room ON public.employee_assignments USING btree (user_id, room_id) WHERE ((revoked_at IS NULL) AND (room_id IS NOT NULL))'
+}
+
+Table staff_permission_grants [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  assignment_id bigint [not null]
+  action_code varchar(40) [not null]
+  amount_limit numeric(14,2)
+  expires_at timestamptz
+  granted_by bigint [not null]
+  created_at timestamptz [not null, default: `clock_timestamp()`]
 
   indexes {
-    (user_id, property_id) [name: 'employee_assignments_user_id_property_id_key', unique, type: btree]
+    (assignment_id, action_code) [name: 'staff_permission_grants_assignment_id_action_code_key', unique, type: btree]
+  }
+
+  checks {
+    `((action_code)::text = ANY ((ARRAY['MANAGE'::character varying, 'BILLING'::character varying, 'RECEIVE'::character varying, 'REFUND'::character varying, 'DEPOSIT_OFFSET'::character varying, 'TRANSFER'::character varying, 'ADJUST'::character varying, 'WAIVE_DEPOSIT'::character varying, 'MAINTENANCE'::character varying])::text[]))` [name: 'staff_permission_grants_action_code_check']
+    `(amount_limit >= (0)::numeric)` [name: 'staff_permission_grants_amount_limit_check']
+  }
+}
+
+Table password_reset_tokens [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  user_id bigint [not null]
+  token_hash varchar(64) [not null, unique]
+  issued_by bigint [not null]
+  expires_at timestamptz [not null]
+  used_at timestamptz
+  attempts smallint [not null, default: 0]
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  checks {
+    `((attempts >= 0) AND (attempts <= 5))` [name: 'password_reset_tokens_attempts_check']
+    `(expires_at > created_at)` [name: 'password_reset_tokens_check']
+  }
+}
+
+Table audit_events [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  actor_user_id bigint
+  actor_type varchar(10) [not null, default: 'USER']
+  action varchar(80) [not null]
+  resource_type varchar(80) [not null]
+  resource_id varchar(100)
+  before_data jsonb
+  after_data jsonb
+  reason text
+  recorded_at timestamptz [not null, default: `clock_timestamp()`]
+
+  checks {
+    `((actor_type)::text = ANY ((ARRAY['USER'::character varying, 'SYSTEM'::character varying])::text[]))` [name: 'audit_events_actor_type_check']
+    `(((actor_type)::text = 'USER'::text) = (actor_user_id IS NOT NULL))` [name: 'audit_events_check']
   }
 }
 
@@ -39,18 +113,13 @@ Table properties [headercolor: #315775] {
   status varchar(20) [not null, default: 'ACTIVE']
   meter_cutoff_day smallint [not null, default: 28]
   invoice_issue_day smallint [not null, default: 1]
-  alert_threshold_percentage numeric(7,2) [not null, default: 50]
-  alert_history_months smallint [not null, default: 3]
-  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  collection_timing varchar(20) [not null, default: 'IN_ADVANCE']
+  created_at timestamptz [not null, default: `clock_timestamp()`]
 
   checks {
-    `(btrim(address) <> ''::text)` [name: 'properties_address_check']
-    `((alert_history_months >= 1) AND (alert_history_months <= 12))` [name: 'properties_alert_history_months_check']
-    `(alert_threshold_percentage > (0)::numeric)` [name: 'properties_alert_threshold_percentage_check']
-    `((invoice_issue_day >= 1) AND (invoice_issue_day <= 28))` [name: 'properties_invoice_issue_day_check']
+    `((collection_timing)::text = ANY ((ARRAY['IN_ADVANCE'::character varying, 'IN_ARREARS'::character varying])::text[]))` [name: 'properties_collection_timing_check']
+    `((invoice_issue_day >= 1) AND (invoice_issue_day <= 31))` [name: 'properties_invoice_issue_day_check']
     `((meter_cutoff_day >= 1) AND (meter_cutoff_day <= 31))` [name: 'properties_meter_cutoff_day_check']
-    `(btrim((name)::text) <> ''::text)` [name: 'properties_name_check']
-    `(btrim((property_code)::text) <> ''::text)` [name: 'properties_property_code_check']
     `((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'INACTIVE'::character varying])::text[]))` [name: 'properties_status_check']
   }
 }
@@ -60,107 +129,360 @@ Table rooms [headercolor: #315775] {
   property_id bigint [not null]
   floor_number smallint [not null, default: 1]
   room_code varchar(30) [not null]
-  base_price numeric(12,2) [not null]
   max_occupants smallint [not null, default: 2]
-  area_sqm numeric(6,2)
-  operational_status varchar(20) [not null, default: 'AVAILABLE', note: 'Tình trạng khai thác; trạng thái đang thuê suy ra từ hợp đồng.']
+  area_sqm numeric(8,2)
   description text [not null, default: '']
   internal_note text [not null, default: '']
+  opened_on date [not null, default: `CURRENT_DATE`]
+  retired_on date
 
   indexes {
-    property_id [name: 'idx_rooms_property', type: btree]
     (property_id, room_code) [name: 'rooms_property_id_room_code_key', unique, type: btree]
   }
 
   checks {
     `(area_sqm > (0)::numeric)` [name: 'rooms_area_sqm_check']
-    `(base_price >= (0)::numeric)` [name: 'rooms_base_price_check']
+    `(retired_on >= opened_on)` [name: 'rooms_check']
     `(floor_number >= 0)` [name: 'rooms_floor_number_check']
     `(max_occupants > 0)` [name: 'rooms_max_occupants_check']
-    `((operational_status)::text = ANY ((ARRAY['AVAILABLE'::character varying, 'MAINTENANCE'::character varying])::text[]))` [name: 'rooms_operational_status_check']
-    `(btrim((room_code)::text) <> ''::text)` [name: 'rooms_room_code_check']
   }
 }
 
-Table tenant_profiles [headercolor: #315775] {
+Table room_price_history [headercolor: #315775] {
   id bigint [pk, not null, increment]
-  user_id bigint [unique]
-  full_name varchar(100) [not null]
-  identity_number varchar(20) [unique]
-  phone varchar(20)
-  email varchar(100)
-  date_of_birth date
-  hometown varchar(150)
-  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  room_id bigint [not null]
+  effective_from date [not null]
+  amount numeric(14,2) [not null]
+  recorded_by bigint
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  indexes {
+    (room_id, effective_from) [name: 'room_price_history_room_id_effective_from_key', unique, type: btree]
+  }
 
   checks {
-    `(btrim((full_name)::text) <> ''::text)` [name: 'tenant_profiles_full_name_check']
+    `(amount >= (0)::numeric)` [name: 'room_price_history_amount_check']
+  }
+}
+
+Table room_operating_periods [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  room_id bigint [not null]
+  valid_from timestamptz [not null]
+  valid_to timestamptz
+  status varchar(20) [not null]
+  recorded_by bigint
+  note text
+
+  checks {
+    `((valid_to IS NULL) OR (valid_to > valid_from))` [name: 'room_operating_periods_check']
+    `((status)::text = ANY ((ARRAY['READY'::character varying, 'TURNOVER'::character varying, 'MAINTENANCE'::character varying, 'INACTIVE'::character varying])::text[]))` [name: 'room_operating_periods_status_check']
+  }
+
+  Note: 'PostgreSQL: CREATE INDEX room_operating_periods_room_id_tstzrange_excl ON public.room_operating_periods USING gist (room_id, tstzrange(valid_from, valid_to, \'[)\'::text))'
+}
+
+Table asset_types [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  code varchar(40) [not null, unique]
+  name varchar(150) [not null]
+  unit_name varchar(30) [not null, default: 'Cái']
+}
+
+Table assets [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  asset_type_id bigint [not null]
+  asset_code varchar(50) [not null, unique]
+  quantity numeric(12,2) [not null, default: 1]
+  status varchar(20) [not null, default: 'ACTIVE']
+  note text
+
+  checks {
+    `(quantity > (0)::numeric)` [name: 'assets_quantity_check']
+    `((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'RETIRED'::character varying])::text[]))` [name: 'assets_status_check']
+  }
+}
+
+Table asset_placements [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  asset_id bigint [not null]
+  room_id bigint
+  property_id bigint
+  valid_from timestamptz [not null]
+  valid_to timestamptz
+  recorded_by bigint
+
+  checks {
+    `(num_nonnulls(room_id, property_id) = 1)` [name: 'asset_placements_check']
+    `((valid_to IS NULL) OR (valid_to > valid_from))` [name: 'asset_placements_check1']
+  }
+
+  Note: 'PostgreSQL: CREATE INDEX asset_placements_asset_id_tstzrange_excl ON public.asset_placements USING gist (asset_id, tstzrange(valid_from, valid_to, \'[)\'::text))'
+}
+
+Table reservations [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  room_id bigint [not null]
+  tenant_id bigint
+  reservation_code varchar(60) [not null, unique]
+  contact_name varchar(150)
+  contact_phone varchar(30)
+  start_date date [not null]
+  end_date date [not null]
+  expires_at timestamptz [not null]
+  status varchar(20) [not null, default: 'HELD']
+  conditions text [not null, default: '']
+  created_by bigint
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  checks {
+    `(start_date < end_date)` [name: 'reservations_check']
+    `((tenant_id IS NOT NULL) OR (btrim((COALESCE(contact_name, ''::character varying))::text) <> ''::text))` [name: 'reservations_check1']
+    `((status)::text = ANY ((ARRAY['HELD'::character varying, 'CONVERTED'::character varying, 'CANCELLED'::character varying, 'EXPIRED'::character varying])::text[]))` [name: 'reservations_status_check']
   }
 }
 
 Table contracts [headercolor: #315775] {
   id bigint [pk, not null, increment]
-  contract_code varchar(50) [not null, unique]
   room_id bigint [not null]
-  primary_tenant_id bigint [not null]
+  reservation_id bigint [unique]
+  previous_contract_id bigint
+  continuation_reason varchar(30)
+  contract_code varchar(60) [not null, unique]
   start_date date [not null]
-  end_date date [not null]
-  actual_checkout_date date
-  rental_price numeric(12,2) [not null]
-  deposit_amount numeric(12,2) [not null, default: 0]
-  payment_cycle_day smallint [not null, default: 5]
-  status varchar(20) [not null, default: 'ACTIVE']
-  terms text [not null, default: '']
-  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
-
-  indexes {
-    primary_tenant_id [name: 'idx_contract_tenant', type: btree]
-  }
+  reconciliation_status varchar(20) [not null, default: 'VERIFIED']
+  status varchar(20) [not null, default: 'DRAFT']
+  created_by bigint
+  created_at timestamptz [not null, default: `clock_timestamp()`]
 
   checks {
-    `(start_date < end_date)` [name: 'contracts_check']
-    `((actual_checkout_date IS NULL) OR ((actual_checkout_date > start_date) AND (actual_checkout_date <= end_date)))` [name: 'contracts_check1']
-    `(((status)::text = 'TERMINATED'::text) = (actual_checkout_date IS NOT NULL))` [name: 'contracts_check2']
-    `(deposit_amount >= (0)::numeric)` [name: 'contracts_deposit_amount_check']
-    `((payment_cycle_day >= 1) AND (payment_cycle_day <= 28))` [name: 'contracts_payment_cycle_day_check']
-    `(rental_price >= (0)::numeric)` [name: 'contracts_rental_price_check']
-    `((status)::text = ANY ((ARRAY['PENDING'::character varying, 'ACTIVE'::character varying, 'TERMINATED'::character varying, 'CANCELLED'::character varying])::text[]))` [name: 'contracts_status_check']
+    `((previous_contract_id IS NULL) OR (previous_contract_id <> id))` [name: 'contracts_check']
+    `((previous_contract_id IS NULL) = (continuation_reason IS NULL))` [name: 'contracts_check1']
+    `((continuation_reason IS NULL) OR ((continuation_reason)::text = ANY ((ARRAY['ROOM_TRANSFER'::character varying, 'PARTY_CHANGE'::character varying, 'CONTINUATION'::character varying])::text[])))` [name: 'contracts_continuation_reason_check']
+    `((reconciliation_status)::text = ANY ((ARRAY['VERIFIED'::character varying, 'PENDING'::character varying])::text[]))` [name: 'contracts_reconciliation_status_check']
+    `((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'PENDING'::character varying, 'ACTIVE'::character varying, 'ENDED'::character varying, 'CANCELLED'::character varying])::text[]))` [name: 'contracts_status_check']
   }
-
-  Note: 'PostgreSQL: CREATE INDEX ex_contract_room_period ON public.contracts USING gist (room_id, daterange(start_date, COALESCE(actual_checkout_date, end_date), \'[)\'::text)) WHERE ((status)::text <> \'CANCELLED\'::text)'
 }
 
-Table contract_members [headercolor: #315775] {
+Table contract_parties [headercolor: #315775] {
   id bigint [pk, not null, increment]
   contract_id bigint [not null]
   tenant_id bigint [not null]
-  relationship varchar(50)
+  party_role varchar(30) [not null]
   effective_from date [not null]
   effective_to date
+  agreement_note text [not null, default: '']
 
   indexes {
-    (contract_id, tenant_id, effective_from) [name: 'contract_members_contract_id_tenant_id_effective_from_key', unique, type: btree]
-    tenant_id [name: 'idx_member_tenant', type: btree]
+    (contract_id, tenant_id, party_role, effective_from) [name: 'contract_parties_contract_id_tenant_id_party_role_effective_key', unique, type: btree]
+    tenant_id [name: 'idx_party_person', type: btree]
   }
 
   checks {
-    `((effective_to IS NULL) OR (effective_from < effective_to))` [name: 'contract_members_check']
+    `((effective_to IS NULL) OR (effective_to > effective_from))` [name: 'contract_parties_check']
+    `((party_role)::text = ANY ((ARRAY['PRIMARY'::character varying, 'GUARANTOR'::character varying, 'WITNESS'::character varying])::text[]))` [name: 'contract_parties_party_role_check']
   }
 
-  Note: 'PostgreSQL: CREATE INDEX ex_member_period ON public.contract_members USING gist (contract_id, tenant_id, daterange(effective_from, effective_to, \'[)\'::text))'
+  Note: 'PostgreSQL: CREATE UNIQUE INDEX uq_primary_party ON public.contract_parties USING btree (contract_id) WHERE ((party_role)::text = \'PRIMARY\'::text)'
+}
+
+Table contract_contacts [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  contract_id bigint [not null]
+  tenant_id bigint [not null]
+  contact_role varchar(20) [not null, default: 'PRIMARY']
+  effective_from date [not null]
+  effective_to date
+  can_view_billing boolean [not null, default: false]
+  authorized_by bigint
+
+  checks {
+    `((effective_to IS NULL) OR (effective_to > effective_from))` [name: 'contract_contacts_check']
+    `((contact_role)::text = ANY ((ARRAY['PRIMARY'::character varying, 'BACKUP'::character varying])::text[]))` [name: 'contract_contacts_contact_role_check']
+  }
+
+  Note: 'PostgreSQL: CREATE INDEX contract_contacts_contract_id_daterange_excl ON public.contract_contacts USING gist (contract_id, daterange(effective_from, effective_to, \'[)\'::text)) WHERE ((contact_role)::text = \'PRIMARY\'::text)'
+}
+
+Table contract_residencies [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  contract_id bigint [not null]
+  tenant_id bigint [not null]
+  effective_from date [not null]
+  effective_to date
+  relationship varchar(50)
+  recorded_by bigint
+
+  indexes {
+    tenant_id [name: 'idx_residency_person', type: btree]
+  }
+
+  checks {
+    `((effective_to IS NULL) OR (effective_to > effective_from))` [name: 'contract_residencies_check']
+  }
+
+  Note: 'PostgreSQL: CREATE INDEX contract_residencies_contract_id_tenant_id_daterange_excl ON public.contract_residencies USING gist (contract_id, tenant_id, daterange(effective_from, effective_to, \'[)\'::text))'
+}
+
+Table contract_terms [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  contract_id bigint [not null]
+  version_no integer [not null]
+  effective_from date [not null]
+  lease_end date [not null]
+  rental_price numeric(14,2) [not null]
+  deposit_required numeric(14,2) [not null, default: 0]
+  payment_day smallint [not null, default: 5]
+  collection_timing varchar(20) [not null, default: 'IN_ADVANCE']
+  terms text [not null, default: '']
+  signed_at timestamptz
+  approved_by bigint
+  origin varchar(20) [not null, default: 'NATIVE']
+  status varchar(20) [not null, default: 'DRAFT']
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  indexes {
+    (contract_id, version_no) [name: 'contract_terms_contract_id_version_no_key', unique, type: btree]
+  }
+
+  checks {
+    `(lease_end > effective_from)` [name: 'contract_terms_check']
+    `(((status)::text <> 'APPROVED'::text) OR ((origin)::text = 'LEGACY_V10'::text) OR ((signed_at IS NOT NULL) AND (approved_by IS NOT NULL)))` [name: 'contract_terms_check1']
+    `((collection_timing)::text = ANY ((ARRAY['IN_ADVANCE'::character varying, 'IN_ARREARS'::character varying])::text[]))` [name: 'contract_terms_collection_timing_check']
+    `(deposit_required >= (0)::numeric)` [name: 'contract_terms_deposit_required_check']
+    `((origin)::text = ANY ((ARRAY['NATIVE'::character varying, 'LEGACY_V10'::character varying])::text[]))` [name: 'contract_terms_origin_check']
+    `((payment_day >= 1) AND (payment_day <= 31))` [name: 'contract_terms_payment_day_check']
+    `(rental_price >= (0)::numeric)` [name: 'contract_terms_rental_price_check']
+    `((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'APPROVED'::character varying])::text[]))` [name: 'contract_terms_status_check']
+    `(version_no > 0)` [name: 'contract_terms_version_no_check']
+  }
+
+  Note: 'PostgreSQL: CREATE UNIQUE INDEX uq_approved_terms_effective ON public.contract_terms USING btree (contract_id, effective_from) WHERE ((status)::text = \'APPROVED\'::text)'
+}
+
+Table room_possessions [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  contract_id bigint [not null]
+  taken_at timestamptz [not null]
+  returned_at timestamptz
+  recorded_by bigint
+  note text
+
+  checks {
+    `((returned_at IS NULL) OR (returned_at > taken_at))` [name: 'room_possessions_check']
+  }
+
+  Note: 'PostgreSQL: CREATE INDEX room_possessions_contract_id_tstzrange_excl ON public.room_possessions USING gist (contract_id, tstzrange(taken_at, returned_at, \'[)\'::text))'
+}
+
+Table move_out_notices [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  contract_id bigint [not null]
+  supersedes_notice_id bigint
+  requested_date date [not null]
+  reason text [not null, default: '']
+  status varchar(20) [not null, default: 'SUBMITTED']
+  submitted_by bigint [not null]
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  checks {
+    `((supersedes_notice_id IS NULL) OR (supersedes_notice_id <> id))` [name: 'move_out_notices_check']
+    `((status)::text = ANY ((ARRAY['SUBMITTED'::character varying, 'APPROVED'::character varying, 'CANCELLED'::character varying, 'SUPERSEDED'::character varying])::text[]))` [name: 'move_out_notices_status_check']
+  }
+}
+
+Table handovers [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  contract_id bigint [not null]
+  possession_id bigint
+  handover_code varchar(60) [not null, unique]
+  handover_type varchar(20) [not null]
+  occurred_at timestamptz [not null]
+  status varchar(20) [not null, default: 'DRAFT']
+  given_by bigint
+  received_by_tenant_id bigint
+  confirmed_by bigint
+  confirmed_at timestamptz
+  note text
+
+  checks {
+    `(((status)::text <> 'CONFIRMED'::text) OR ((confirmed_at IS NOT NULL) AND (confirmed_by IS NOT NULL)))` [name: 'handovers_check']
+    `((handover_type)::text = ANY ((ARRAY['MOVE_IN'::character varying, 'MOVE_OUT'::character varying, 'RESPONSIBILITY'::character varying])::text[]))` [name: 'handovers_handover_type_check']
+    `((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'CONFIRMED'::character varying, 'UNCONFIRMED'::character varying])::text[]))` [name: 'handovers_status_check']
+  }
+}
+
+Table handover_items [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  handover_id bigint [not null]
+  asset_placement_id bigint
+  line_no integer [not null]
+  item_name_snapshot varchar(150) [not null]
+  quantity numeric(12,2) [not null]
+  condition_note text [not null]
+  note text
+
+  indexes {
+    (handover_id, line_no) [name: 'handover_items_handover_id_line_no_key', unique, type: btree]
+  }
+
+  checks {
+    `(line_no > 0)` [name: 'handover_items_line_no_check']
+    `(quantity >= (0)::numeric)` [name: 'handover_items_quantity_check']
+  }
+}
+
+Table contract_violations [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  contract_id bigint [not null]
+  violation_type varchar(50) [not null]
+  description text [not null]
+  occurred_on date [not null]
+  status varchar(20) [not null, default: 'OPEN']
+  resolution_note text
+  created_by bigint [not null]
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  checks {
+    `((status)::text = ANY ((ARRAY['OPEN'::character varying, 'HANDLING'::character varying, 'RESOLVED'::character varying, 'DISMISSED'::character varying])::text[]))` [name: 'contract_violations_status_check']
+  }
+}
+
+Table checkout_records [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  contract_id bigint [not null]
+  return_handover_id bigint
+  billing_end date [not null]
+  status varchar(20) [not null, default: 'DRAFT']
+  deposit_snapshot numeric(14,2) [not null, default: 0]
+  advance_snapshot numeric(14,2) [not null, default: 0]
+  outstanding_snapshot numeric(14,2) [not null, default: 0]
+  approved_by bigint
+  approved_at timestamptz
+  notes text
+
+  checks {
+    `(advance_snapshot >= (0)::numeric)` [name: 'checkout_records_advance_snapshot_check']
+    `(((status)::text <> 'APPROVED'::text) OR ((approved_by IS NOT NULL) AND (approved_at IS NOT NULL)))` [name: 'checkout_records_check']
+    `(deposit_snapshot >= (0)::numeric)` [name: 'checkout_records_deposit_snapshot_check']
+    `(outstanding_snapshot >= (0)::numeric)` [name: 'checkout_records_outstanding_snapshot_check']
+    `((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'APPROVED'::character varying, 'LEGACY_RECORDED'::character varying])::text[]))` [name: 'checkout_records_status_check']
+  }
+
+  Note: 'PostgreSQL: CREATE UNIQUE INDEX uq_approved_checkout ON public.checkout_records USING btree (contract_id) WHERE ((status)::text = \'APPROVED\'::text)'
 }
 
 Table service_items [headercolor: #315775] {
   id bigint [pk, not null, increment]
   service_code varchar(30) [not null, unique]
   name varchar(100) [not null]
-  calculation_type varchar(20) [not null]
   unit_name varchar(30) [not null]
-  is_mandatory boolean [not null, default: true]
+  calculation_type varchar(20) [not null]
+  is_mandatory boolean [not null, default: false]
+  is_active boolean [not null, default: true]
 
   checks {
-    `((calculation_type)::text = ANY ((ARRAY['METER_BASED'::character varying, 'PER_ROOM'::character varying, 'PER_PERSON'::character varying])::text[]))` [name: 'service_items_calculation_type_check']
-    `(btrim((name)::text) <> ''::text)` [name: 'service_items_name_check']
+    `((calculation_type)::text = ANY ((ARRAY['METER_BASED'::character varying, 'PER_ROOM'::character varying, 'PER_PERSON'::character varying, 'PER_UNIT'::character varying, 'ONE_TIME'::character varying])::text[]))` [name: 'service_items_calculation_type_check']
   }
 }
 
@@ -168,8 +490,10 @@ Table service_price_configs [headercolor: #315775] {
   id bigint [pk, not null, increment]
   property_id bigint [not null]
   service_item_id bigint [not null]
-  unit_price numeric(12,2) [not null]
   effective_from date [not null]
+  unit_price numeric(14,2) [not null]
+  recorded_by bigint
+  created_at timestamptz [not null, default: `clock_timestamp()`]
 
   indexes {
     (property_id, service_item_id, effective_from) [name: 'service_price_configs_property_id_service_item_id_effective_key', unique, type: btree]
@@ -180,239 +504,700 @@ Table service_price_configs [headercolor: #315775] {
   }
 }
 
-Table meter_readings [headercolor: #315775] {
+Table contract_service_subscriptions [headercolor: #315775] {
   id bigint [pk, not null, increment]
   contract_id bigint [not null]
   service_item_id bigint [not null]
-  billing_period date [not null]
-  old_index numeric(10,2) [not null]
-  new_index numeric(10,2) [not null]
-  reading_date date [not null]
+  effective_from date [not null]
+  effective_to date
+  quantity integer [not null, default: 1]
+  charge_mode varchar(20) [not null, default: 'PRORATED']
+  recorded_by bigint
+
+  checks {
+    `((charge_mode)::text = ANY ((ARRAY['PRORATED'::character varying, 'FULL_PERIOD'::character varying, 'ONE_TIME'::character varying])::text[]))` [name: 'contract_service_subscriptions_charge_mode_check']
+    `((effective_to IS NULL) OR (effective_to > effective_from))` [name: 'contract_service_subscriptions_check']
+    `(quantity > 0)` [name: 'contract_service_subscriptions_quantity_check']
+  }
+
+  Note: 'PostgreSQL: CREATE INDEX contract_service_subscription_contract_id_service_item_id__excl ON public.contract_service_subscriptions USING gist (contract_id, service_item_id, daterange(effective_from, effective_to, \'[)\'::text))'
+}
+
+Table meters [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  room_id bigint [not null]
+  service_item_id bigint [not null]
+  meter_code varchar(60) [not null, unique]
+  installed_at timestamptz [not null]
+  retired_at timestamptz
+  recorded_by bigint
+
+  checks {
+    `((retired_at IS NULL) OR (retired_at > installed_at))` [name: 'meters_check']
+  }
+
+  Note: 'PostgreSQL: CREATE INDEX meters_room_id_service_item_id_tstzrange_excl ON public.meters USING gist (room_id, service_item_id, tstzrange(installed_at, retired_at, \'[)\'::text))'
+}
+
+Table meter_readings [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  correction_item_id bigint [unique]
+  meter_id bigint [not null]
+  observed_at timestamptz [not null]
+  reading_value numeric(14,3) [not null]
+  time_precision varchar(30) [not null, default: 'EXACT']
+  revision_no integer [not null, default: 1]
+  supersedes_reading_id bigint [unique]
+  handover_id bigint
   recorded_by bigint [not null]
+  reason text
+  recorded_at timestamptz [not null, default: `clock_timestamp()`]
 
   indexes {
-    (contract_id, billing_period, service_item_id) [name: 'meter_readings_contract_id_billing_period_service_item_id_key', unique, type: btree]
+    (meter_id, observed_at) [name: 'idx_reading_meter_time', type: btree]
+    (meter_id, observed_at, revision_no) [name: 'meter_readings_meter_id_observed_at_revision_no_key', unique, type: btree]
   }
 
   checks {
-    `(EXTRACT(day FROM billing_period) = (1)::numeric)` [name: 'meter_readings_billing_period_check']
-    `(new_index >= old_index)` [name: 'meter_readings_check']
-    `((reading_date >= billing_period) AND (reading_date < (billing_period + '1 mon'::interval)))` [name: 'meter_readings_check1']
-    `(old_index >= (0)::numeric)` [name: 'meter_readings_old_index_check']
+    `((supersedes_reading_id IS NULL) OR (supersedes_reading_id <> id))` [name: 'meter_readings_check']
+    `(reading_value >= (0)::numeric)` [name: 'meter_readings_reading_value_check']
+    `(revision_no > 0)` [name: 'meter_readings_revision_no_check']
+    `((time_precision)::text = ANY ((ARRAY['EXACT'::character varying, 'LEGACY_DAY_BOUNDARY'::character varying])::text[]))` [name: 'meter_readings_time_precision_check']
   }
+}
+
+Table consumption_segments [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  start_reading_id bigint [not null]
+  end_reading_id bigint [not null]
+  contract_id bigint
+  responsibility varchar(10) [not null]
+  supersedes_segment_id bigint [unique]
+  recorded_by bigint
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  indexes {
+    (start_reading_id, end_reading_id) [name: 'consumption_segments_start_reading_id_end_reading_id_key', unique, type: btree]
+  }
+
+  checks {
+    `(start_reading_id <> end_reading_id)` [name: 'consumption_segments_check']
+    `(((responsibility)::text = 'TENANT'::text) = (contract_id IS NOT NULL))` [name: 'consumption_segments_check1']
+    `((supersedes_segment_id IS NULL) OR (supersedes_segment_id <> id))` [name: 'consumption_segments_check2']
+    `((responsibility)::text = ANY ((ARRAY['TENANT'::character varying, 'OWNER'::character varying])::text[]))` [name: 'consumption_segments_responsibility_check']
+  }
+}
+
+Table alert_policies [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  service_item_id bigint [not null]
+  property_id bigint
+  room_id bigint
+  effective_from date [not null]
+  history_months smallint [not null, default: 3]
+  minimum_days integer [not null, default: 7]
+  threshold_percentage numeric(9,2) [not null, default: 50]
+  absolute_daily_threshold numeric(14,3)
+
+  checks {
+    `(absolute_daily_threshold > (0)::numeric)` [name: 'alert_policies_absolute_daily_threshold_check']
+    `(num_nonnulls(property_id, room_id) = 1)` [name: 'alert_policies_check']
+    `((history_months >= 1) AND (history_months <= 12))` [name: 'alert_policies_history_months_check']
+    `(minimum_days > 0)` [name: 'alert_policies_minimum_days_check']
+    `(threshold_percentage > (0)::numeric)` [name: 'alert_policies_threshold_percentage_check']
+  }
+
+  Note: 'PostgreSQL: CREATE UNIQUE INDEX uq_policy_property ON public.alert_policies USING btree (property_id, service_item_id, effective_from) WHERE (property_id IS NOT NULL); CREATE UNIQUE INDEX uq_policy_room ON public.alert_policies USING btree (room_id, service_item_id, effective_from) WHERE (room_id IS NOT NULL)'
 }
 
 Table consumption_alerts [headercolor: #315775] {
   id bigint [pk, not null, increment]
-  meter_reading_id bigint [not null, unique]
-  baseline_average numeric(12,2) [not null]
-  applied_threshold_percentage numeric(7,2) [not null]
-  history_months smallint [not null]
-  status varchar(20) [not null, default: 'PENDING']
+  segment_id bigint [not null]
+  policy_id bigint [not null]
+  supersedes_alert_id bigint [unique]
+  baseline_daily_average numeric(18,6)
+  applied_threshold numeric(9,2) [not null]
+  method varchar(40) [not null, default: 'WEIGHTED_DAILY']
+  status varchar(30) [not null, default: 'PENDING']
+  context_note text
   checked_by bigint
   checked_at timestamptz
-  note text
-  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  created_at timestamptz [not null, default: `clock_timestamp()`]
 
   indexes {
-    status [name: 'idx_alert_status', type: btree]
+    (segment_id, policy_id) [name: 'consumption_alerts_segment_id_policy_id_key', unique, type: btree]
   }
 
   checks {
-    `(applied_threshold_percentage > (0)::numeric)` [name: 'consumption_alerts_applied_threshold_percentage_check']
-    `(baseline_average > (0)::numeric)` [name: 'consumption_alerts_baseline_average_check']
-    `((((status)::text = 'PENDING'::text) AND (checked_by IS NULL) AND (checked_at IS NULL)) OR (((status)::text <> 'PENDING'::text) AND (checked_by IS NOT NULL) AND (checked_at IS NOT NULL)))` [name: 'consumption_alerts_check']
-    `((history_months >= 1) AND (history_months <= 12))` [name: 'consumption_alerts_history_months_check']
-    `((status)::text = ANY ((ARRAY['PENDING'::character varying, 'CONFIRMED'::character varying, 'DISMISSED'::character varying])::text[]))` [name: 'consumption_alerts_status_check']
+    `((baseline_daily_average IS NULL) OR (baseline_daily_average >= (0)::numeric))` [name: 'consumption_alerts_baseline_daily_average_check']
+    `(((status)::text <> ALL ((ARRAY['CONFIRMED'::character varying, 'DISMISSED'::character varying])::text[])) OR ((checked_by IS NOT NULL) AND (checked_at IS NOT NULL)))` [name: 'consumption_alerts_check']
+    `((status)::text = ANY ((ARRAY['PENDING'::character varying, 'CONFIRMED'::character varying, 'DISMISSED'::character varying, 'INSUFFICIENT_HISTORY'::character varying, 'INCOMPARABLE'::character varying])::text[]))` [name: 'consumption_alerts_status_check']
   }
 }
 
-Table invoices [headercolor: #315775] {
+Table alert_baseline_sources [headercolor: #315775] {
   id bigint [pk, not null, increment]
-  invoice_code varchar(50) [not null, unique]
-  contract_id bigint [not null]
-  billing_period date [not null]
-  issue_date date [not null]
-  due_date date [not null]
-  status varchar(20) [not null, default: 'DRAFT']
-  is_settlement boolean [not null, default: false]
-  issued_at timestamptz
+  alert_id bigint [not null]
+  source_segment_id bigint [not null]
 
   indexes {
-    contract_id [name: 'idx_invoice_contract', type: btree]
-    (contract_id, billing_period) [name: 'invoices_contract_id_billing_period_key', unique, type: btree]
-  }
-
-  checks {
-    `(EXTRACT(day FROM billing_period) = (1)::numeric)` [name: 'invoices_billing_period_check']
-    `(due_date >= issue_date)` [name: 'invoices_check']
-    `((((status)::text = 'DRAFT'::text) AND (issued_at IS NULL)) OR (((status)::text = 'ISSUED'::text) AND (issued_at IS NOT NULL)))` [name: 'invoices_check1']
-    `((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'ISSUED'::character varying])::text[]))` [name: 'invoices_status_check']
+    (alert_id, source_segment_id) [name: 'alert_baseline_sources_alert_id_source_segment_id_key', unique, type: btree]
   }
 }
 
-Table invoice_items [headercolor: #315775] {
+Table maintenance_schedules [headercolor: #315775] {
   id bigint [pk, not null, increment]
-  invoice_id bigint [not null]
-  service_item_id bigint
-  meter_reading_id bigint [unique]
-  item_name_snapshot varchar(100) [not null]
-  unit_name_snapshot varchar(30) [not null]
-  unit_price_snapshot numeric(12,2) [not null]
-  quantity integer [note: 'Ngày ở/ngày-người cho khoản thu tháng; NULL khi tham chiếu chỉ số đo đếm.']
-
-  indexes {
-    (invoice_id, service_item_id) [name: 'invoice_items_invoice_id_service_item_id_key', unique, type: btree]
-  }
+  asset_id bigint
+  room_id bigint
+  property_id bigint
+  title varchar(150) [not null]
+  interval_days integer [not null]
+  next_due date [not null]
+  is_active boolean [not null, default: true]
+  created_by bigint
 
   checks {
-    `(((meter_reading_id IS NOT NULL) AND (service_item_id IS NULL) AND (quantity IS NULL)) OR ((meter_reading_id IS NULL) AND (quantity IS NOT NULL) AND (quantity > 0)))` [name: 'invoice_items_check']
-    `(unit_price_snapshot >= (0)::numeric)` [name: 'invoice_items_unit_price_snapshot_check']
-  }
-
-  Note: 'PostgreSQL: CREATE UNIQUE INDEX uq_invoice_room_line ON public.invoice_items USING btree (invoice_id) WHERE ((service_item_id IS NULL) AND (meter_reading_id IS NULL))'
-}
-
-Table payment_transactions [headercolor: #315775] {
-  id bigint [pk, not null, increment]
-  invoice_id bigint [not null]
-  transaction_code varchar(50) [not null, unique]
-  amount numeric(12,2) [not null]
-  payment_method varchar(30) [not null]
-  payment_date timestamptz [not null, default: `CURRENT_TIMESTAMP`]
-  received_by bigint [not null]
-  notes text
-
-  indexes {
-    invoice_id [name: 'idx_payment_invoice', type: btree]
-  }
-
-  checks {
-    `(amount > (0)::numeric)` [name: 'payment_transactions_amount_check']
-    `((payment_method)::text = ANY ((ARRAY['CASH'::character varying, 'BANK_TRANSFER_MANUAL'::character varying, 'DEPOSIT_OFFSET'::character varying, 'OTHER'::character varying])::text[]))` [name: 'payment_transactions_payment_method_check']
-  }
-}
-
-Table checkout_records [headercolor: #315775] {
-  id bigint [pk, not null, increment]
-  contract_id bigint [not null, unique]
-  deposit_snapshot numeric(12,2) [not null]
-  outstanding_snapshot numeric(14,2) [not null]
-  damage_amount numeric(12,2) [not null, default: 0]
-  settled_by bigint [not null]
-  settled_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
-  notes text
-
-  checks {
-    `(damage_amount >= (0)::numeric)` [name: 'checkout_records_damage_amount_check']
-    `(deposit_snapshot >= (0)::numeric)` [name: 'checkout_records_deposit_snapshot_check']
-    `(outstanding_snapshot >= (0)::numeric)` [name: 'checkout_records_outstanding_snapshot_check']
+    `(num_nonnulls(asset_id, room_id, property_id) = 1)` [name: 'maintenance_schedules_check']
+    `(interval_days > 0)` [name: 'maintenance_schedules_interval_days_check']
   }
 }
 
 Table maintenance_requests [headercolor: #315775] {
   id bigint [pk, not null, increment]
-  contract_id bigint [not null]
+  room_id bigint
+  property_id bigint
+  asset_placement_id bigint
+  schedule_id bigint
+  scheduled_for date
   submitted_by bigint [not null]
   assigned_to bigint
   title varchar(150) [not null]
   description text [not null]
   priority varchar(20) [not null, default: 'NORMAL']
   status varchar(20) [not null, default: 'NEW']
+  incident_type varchar(50) [not null, default: 'GENERAL']
   expected_date date [not null]
-  actual_cost numeric(12,2) [not null, default: 0]
-  progress_note text
-  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  created_at timestamptz [not null, default: `clock_timestamp()`]
 
   indexes {
-    contract_id [name: 'idx_maintenance_contract', type: btree]
+    (schedule_id, scheduled_for) [name: 'maintenance_requests_schedule_id_scheduled_for_key', unique, type: btree]
   }
 
   checks {
-    `(actual_cost >= (0)::numeric)` [name: 'maintenance_requests_actual_cost_check']
-    `(btrim(description) <> ''::text)` [name: 'maintenance_requests_description_check']
+    `(num_nonnulls(room_id, property_id, asset_placement_id) = 1)` [name: 'maintenance_requests_check']
+    `((schedule_id IS NULL) = (scheduled_for IS NULL))` [name: 'maintenance_requests_check1']
     `((priority)::text = ANY ((ARRAY['URGENT'::character varying, 'NORMAL'::character varying, 'LOW'::character varying])::text[]))` [name: 'maintenance_requests_priority_check']
-    `((status)::text = ANY ((ARRAY['NEW'::character varying, 'ACCEPTED'::character varying, 'IN_PROGRESS'::character varying, 'COMPLETED'::character varying])::text[]))` [name: 'maintenance_requests_status_check']
-    `(btrim((title)::text) <> ''::text)` [name: 'maintenance_requests_title_check']
+    `((status)::text = ANY ((ARRAY['NEW'::character varying, 'ACCEPTED'::character varying, 'IN_PROGRESS'::character varying, 'COMPLETED'::character varying, 'CANCELLED'::character varying])::text[]))` [name: 'maintenance_requests_status_check']
   }
 }
 
-Table maintenance_images [headercolor: #315775] {
+Table maintenance_events [headercolor: #315775] {
   id bigint [pk, not null, increment]
-  maintenance_request_id bigint [not null]
-  url text [not null]
-  uploaded_by bigint [not null]
-  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  request_id bigint [not null]
+  action varchar(30) [not null]
+  actor_id bigint [not null]
+  note text [not null, default: '']
+  recorded_at timestamptz [not null, default: `clock_timestamp()`]
+}
+
+Table maintenance_costs [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  request_id bigint [not null]
+  description text [not null]
+  amount numeric(14,2) [not null]
+  incurred_on date [not null]
+  advanced_by_tenant_id bigint
+  recorded_by bigint [not null]
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  checks {
+    `(amount >= (0)::numeric)` [name: 'maintenance_costs_amount_check']
+  }
+}
+
+Table billing_documents [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  contract_id bigint
+  reservation_id bigint
+  checkout_id bigint
+  related_document_id bigint
+  document_code varchar(80) [not null, unique]
+  document_type varchar(30) [not null]
+  billing_period date
+  issue_date date [not null]
+  due_date date [not null]
+  status varchar(20) [not null, default: 'DRAFT']
+  reason text [not null, default: '']
+  created_by bigint
+  issued_by bigint
+  issued_at timestamptz
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  checks {
+    `((billing_period IS NULL) OR (EXTRACT(day FROM billing_period) = (1)::numeric))` [name: 'billing_documents_billing_period_check']
+    `(num_nonnulls(contract_id, reservation_id) = 1)` [name: 'billing_documents_check']
+    `(due_date >= issue_date)` [name: 'billing_documents_check1']
+    `(((document_type)::text <> 'MONTHLY'::text) OR ((contract_id IS NOT NULL) AND (billing_period IS NOT NULL)))` [name: 'billing_documents_check2']
+    `(((status)::text = 'ISSUED'::text) = (issued_at IS NOT NULL))` [name: 'billing_documents_check3']
+    `(((document_type)::text <> 'ADJUSTMENT'::text) OR (related_document_id IS NOT NULL))` [name: 'billing_documents_check4']
+    `((document_type)::text = ANY ((ARRAY['MONTHLY'::character varying, 'FINAL_CHARGE'::character varying, 'COMPENSATION'::character varying, 'ADJUSTMENT'::character varying, 'REIMBURSEMENT'::character varying, 'OPENING_CHARGE'::character varying])::text[]))` [name: 'billing_documents_document_type_check']
+    `((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'ISSUED'::character varying])::text[]))` [name: 'billing_documents_status_check']
+  }
+
+  Note: 'PostgreSQL: CREATE UNIQUE INDEX uq_monthly_document ON public.billing_documents USING btree (contract_id, billing_period) WHERE ((document_type)::text = \'MONTHLY\'::text)'
+}
+
+Table billing_items [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  document_id bigint [not null]
+  line_no integer [not null]
+  item_kind varchar(30) [not null]
+  direction varchar(10) [not null, default: 'DEBIT']
+  adjusts_item_id bigint
+  contract_term_id bigint
+  subscription_id bigint
+  segment_id bigint
+  service_price_config_id bigint
+  handover_item_id bigint
+  maintenance_cost_id bigint
+  violation_id bigint
+  item_name_snapshot varchar(150) [not null]
+  unit_name_snapshot varchar(40) [not null]
+  unit_price_snapshot numeric(14,4) [not null]
+  calculation_basis varchar(20) [not null]
+  quantity_snapshot numeric(18,6)
+  calculation_period date
+  service_from date [not null]
+  service_to date [not null]
+  verification_status varchar(20) [not null, default: 'VERIFIED']
+  basis_note text [not null, default: '']
+  source_key varchar(120) [unique]
 
   indexes {
-    (maintenance_request_id, url) [name: 'maintenance_images_maintenance_request_id_url_key', unique, type: btree]
+    (document_id, line_no) [name: 'billing_items_document_id_line_no_key', unique, type: btree]
   }
 
   checks {
-    `(btrim(url) <> ''::text)` [name: 'maintenance_images_url_check']
+    `((calculation_basis)::text = ANY ((ARRAY['METER'::character varying, 'PRORATED'::character varying, 'FULL_PERIOD'::character varying, 'FIXED'::character varying, 'ESTIMATED'::character varying])::text[]))` [name: 'billing_items_calculation_basis_check']
+    `(service_to > service_from)` [name: 'billing_items_check']
+    `((adjusts_item_id IS NULL) OR (adjusts_item_id <> id))` [name: 'billing_items_check1']
+    `((((calculation_basis)::text = 'METER'::text) AND (segment_id IS NOT NULL) AND (quantity_snapshot IS NULL)) OR (((calculation_basis)::text <> 'METER'::text) AND (quantity_snapshot IS NOT NULL) AND (quantity_snapshot > (0)::numeric)))` [name: 'billing_items_check2']
+    `(((calculation_basis)::text <> 'PRORATED'::text) OR ((calculation_period IS NOT NULL) AND (EXTRACT(day FROM calculation_period) = (1)::numeric)))` [name: 'billing_items_check3']
+    `(((calculation_basis)::text <> 'ESTIMATED'::text) OR (((verification_status)::text = 'ESTIMATED'::text) AND (btrim(basis_note) <> ''::text)))` [name: 'billing_items_check4']
+    `((direction)::text = ANY ((ARRAY['DEBIT'::character varying, 'CREDIT'::character varying])::text[]))` [name: 'billing_items_direction_check']
+    `((item_kind)::text = ANY ((ARRAY['ROOM_RENT'::character varying, 'UTILITY'::character varying, 'SERVICE'::character varying, 'DAMAGE'::character varying, 'DISCOUNT'::character varying, 'REIMBURSEMENT'::character varying, 'OTHER'::character varying])::text[]))` [name: 'billing_items_item_kind_check']
+    `(line_no > 0)` [name: 'billing_items_line_no_check']
+    `(unit_price_snapshot >= (0)::numeric)` [name: 'billing_items_unit_price_snapshot_check']
+    `((verification_status)::text = ANY ((ARRAY['VERIFIED'::character varying, 'ESTIMATED'::character varying, 'DISPUTED'::character varying, 'PENDING'::character varying])::text[]))` [name: 'billing_items_verification_status_check']
+  }
+
+  Note: 'PostgreSQL: CREATE UNIQUE INDEX uq_original_measured_charge ON public.billing_items USING btree (segment_id) WHERE ((segment_id IS NOT NULL) AND (adjusts_item_id IS NULL))'
+}
+
+Table cash_accounts [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  property_id bigint
+  account_code varchar(60) [not null, unique]
+  name varchar(150) [not null]
+  account_type varchar(20) [not null]
+  is_active boolean [not null, default: true]
+
+  checks {
+    `((account_type)::text = ANY ((ARRAY['CASH'::character varying, 'BANK'::character varying])::text[]))` [name: 'cash_accounts_account_type_check']
   }
 }
 
-Ref checkout_records_contract_id_fkey: contracts.id - checkout_records.contract_id [delete: restrict]
-Ref checkout_records_settled_by_fkey: checkout_records.settled_by > users.id [delete: restrict]
-Ref consumption_alerts_checked_by_fkey: consumption_alerts.checked_by >? users.id [delete: restrict]
-Ref consumption_alerts_meter_reading_id_fkey: meter_readings.id - consumption_alerts.meter_reading_id [delete: cascade]
-Ref contract_members_contract_id_fkey: contract_members.contract_id > contracts.id [delete: restrict]
-Ref contract_members_tenant_id_fkey: contract_members.tenant_id > tenant_profiles.id [delete: restrict]
-Ref contracts_primary_tenant_id_fkey: contracts.primary_tenant_id > tenant_profiles.id [delete: restrict]
-Ref contracts_room_id_fkey: contracts.room_id > rooms.id [delete: restrict]
-Ref employee_assignments_property_id_fkey: employee_assignments.property_id > properties.id [delete: restrict]
-Ref employee_assignments_user_id_fkey: employee_assignments.user_id > users.id [delete: restrict]
-Ref invoice_items_invoice_id_fkey: invoice_items.invoice_id > invoices.id [delete: cascade]
-Ref invoice_items_meter_reading_id_fkey: meter_readings.id ?- invoice_items.meter_reading_id [delete: restrict]
-Ref invoice_items_service_item_id_fkey: invoice_items.service_item_id >? service_items.id [delete: restrict]
-Ref invoices_contract_id_fkey: invoices.contract_id > contracts.id [delete: restrict]
-Ref maintenance_images_maintenance_request_id_fkey: maintenance_images.maintenance_request_id > maintenance_requests.id [delete: cascade]
-Ref maintenance_images_uploaded_by_fkey: maintenance_images.uploaded_by > users.id [delete: restrict]
-Ref maintenance_requests_assigned_to_fkey: maintenance_requests.assigned_to >? users.id [delete: restrict]
-Ref maintenance_requests_contract_id_fkey: maintenance_requests.contract_id > contracts.id [delete: restrict]
-Ref maintenance_requests_submitted_by_fkey: maintenance_requests.submitted_by > users.id [delete: restrict]
-Ref meter_readings_contract_id_fkey: meter_readings.contract_id > contracts.id [delete: restrict]
-Ref meter_readings_recorded_by_fkey: meter_readings.recorded_by > users.id [delete: restrict]
-Ref meter_readings_service_item_id_fkey: meter_readings.service_item_id > service_items.id [delete: restrict]
-Ref payment_transactions_invoice_id_fkey: payment_transactions.invoice_id > invoices.id [delete: restrict]
-Ref payment_transactions_received_by_fkey: payment_transactions.received_by > users.id [delete: restrict]
-Ref rooms_property_id_fkey: rooms.property_id > properties.id [delete: restrict]
-Ref service_price_configs_property_id_fkey: service_price_configs.property_id > properties.id [delete: restrict]
-Ref service_price_configs_service_item_id_fkey: service_price_configs.service_item_id > service_items.id [delete: restrict]
-Ref tenant_profiles_user_id_fkey: users.id ?- tenant_profiles.user_id [delete: set null]
+Table cash_transactions [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  payment_document_id bigint
+  cash_account_id bigint [not null]
+  payer_or_payee_id bigint
+  transaction_code varchar(80) [not null, unique]
+  direction varchar(5) [not null]
+  amount numeric(14,2) [not null]
+  method varchar(30) [not null]
+  occurred_at timestamptz [not null]
+  recorded_at timestamptz [not null, default: `clock_timestamp()`]
+  status varchar(20) [not null, default: 'PENDING']
+  external_reference varchar(150)
+  counterparty_note text
+  reason text
+  recorded_by bigint [not null]
+  confirmed_by bigint
+  confirmed_at timestamptz
+
+  indexes {
+    occurred_at [name: 'idx_cash_occurred', type: btree]
+  }
+
+  checks {
+    `(amount > (0)::numeric)` [name: 'cash_transactions_amount_check']
+    `(((status)::text <> 'CONFIRMED'::text) OR ((confirmed_by IS NOT NULL) AND (confirmed_at IS NOT NULL)))` [name: 'cash_transactions_check']
+    `((direction)::text = ANY ((ARRAY['IN'::character varying, 'OUT'::character varying])::text[]))` [name: 'cash_transactions_direction_check']
+    `((method)::text = ANY ((ARRAY['CASH'::character varying, 'BANK_TRANSFER_MANUAL'::character varying, 'OTHER'::character varying])::text[]))` [name: 'cash_transactions_method_check']
+    `((status)::text = ANY ((ARRAY['PENDING'::character varying, 'CONFIRMED'::character varying, 'VOID'::character varying])::text[]))` [name: 'cash_transactions_status_check']
+  }
+
+  Note: 'PostgreSQL: CREATE INDEX idx_cash_payment_document ON public.cash_transactions USING btree (payment_document_id) WHERE (payment_document_id IS NOT NULL); CREATE UNIQUE INDEX uq_external_cash ON public.cash_transactions USING btree (cash_account_id, external_reference) WHERE ((external_reference IS NOT NULL) AND ((status)::text = \'CONFIRMED\'::text))'
+}
+
+Table fund_accounts [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  fund_code varchar(100) [not null, unique]
+  fund_type varchar(20) [not null]
+  reconciliation_status varchar(20) [not null, default: 'VERIFIED']
+  contract_id bigint
+  reservation_id bigint
+  unapplied_receipt_id bigint [unique]
+  beneficiary_tenant_id bigint
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  checks {
+    `((((fund_type)::text = ANY ((ARRAY['DEPOSIT'::character varying, 'ADVANCE'::character varying])::text[])) AND (contract_id IS NOT NULL) AND (reservation_id IS NULL) AND (unapplied_receipt_id IS NULL) AND (beneficiary_tenant_id IS NOT NULL)) OR (((fund_type)::text = 'RESERVATION'::text) AND (reservation_id IS NOT NULL) AND (contract_id IS NULL) AND (unapplied_receipt_id IS NULL)) OR (((fund_type)::text = 'UNAPPLIED'::text) AND (unapplied_receipt_id IS NOT NULL) AND (contract_id IS NULL) AND (reservation_id IS NULL)))` [name: 'fund_accounts_check']
+    `((fund_type)::text = ANY ((ARRAY['DEPOSIT'::character varying, 'ADVANCE'::character varying, 'RESERVATION'::character varying, 'UNAPPLIED'::character varying])::text[]))` [name: 'fund_accounts_fund_type_check']
+    `((reconciliation_status)::text = ANY ((ARRAY['VERIFIED'::character varying, 'PENDING'::character varying])::text[]))` [name: 'fund_accounts_reconciliation_status_check']
+  }
+
+  Note: 'PostgreSQL: CREATE UNIQUE INDEX uq_contract_fund ON public.fund_accounts USING btree (contract_id, fund_type) WHERE (contract_id IS NOT NULL); CREATE UNIQUE INDEX uq_reservation_fund ON public.fund_accounts USING btree (reservation_id) WHERE (reservation_id IS NOT NULL)'
+}
+
+Table fund_entries [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  entry_code varchar(120) [not null, unique]
+  entry_type varchar(30) [not null]
+  cash_transaction_id bigint
+  from_fund_id bigint
+  to_fund_id bigint
+  debit_item_id bigint
+  credit_item_id bigint
+  original_entry_id bigint
+  amount numeric(14,2) [not null]
+  reason text [not null, default: '']
+  posted_by bigint [not null]
+  posted_at timestamptz [not null, default: `clock_timestamp()`]
+
+  indexes {
+    debit_item_id [name: 'idx_entry_debit', type: btree]
+    from_fund_id [name: 'idx_entry_from', type: btree]
+    to_fund_id [name: 'idx_entry_to', type: btree]
+  }
+
+  checks {
+    `(amount > (0)::numeric)` [name: 'fund_entries_amount_check']
+    `((from_fund_id IS NULL) OR (to_fund_id IS NULL) OR (from_fund_id <> to_fund_id))` [name: 'fund_entries_check']
+    `((original_entry_id IS NULL) OR (original_entry_id <> id))` [name: 'fund_entries_check1']
+    `((((entry_type)::text = 'RECEIVE'::text) AND (cash_transaction_id IS NOT NULL) AND (to_fund_id IS NOT NULL) AND (num_nonnulls(from_fund_id, debit_item_id, credit_item_id, original_entry_id) = 0)) OR (((entry_type)::text = 'PAYMENT'::text) AND (from_fund_id IS NOT NULL) AND (debit_item_id IS NOT NULL) AND (num_nonnulls(cash_transaction_id, to_fund_id, credit_item_id, original_entry_id) = 0)) OR (((entry_type)::text = 'TRANSFER'::text) AND (from_fund_id IS NOT NULL) AND (to_fund_id IS NOT NULL) AND (num_nonnulls(cash_transaction_id, debit_item_id, credit_item_id, original_entry_id) = 0)) OR (((entry_type)::text = 'REFUND'::text) AND (from_fund_id IS NOT NULL) AND (cash_transaction_id IS NOT NULL) AND (num_nonnulls(to_fund_id, debit_item_id, credit_item_id, original_entry_id) = 0)) OR (((entry_type)::text = 'CREDIT_TO_FUND'::text) AND (credit_item_id IS NOT NULL) AND (to_fund_id IS NOT NULL) AND (num_nonnulls(cash_transaction_id, from_fund_id, debit_item_id, original_entry_id) = 0)) OR (((entry_type)::text = 'ADJUSTMENT_RELEASE'::text) AND (credit_item_id IS NOT NULL) AND (original_entry_id IS NOT NULL) AND (to_fund_id IS NOT NULL) AND (num_nonnulls(cash_transaction_id, from_fund_id, debit_item_id) = 0)) OR (((entry_type)::text = 'REVERSAL'::text) AND (original_entry_id IS NOT NULL) AND (num_nonnulls(cash_transaction_id, from_fund_id, to_fund_id, debit_item_id, credit_item_id) = 0)) OR (((entry_type)::text = 'OPENING_BALANCE'::text) AND (to_fund_id IS NOT NULL) AND (btrim(reason) <> ''::text) AND (num_nonnulls(cash_transaction_id, from_fund_id, debit_item_id, credit_item_id, original_entry_id) = 0)))` [name: 'fund_entries_check2']
+    `((entry_type)::text = ANY ((ARRAY['RECEIVE'::character varying, 'PAYMENT'::character varying, 'TRANSFER'::character varying, 'REFUND'::character varying, 'CREDIT_TO_FUND'::character varying, 'ADJUSTMENT_RELEASE'::character varying, 'REVERSAL'::character varying, 'OPENING_BALANCE'::character varying])::text[]))` [name: 'fund_entries_entry_type_check']
+  }
+}
+
+Table fund_holds [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  fund_account_id bigint [not null]
+  related_billing_item_id bigint
+  amount numeric(14,2) [not null]
+  reason text [not null]
+  review_on date [not null]
+  created_by bigint [not null]
+  released_at timestamptz
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  checks {
+    `(amount > (0)::numeric)` [name: 'fund_holds_amount_check']
+    `(btrim(reason) <> ''::text)` [name: 'fund_holds_reason_check']
+  }
+}
+
+Table notifications [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  notification_type varchar(40) [not null]
+  title varchar(200) [not null]
+  body text [not null]
+  billing_document_id bigint
+  contract_id bigint
+  maintenance_request_id bigint
+  consumption_alert_id bigint
+  deduplication_key varchar(180) [not null, unique]
+  created_by bigint
+  sent_at timestamptz [not null, default: `clock_timestamp()`]
+
+  checks {
+    `(num_nonnulls(billing_document_id, contract_id, maintenance_request_id, consumption_alert_id) <= 1)` [name: 'notifications_check']
+  }
+}
+
+Table notification_recipients [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  notification_id bigint [not null]
+  user_id bigint [not null]
+  read_at timestamptz
+
+  indexes {
+    (notification_id, user_id) [name: 'notification_recipients_notification_id_user_id_key', unique, type: btree]
+  }
+}
+
+Table stored_files [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  storage_key varchar(255) [not null, unique]
+  original_name varchar(255) [not null]
+  content_type varchar(100) [not null]
+  size_bytes bigint
+  sha256 varchar(64)
+  external_url text
+  uploaded_by bigint [not null]
+  uploaded_at timestamptz [not null, default: `clock_timestamp()`]
+
+  checks {
+    `((external_url IS NOT NULL) OR ((sha256 IS NOT NULL) AND (size_bytes IS NOT NULL)))` [name: 'stored_files_check']
+    `(size_bytes > 0)` [name: 'stored_files_size_bytes_check']
+  }
+}
+
+Table file_attachments [headercolor: #315775] {
+  id bigint [pk, not null, increment]
+  file_id bigint [not null]
+  room_id bigint
+  asset_id bigint
+  handover_item_id bigint
+  meter_reading_id bigint
+  maintenance_request_id bigint
+  maintenance_cost_id bigint
+  contract_term_id bigint
+  billing_document_id bigint
+  violation_id bigint
+  fund_entry_id bigint
+  caption text [not null, default: '']
+  sort_order integer [not null, default: 0]
+  attached_by bigint [not null]
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  checks {
+    `(num_nonnulls(room_id, asset_id, handover_item_id, meter_reading_id, maintenance_request_id, maintenance_cost_id, contract_term_id, billing_document_id, violation_id, fund_entry_id) = 1)` [name: 'file_attachments_check']
+  }
+}
+
+Ref alert_baseline_sources_alert_id_fkey: alert_baseline_sources.alert_id > consumption_alerts.id [delete: no action]
+Ref alert_baseline_sources_source_segment_id_fkey: alert_baseline_sources.source_segment_id > consumption_segments.id [delete: no action]
+Ref alert_policies_property_id_fkey: alert_policies.property_id >? properties.id [delete: no action]
+Ref alert_policies_room_id_fkey: alert_policies.room_id >? rooms.id [delete: no action]
+Ref alert_policies_service_item_id_fkey: alert_policies.service_item_id > service_items.id [delete: no action]
+Ref asset_placements_asset_id_fkey: asset_placements.asset_id > assets.id [delete: no action]
+Ref asset_placements_property_id_fkey: asset_placements.property_id >? properties.id [delete: no action]
+Ref asset_placements_recorded_by_fkey: asset_placements.recorded_by >? users.id [delete: no action]
+Ref asset_placements_room_id_fkey: asset_placements.room_id >? rooms.id [delete: no action]
+Ref assets_asset_type_id_fkey: assets.asset_type_id > asset_types.id [delete: no action]
+Ref audit_events_actor_user_id_fkey: audit_events.actor_user_id >? users.id [delete: no action]
+Ref billing_documents_checkout_id_fkey: billing_documents.checkout_id >? checkout_records.id [delete: no action]
+Ref billing_documents_contract_id_fkey: billing_documents.contract_id >? contracts.id [delete: no action]
+Ref billing_documents_created_by_fkey: billing_documents.created_by >? users.id [delete: no action]
+Ref billing_documents_issued_by_fkey: billing_documents.issued_by >? users.id [delete: no action]
+Ref billing_documents_related_document_id_fkey: billing_documents.related_document_id >? billing_documents.id [delete: no action]
+Ref billing_documents_reservation_id_fkey: billing_documents.reservation_id >? reservations.id [delete: no action]
+Ref billing_items_adjusts_item_id_fkey: billing_items.adjusts_item_id >? billing_items.id [delete: no action]
+Ref billing_items_contract_term_id_fkey: billing_items.contract_term_id >? contract_terms.id [delete: no action]
+Ref billing_items_document_id_fkey: billing_items.document_id > billing_documents.id [delete: no action]
+Ref billing_items_handover_item_id_fkey: billing_items.handover_item_id >? handover_items.id [delete: no action]
+Ref billing_items_maintenance_cost_id_fkey: billing_items.maintenance_cost_id >? maintenance_costs.id [delete: no action]
+Ref billing_items_segment_id_fkey: billing_items.segment_id >? consumption_segments.id [delete: no action]
+Ref billing_items_service_price_config_id_fkey: billing_items.service_price_config_id >? service_price_configs.id [delete: no action]
+Ref billing_items_subscription_id_fkey: billing_items.subscription_id >? contract_service_subscriptions.id [delete: no action]
+Ref billing_items_violation_id_fkey: billing_items.violation_id >? contract_violations.id [delete: no action]
+Ref cash_accounts_property_id_fkey: cash_accounts.property_id >? properties.id [delete: no action]
+Ref cash_transactions_cash_account_id_fkey: cash_transactions.cash_account_id > cash_accounts.id [delete: no action]
+Ref cash_transactions_confirmed_by_fkey: cash_transactions.confirmed_by >? users.id [delete: no action]
+Ref cash_transactions_payer_or_payee_id_fkey: cash_transactions.payer_or_payee_id >? tenant_profiles.id [delete: no action]
+Ref cash_transactions_payment_document_id_fkey: cash_transactions.payment_document_id >? billing_documents.id [delete: no action]
+Ref cash_transactions_recorded_by_fkey: cash_transactions.recorded_by > users.id [delete: no action]
+Ref checkout_records_approved_by_fkey: checkout_records.approved_by >? users.id [delete: no action]
+Ref checkout_records_contract_id_fkey: checkout_records.contract_id > contracts.id [delete: no action]
+Ref checkout_records_return_handover_id_fkey: checkout_records.return_handover_id >? handovers.id [delete: no action]
+Ref consumption_alerts_checked_by_fkey: consumption_alerts.checked_by >? users.id [delete: no action]
+Ref consumption_alerts_policy_id_fkey: consumption_alerts.policy_id > alert_policies.id [delete: no action]
+Ref consumption_alerts_segment_id_fkey: consumption_alerts.segment_id > consumption_segments.id [delete: no action]
+Ref consumption_alerts_supersedes_alert_id_fkey: consumption_alerts.id ?- consumption_alerts.supersedes_alert_id [delete: no action]
+Ref consumption_segments_contract_id_fkey: consumption_segments.contract_id >? contracts.id [delete: no action]
+Ref consumption_segments_end_reading_id_fkey: consumption_segments.end_reading_id > meter_readings.id [delete: no action]
+Ref consumption_segments_recorded_by_fkey: consumption_segments.recorded_by >? users.id [delete: no action]
+Ref consumption_segments_start_reading_id_fkey: consumption_segments.start_reading_id > meter_readings.id [delete: no action]
+Ref consumption_segments_supersedes_segment_id_fkey: consumption_segments.id ?- consumption_segments.supersedes_segment_id [delete: no action]
+Ref contract_contacts_authorized_by_fkey: contract_contacts.authorized_by >? users.id [delete: no action]
+Ref contract_contacts_contract_id_fkey: contract_contacts.contract_id > contracts.id [delete: no action]
+Ref contract_contacts_tenant_id_fkey: contract_contacts.tenant_id > tenant_profiles.id [delete: no action]
+Ref contract_parties_contract_id_fkey: contract_parties.contract_id > contracts.id [delete: no action]
+Ref contract_parties_tenant_id_fkey: contract_parties.tenant_id > tenant_profiles.id [delete: no action]
+Ref contract_residencies_contract_id_fkey: contract_residencies.contract_id > contracts.id [delete: no action]
+Ref contract_residencies_recorded_by_fkey: contract_residencies.recorded_by >? users.id [delete: no action]
+Ref contract_residencies_tenant_id_fkey: contract_residencies.tenant_id > tenant_profiles.id [delete: no action]
+Ref contract_service_subscriptions_contract_id_fkey: contract_service_subscriptions.contract_id > contracts.id [delete: no action]
+Ref contract_service_subscriptions_recorded_by_fkey: contract_service_subscriptions.recorded_by >? users.id [delete: no action]
+Ref contract_service_subscriptions_service_item_id_fkey: contract_service_subscriptions.service_item_id > service_items.id [delete: no action]
+Ref contract_terms_approved_by_fkey: contract_terms.approved_by >? users.id [delete: no action]
+Ref contract_terms_contract_id_fkey: contract_terms.contract_id > contracts.id [delete: no action]
+Ref contract_violations_contract_id_fkey: contract_violations.contract_id > contracts.id [delete: no action]
+Ref contract_violations_created_by_fkey: contract_violations.created_by > users.id [delete: no action]
+Ref contracts_created_by_fkey: contracts.created_by >? users.id [delete: no action]
+Ref contracts_previous_contract_id_fkey: contracts.previous_contract_id >? contracts.id [delete: no action]
+Ref contracts_reservation_id_fkey: reservations.id ?- contracts.reservation_id [delete: no action]
+Ref contracts_room_id_fkey: contracts.room_id > rooms.id [delete: no action]
+Ref employee_assignments_property_id_fkey: employee_assignments.property_id >? properties.id [delete: no action]
+Ref employee_assignments_room_id_fkey: employee_assignments.room_id >? rooms.id [delete: no action]
+Ref employee_assignments_user_id_fkey: employee_assignments.user_id > users.id [delete: no action]
+Ref file_attachments_asset_id_fkey: file_attachments.asset_id >? assets.id [delete: no action]
+Ref file_attachments_attached_by_fkey: file_attachments.attached_by > users.id [delete: no action]
+Ref file_attachments_billing_document_id_fkey: file_attachments.billing_document_id >? billing_documents.id [delete: no action]
+Ref file_attachments_contract_term_id_fkey: file_attachments.contract_term_id >? contract_terms.id [delete: no action]
+Ref file_attachments_file_id_fkey: file_attachments.file_id > stored_files.id [delete: no action]
+Ref file_attachments_fund_entry_id_fkey: file_attachments.fund_entry_id >? fund_entries.id [delete: no action]
+Ref file_attachments_handover_item_id_fkey: file_attachments.handover_item_id >? handover_items.id [delete: no action]
+Ref file_attachments_maintenance_cost_id_fkey: file_attachments.maintenance_cost_id >? maintenance_costs.id [delete: no action]
+Ref file_attachments_maintenance_request_id_fkey: file_attachments.maintenance_request_id >? maintenance_requests.id [delete: no action]
+Ref file_attachments_meter_reading_id_fkey: file_attachments.meter_reading_id >? meter_readings.id [delete: no action]
+Ref file_attachments_room_id_fkey: file_attachments.room_id >? rooms.id [delete: no action]
+Ref file_attachments_violation_id_fkey: file_attachments.violation_id >? contract_violations.id [delete: no action]
+Ref fund_accounts_beneficiary_tenant_id_fkey: fund_accounts.beneficiary_tenant_id >? tenant_profiles.id [delete: no action]
+Ref fund_accounts_contract_id_fkey: fund_accounts.contract_id >? contracts.id [delete: no action]
+Ref fund_accounts_reservation_id_fkey: fund_accounts.reservation_id >? reservations.id [delete: no action]
+Ref fund_accounts_unapplied_receipt_id_fkey: cash_transactions.id ?- fund_accounts.unapplied_receipt_id [delete: no action]
+Ref fund_entries_cash_transaction_id_fkey: fund_entries.cash_transaction_id >? cash_transactions.id [delete: no action]
+Ref fund_entries_credit_item_id_fkey: fund_entries.credit_item_id >? billing_items.id [delete: no action]
+Ref fund_entries_debit_item_id_fkey: fund_entries.debit_item_id >? billing_items.id [delete: no action]
+Ref fund_entries_from_fund_id_fkey: fund_entries.from_fund_id >? fund_accounts.id [delete: no action]
+Ref fund_entries_original_entry_id_fkey: fund_entries.original_entry_id >? fund_entries.id [delete: no action]
+Ref fund_entries_posted_by_fkey: fund_entries.posted_by > users.id [delete: no action]
+Ref fund_entries_to_fund_id_fkey: fund_entries.to_fund_id >? fund_accounts.id [delete: no action]
+Ref fund_holds_created_by_fkey: fund_holds.created_by > users.id [delete: no action]
+Ref fund_holds_fund_account_id_fkey: fund_holds.fund_account_id > fund_accounts.id [delete: no action]
+Ref fund_holds_related_billing_item_id_fkey: fund_holds.related_billing_item_id >? billing_items.id [delete: no action]
+Ref handover_items_asset_placement_id_fkey: handover_items.asset_placement_id >? asset_placements.id [delete: no action]
+Ref handover_items_handover_id_fkey: handover_items.handover_id > handovers.id [delete: no action]
+Ref handovers_confirmed_by_fkey: handovers.confirmed_by >? users.id [delete: no action]
+Ref handovers_contract_id_fkey: handovers.contract_id > contracts.id [delete: no action]
+Ref handovers_given_by_fkey: handovers.given_by >? users.id [delete: no action]
+Ref handovers_possession_id_fkey: handovers.possession_id >? room_possessions.id [delete: no action]
+Ref handovers_received_by_tenant_id_fkey: handovers.received_by_tenant_id >? tenant_profiles.id [delete: no action]
+Ref maintenance_costs_advanced_by_tenant_id_fkey: maintenance_costs.advanced_by_tenant_id >? tenant_profiles.id [delete: no action]
+Ref maintenance_costs_recorded_by_fkey: maintenance_costs.recorded_by > users.id [delete: no action]
+Ref maintenance_costs_request_id_fkey: maintenance_costs.request_id > maintenance_requests.id [delete: no action]
+Ref maintenance_events_actor_id_fkey: maintenance_events.actor_id > users.id [delete: no action]
+Ref maintenance_events_request_id_fkey: maintenance_events.request_id > maintenance_requests.id [delete: no action]
+Ref maintenance_requests_asset_placement_id_fkey: maintenance_requests.asset_placement_id >? asset_placements.id [delete: no action]
+Ref maintenance_requests_assigned_to_fkey: maintenance_requests.assigned_to >? users.id [delete: no action]
+Ref maintenance_requests_property_id_fkey: maintenance_requests.property_id >? properties.id [delete: no action]
+Ref maintenance_requests_room_id_fkey: maintenance_requests.room_id >? rooms.id [delete: no action]
+Ref maintenance_requests_schedule_id_fkey: maintenance_requests.schedule_id >? maintenance_schedules.id [delete: no action]
+Ref maintenance_requests_submitted_by_fkey: maintenance_requests.submitted_by > users.id [delete: no action]
+Ref maintenance_schedules_asset_id_fkey: maintenance_schedules.asset_id >? assets.id [delete: no action]
+Ref maintenance_schedules_created_by_fkey: maintenance_schedules.created_by >? users.id [delete: no action]
+Ref maintenance_schedules_property_id_fkey: maintenance_schedules.property_id >? properties.id [delete: no action]
+Ref maintenance_schedules_room_id_fkey: maintenance_schedules.room_id >? rooms.id [delete: no action]
+Ref meter_readings_correction_item_id_fkey: billing_items.id ?- meter_readings.correction_item_id [delete: no action]
+Ref meter_readings_handover_id_fkey: meter_readings.handover_id >? handovers.id [delete: no action]
+Ref meter_readings_meter_id_fkey: meter_readings.meter_id > meters.id [delete: no action]
+Ref meter_readings_recorded_by_fkey: meter_readings.recorded_by > users.id [delete: no action]
+Ref meter_readings_supersedes_reading_id_fkey: meter_readings.id ?- meter_readings.supersedes_reading_id [delete: no action]
+Ref meters_recorded_by_fkey: meters.recorded_by >? users.id [delete: no action]
+Ref meters_room_id_fkey: meters.room_id > rooms.id [delete: no action]
+Ref meters_service_item_id_fkey: meters.service_item_id > service_items.id [delete: no action]
+Ref move_out_notices_contract_id_fkey: move_out_notices.contract_id > contracts.id [delete: no action]
+Ref move_out_notices_submitted_by_fkey: move_out_notices.submitted_by > users.id [delete: no action]
+Ref move_out_notices_supersedes_notice_id_fkey: move_out_notices.supersedes_notice_id >? move_out_notices.id [delete: no action]
+Ref notification_recipients_notification_id_fkey: notification_recipients.notification_id > notifications.id [delete: no action]
+Ref notification_recipients_user_id_fkey: notification_recipients.user_id > users.id [delete: no action]
+Ref notifications_billing_document_id_fkey: notifications.billing_document_id >? billing_documents.id [delete: no action]
+Ref notifications_consumption_alert_id_fkey: notifications.consumption_alert_id >? consumption_alerts.id [delete: no action]
+Ref notifications_contract_id_fkey: notifications.contract_id >? contracts.id [delete: no action]
+Ref notifications_created_by_fkey: notifications.created_by >? users.id [delete: no action]
+Ref notifications_maintenance_request_id_fkey: notifications.maintenance_request_id >? maintenance_requests.id [delete: no action]
+Ref password_reset_tokens_issued_by_fkey: password_reset_tokens.issued_by > users.id [delete: no action]
+Ref password_reset_tokens_user_id_fkey: password_reset_tokens.user_id > users.id [delete: no action]
+Ref reservations_created_by_fkey: reservations.created_by >? users.id [delete: no action]
+Ref reservations_room_id_fkey: reservations.room_id > rooms.id [delete: no action]
+Ref reservations_tenant_id_fkey: reservations.tenant_id >? tenant_profiles.id [delete: no action]
+Ref room_operating_periods_recorded_by_fkey: room_operating_periods.recorded_by >? users.id [delete: no action]
+Ref room_operating_periods_room_id_fkey: room_operating_periods.room_id > rooms.id [delete: no action]
+Ref room_possessions_contract_id_fkey: room_possessions.contract_id > contracts.id [delete: no action]
+Ref room_possessions_recorded_by_fkey: room_possessions.recorded_by >? users.id [delete: no action]
+Ref room_price_history_recorded_by_fkey: room_price_history.recorded_by >? users.id [delete: no action]
+Ref room_price_history_room_id_fkey: room_price_history.room_id > rooms.id [delete: no action]
+Ref rooms_property_id_fkey: rooms.property_id > properties.id [delete: no action]
+Ref service_price_configs_property_id_fkey: service_price_configs.property_id > properties.id [delete: no action]
+Ref service_price_configs_recorded_by_fkey: service_price_configs.recorded_by >? users.id [delete: no action]
+Ref service_price_configs_service_item_id_fkey: service_price_configs.service_item_id > service_items.id [delete: no action]
+Ref staff_permission_grants_assignment_id_fkey: staff_permission_grants.assignment_id > employee_assignments.id [delete: no action]
+Ref staff_permission_grants_granted_by_fkey: staff_permission_grants.granted_by > users.id [delete: no action]
+Ref stored_files_uploaded_by_fkey: stored_files.uploaded_by > users.id [delete: no action]
+Ref tenant_profiles_user_id_fkey: users.id ?- tenant_profiles.user_id [delete: no action]
 
 TableGroup TaiKhoan {
   users
+  tenant_profiles
   employee_assignments
+  staff_permission_grants
+  password_reset_tokens
+  audit_events
 }
 
 TableGroup NhaTro {
   properties
   rooms
+  room_price_history
+  room_operating_periods
+  asset_types
+  assets
+  asset_placements
 }
 
 TableGroup CuTru {
-  tenant_profiles
+  reservations
   contracts
-  contract_members
+  contract_parties
+  contract_contacts
+  contract_residencies
+  contract_terms
+  room_possessions
+  move_out_notices
+  handovers
+  handover_items
+  contract_violations
+  checkout_records
 }
 
 TableGroup DienNuoc {
   service_items
   service_price_configs
+  contract_service_subscriptions
+  meters
   meter_readings
+  consumption_segments
+  alert_policies
   consumption_alerts
-}
-
-TableGroup TaiChinh {
-  invoices
-  invoice_items
-  payment_transactions
-  checkout_records
+  alert_baseline_sources
 }
 
 TableGroup SuCo {
+  maintenance_schedules
   maintenance_requests
-  maintenance_images
+  maintenance_events
+  maintenance_costs
+}
+
+TableGroup TaiChinh {
+  billing_documents
+  billing_items
+  cash_accounts
+  cash_transactions
+  fund_accounts
+  fund_entries
+  fund_holds
+}
+
+TableGroup ThongBao {
+  notifications
+  notification_recipients
+}
+
+TableGroup Tep {
+  stored_files
+  file_attachments
 }

@@ -8,6 +8,7 @@ import java.time.*;
 import java.util.*;
 import static com.hostel.service.Database.*;
 import static com.hostel.service.MeterService.*;
+@org.springframework.context.annotation.Profile("!model49")
 @Service @Transactional
 public class ContractService {
  private final Database db;private final Access access;private final MeterService meters;private final InvoiceService invoices;

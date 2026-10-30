@@ -1,0 +1,121 @@
+{
+  "validated_on": "2026-10-30",
+  "schema": "V13-model49",
+  "suites": [
+    {
+      "name": "com.hostel.BusinessIntegrityTests",
+      "tests": 29,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.hostel.BusinessMigrationTests",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.hostel.BusinessWorkflowTests",
+      "tests": 38,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.hostel.FeeCalculatorTests",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.hostel.HostelManagementApplicationTests",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.hostel.HttpSecurityTests",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.hostel.ImageWorkflowTests",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.hostel.MigrationTests",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.hostel.Model49HttpTests",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.hostel.Model49MigrationTests",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.hostel.Model49Tests",
+      "tests": 20,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.hostel.OpenKosWorkflowTests",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.hostel.PdfTests",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "tests": 123,
+  "failures": 0,
+  "errors": 0,
+  "scope_notes": [
+    "BusinessIntegrityTests, Model49Tests, Model49HttpTests and OpenKosWorkflowTests exercise V13.",
+    "Migration suites separately verify V9/V10/V11/V13 transitions; the remaining application suites retain V10 regressions.",
+    "Database-only DDL checks are in database-validation.json.",
+    "Browser results from previous runs are not included as current evidence.",
+    "These results do not certify production deployment, all real-world policies or migration of the user live database."
+  ],
+  "current_model_tests": 61,
+  "migration_tests": 8,
+  "historical_and_unit_tests": 54,
+  "all_passed": true,
+  "packaged_smoke": {
+    "url": "http://127.0.0.1:8093",
+    "database": "hostel_review13_20261030",
+    "database_port": 55450,
+    "migration_version": 13,
+    "health": "UP",
+    "login_role": "ADMIN",
+    "jar_sha256": "26a3e8fa574b79cf654caab35407a06b38a0003d5566e3a2f1c691e8df97fd00",
+    "scope": "Fresh isolated database; packaged JAR health, login and authenticated profile. No live data migration or new browser acceptance run."
+  }
+}

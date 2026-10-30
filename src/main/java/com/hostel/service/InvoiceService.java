@@ -9,6 +9,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import static com.hostel.service.Database.*;
 import static com.hostel.service.MeterService.*;
+@org.springframework.context.annotation.Profile("!model49")
 @Service @Transactional
 public class InvoiceService {
  private final Database db;private final Access access;private final PricingService pricing;private final BillingCalendar calendar;

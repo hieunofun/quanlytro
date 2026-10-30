@@ -1,3 +1,5 @@
+> Nội dung dưới đây mô tả V10 để đối chiếu lịch sử. API hiện hành V11: [API49.md](API49.md). Không dùng payload chỉ số/trả phòng V10 cho mô hình 49 bảng.
+
 # API MVP — mô hình 17 bảng (Flyway V10)
 
 Base URL `/api`, JSON UTF-8. Gửi `Authorization: Bearer <accessToken>` trừ health/login/refresh. Lỗi JSON `{ "message": "..." }`: 400 dữ liệu/quy tắc, 401 chưa xác thực, 403 ngoài quyền, 404 không tìm thấy, 409 vi phạm ràng buộc, 410 chức năng prototype đã ngừng.

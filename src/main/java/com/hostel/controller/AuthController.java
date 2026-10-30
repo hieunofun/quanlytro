@@ -17,7 +17,7 @@ import static com.hostel.service.Database.*;
 public class AuthController {
  private final Database db;private final Access access;private final JwtFilter jwt;private final PasswordEncoder encoder;private final SessionRegistry sessions;private final long duration;
  public AuthController(Database db,Access access,JwtFilter jwt,PasswordEncoder encoder,SessionRegistry sessions,@Value("${app.jwt.access-token-expiration-ms}") long duration){this.db=db;this.access=access;this.jwt=jwt;this.encoder=encoder;this.sessions=sessions;this.duration=duration;}
- @GetMapping("/health") public Object health(){db.jdbc.queryForObject("select 1",Integer.class);return Map.of("status","UP","schemaVersion",17);}
+ @GetMapping("/health") public Object health(){return Map.of("status","UP","schemaVersion",db.jdbc.queryForObject("select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE' and table_name<>'flyway_schema_history'",Integer.class));}
  @PostMapping("/auth/login") public Map<String,Object> login(@Valid @RequestBody Requests.Login r){
   var rows=db.rows("select * from users where username=?",r.username());
   if(rows.isEmpty()){encoder.matches(r.password(),"$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy");throw unauthorized();}

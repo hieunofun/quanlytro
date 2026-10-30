@@ -1,0 +1,247 @@
+[
+  {
+    "name": "users",
+    "group": "TaiKhoan",
+    "description": "Tài khoản đăng nhập"
+  },
+  {
+    "name": "tenant_profiles",
+    "group": "TaiKhoan",
+    "description": "Hồ sơ người, độc lập với vai trò ký/liên hệ/cư trú"
+  },
+  {
+    "name": "properties",
+    "group": "NhaTro",
+    "description": "Khu nhà; một chủ nhà trong phạm vi ứng dụng"
+  },
+  {
+    "name": "rooms",
+    "group": "NhaTro",
+    "description": "Phòng và sức chứa; giá/trạng thái được lấy từ nguồn theo thời gian"
+  },
+  {
+    "name": "employee_assignments",
+    "group": "TaiKhoan",
+    "description": "Phân công đúng khu hoặc đúng phòng, có hiệu lực"
+  },
+  {
+    "name": "staff_permission_grants",
+    "group": "TaiKhoan",
+    "description": "Ủy quyền hành động và hạn mức trong phân công"
+  },
+  {
+    "name": "password_reset_tokens",
+    "group": "TaiKhoan",
+    "description": "Mã khôi phục băm, dùng một lần"
+  },
+  {
+    "name": "audit_events",
+    "group": "TaiKhoan",
+    "description": "Lịch sử thao tác; không lưu thông tin xác thực"
+  },
+  {
+    "name": "room_price_history",
+    "group": "NhaTro",
+    "description": "Giá niêm yết; không tự thay giá hợp đồng"
+  },
+  {
+    "name": "room_operating_periods",
+    "group": "NhaTro",
+    "description": "Khoảng sẵn sàng, chuẩn bị, bảo trì hoặc ngừng khai thác"
+  },
+  {
+    "name": "asset_types",
+    "group": "NhaTro",
+    "description": "Danh mục tiện nghi và hạng mục tài sản"
+  },
+  {
+    "name": "assets",
+    "group": "NhaTro",
+    "description": "Tài sản có mã hoặc nhóm số lượng"
+  },
+  {
+    "name": "asset_placements",
+    "group": "NhaTro",
+    "description": "Vị trí tài sản theo thời gian; phòng hoặc khu vực chung"
+  },
+  {
+    "name": "reservations",
+    "group": "CuTru",
+    "description": "Giữ chỗ có thời hạn và điều kiện hủy"
+  },
+  {
+    "name": "contracts",
+    "group": "CuTru",
+    "description": "Một phòng cố định, liên kết hợp đồng kế tiếp khi chuyển phòng/thay bên thuê"
+  },
+  {
+    "name": "contract_parties",
+    "group": "CuTru",
+    "description": "Vai trò bên ký; không tự coi người ký là người ở"
+  },
+  {
+    "name": "contract_contacts",
+    "group": "CuTru",
+    "description": "Liên hệ và quyền được cấp độc lập với bên ký"
+  },
+  {
+    "name": "contract_residencies",
+    "group": "CuTru",
+    "description": "Tất cả người thực ở kể cả người ký nếu có ở"
+  },
+  {
+    "name": "contract_terms",
+    "group": "CuTru",
+    "description": "Bản điều kiện và phụ lục đã duyệt có hiệu lực, không sửa đè"
+  },
+  {
+    "name": "room_possessions",
+    "group": "CuTru",
+    "description": "Quyền sử dụng thực tế không tự kết thúc khi hết hạn giấy"
+  },
+  {
+    "name": "move_out_notices",
+    "group": "CuTru",
+    "description": "Đề nghị trả, thay/hủy không tự giải phóng phòng"
+  },
+  {
+    "name": "handovers",
+    "group": "CuTru",
+    "description": "Biên bản nhận/trả/giao trách nhiệm"
+  },
+  {
+    "name": "handover_items",
+    "group": "CuTru",
+    "description": "Snapshot đồ vật và tình trạng lúc giao"
+  },
+  {
+    "name": "contract_violations",
+    "group": "CuTru",
+    "description": "Vi phạm và kết quả xử lý, không tự sinh khoản phạt"
+  },
+  {
+    "name": "checkout_records",
+    "group": "CuTru",
+    "description": "Snapshot quyết toán trước cấn, không coi tính ra là đã hoàn"
+  },
+  {
+    "name": "service_items",
+    "group": "DienNuoc",
+    "description": "Danh mục dịch vụ; không thay đăng ký dịch vụ"
+  },
+  {
+    "name": "service_price_configs",
+    "group": "DienNuoc",
+    "description": "Lịch sử giá dịch vụ tại khu"
+  },
+  {
+    "name": "contract_service_subscriptions",
+    "group": "DienNuoc",
+    "description": "Đăng ký và số lượng theo khoảng, chế độ cả kỳ/chia ngày"
+  },
+  {
+    "name": "meters",
+    "group": "DienNuoc",
+    "description": "Công tơ vật lý; thay tạo mã mới"
+  },
+  {
+    "name": "meter_readings",
+    "group": "DienNuoc",
+    "description": "Điểm đo thực và chuỗi phiên bản sửa"
+  },
+  {
+    "name": "consumption_segments",
+    "group": "DienNuoc",
+    "description": "Khoảng đo giao trách nhiệm cho hợp đồng hoặc chủ nhà"
+  },
+  {
+    "name": "alert_policies",
+    "group": "DienNuoc",
+    "description": "Ngưỡng theo khu/phòng và dịch vụ, có hiệu lực"
+  },
+  {
+    "name": "consumption_alerts",
+    "group": "DienNuoc",
+    "description": "Lần đánh giá, baseline và xác nhận có căn cứ"
+  },
+  {
+    "name": "alert_baseline_sources",
+    "group": "DienNuoc",
+    "description": "Khoảng nào đã được dùng làm baseline"
+  },
+  {
+    "name": "maintenance_schedules",
+    "group": "SuCo",
+    "description": "Lịch định kỳ, không ghi đè lịch sử lần đã làm"
+  },
+  {
+    "name": "maintenance_requests",
+    "group": "SuCo",
+    "description": "Sự cố theo vị trí, không bắt có hợp đồng"
+  },
+  {
+    "name": "maintenance_events",
+    "group": "SuCo",
+    "description": "Từng lần xử lý/giao việc/hoàn thành/tái phát"
+  },
+  {
+    "name": "maintenance_costs",
+    "group": "SuCo",
+    "description": "Chi phí thực tế, không đồng nhất bồi thường"
+  },
+  {
+    "name": "billing_documents",
+    "group": "TaiChinh",
+    "description": "Đầu chứng từ tháng/phát sinh/bồi thường/điều chỉnh/phải hoàn"
+  },
+  {
+    "name": "billing_items",
+    "group": "TaiChinh",
+    "description": "Dòng tiền có nguồn, kỳ riêng và snapshot cần giữ"
+  },
+  {
+    "name": "cash_accounts",
+    "group": "TaiChinh",
+    "description": "Quỹ/tài khoản chủ nhà, không phải quỹ tiền khách"
+  },
+  {
+    "name": "cash_transactions",
+    "group": "TaiChinh",
+    "description": "Phiếu thu/chi tiền thật, chưa xác minh không ghi sổ"
+  },
+  {
+    "name": "fund_accounts",
+    "group": "TaiChinh",
+    "description": "Cọc/trả trước/giữ chỗ/chưa phân bổ, không lưu balance chỉnh tay"
+  },
+  {
+    "name": "fund_entries",
+    "group": "TaiChinh",
+    "description": "Sổ tác động quỹ và phân bổ, số tiền luôn dương"
+  },
+  {
+    "name": "fund_holds",
+    "group": "TaiChinh",
+    "description": "Tạm giữ có căn cứ và mốc rà lại, không là khoản đã cấn"
+  },
+  {
+    "name": "notifications",
+    "group": "ThongBao",
+    "description": "Sự kiện thông báo có nguồn và khóa chống lặp"
+  },
+  {
+    "name": "notification_recipients",
+    "group": "ThongBao",
+    "description": "Trạng thái đọc riêng từng tài khoản"
+  },
+  {
+    "name": "stored_files",
+    "group": "Tep",
+    "description": "Tệp và metadata, không chứa file thay đổi dưới cùng key"
+  },
+  {
+    "name": "file_attachments",
+    "group": "Tep",
+    "description": "Một liên kết tới một đối tượng bằng FK thật"
+  }
+]

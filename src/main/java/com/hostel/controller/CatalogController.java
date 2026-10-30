@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.*;
 import static com.hostel.service.Database.*;
+@org.springframework.context.annotation.Profile("!model49")
 @RestController @RequestMapping("/api") @Transactional
 public class CatalogController {
  private final Database db;private final Access access;private final PasswordEncoder encoder;

@@ -3,6 +3,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 /** Explicit response for prototype functions outside the approved MVP. */
+@org.springframework.context.annotation.Profile("!model49")
 @RestController @RequestMapping("/api")
 public class RetiredPrototypeController {
  @RequestMapping({"/room-assignments","/room-assignments/{id}","/rooms/{id}/images","/rooms/{id}/images/{image}","/rooms/{id}/details","/rooms/{id}/price-history","/audit-logs","/maintenance-schedules","/maintenance-schedules/{id}/complete","/notifications","/notifications/{id}/read","/notifications/announce","/contracts/{id}/violations","/contracts/{id}/violations/{violation}","/users/{id}/reset-code","/auth/reset-password"})

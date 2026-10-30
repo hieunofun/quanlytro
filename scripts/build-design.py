@@ -5,14 +5,7 @@ from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
-GROUPS = [
- ('TaiKhoan',['users','employee_assignments']),
- ('NhaTro',['properties','rooms']),
- ('CuTru',['tenant_profiles','contracts','contract_members']),
- ('DienNuoc',['service_items','service_price_configs','meter_readings','consumption_alerts']),
- ('TaiChinh',['invoices','invoice_items','payment_transactions','checkout_records']),
- ('SuCo',['maintenance_requests','maintenance_images']),
-]
+GROUPS = [('TaiKhoan', ['users', 'tenant_profiles', 'employee_assignments', 'staff_permission_grants', 'password_reset_tokens', 'audit_events']), ('NhaTro', ['properties', 'rooms', 'room_price_history', 'room_operating_periods', 'asset_types', 'assets', 'asset_placements']), ('CuTru', ['reservations', 'contracts', 'contract_parties', 'contract_contacts', 'contract_residencies', 'contract_terms', 'room_possessions', 'move_out_notices', 'handovers', 'handover_items', 'contract_violations', 'checkout_records']), ('DienNuoc', ['service_items', 'service_price_configs', 'contract_service_subscriptions', 'meters', 'meter_readings', 'consumption_segments', 'alert_policies', 'consumption_alerts', 'alert_baseline_sources']), ('SuCo', ['maintenance_schedules', 'maintenance_requests', 'maintenance_events', 'maintenance_costs']), ('TaiChinh', ['billing_documents', 'billing_items', 'cash_accounts', 'cash_transactions', 'fund_accounts', 'fund_entries', 'fund_holds']), ('ThongBao', ['notifications', 'notification_recipients']), ('Tep', ['stored_files', 'file_attachments'])]
 
 
 def quoted(value):
@@ -32,7 +25,7 @@ def main():
     tables=[table for _,names in GROUPS for table in names]
     assert set(tables)=={c['table_name'] for c in metadata['columns']}
     lines=['// Thiết kế mục tiêu bước 1–2. Nguồn: quanlytro.sql + database-rules.sql.',
-      '// 17 bảng; các giá trị tính toán nằm trong 6 view, không tạo bảng trùng dữ kiện.',
+      '// 49 bảng V13; nguồn là metadata PostgreSQL đã thực thi. Tổng và số dư tính bằng view.',
       "Project QuanLyNhaTro {", "  database_type: 'PostgreSQL'",'}','']
     for _, names in GROUPS:
         for name in names:
@@ -79,11 +72,7 @@ def main():
     (ROOT/'docs/quanlytro.dbml').write_text('\n'.join(lines)+'\n',encoding='utf-8')
 
     # Full field-level ERD; detail figures keep the same table/foreign-key source.
-    variants={'quanlytro-dbdiagram':tables,
-      'erd-cu-tru':['users','tenant_profiles','properties','rooms','contracts','contract_members','employee_assignments'],
-      'erd-dien-nuoc':['properties','service_items','service_price_configs','contracts','meter_readings','consumption_alerts'],
-      'erd-tai-chinh':['contracts','meter_readings','invoices','invoice_items','payment_transactions','checkout_records'],
-      'erd-su-co':['users','contracts','maintenance_requests','maintenance_images']}
+    variants={'quanlytro-dbdiagram': ['users', 'tenant_profiles', 'properties', 'rooms', 'employee_assignments', 'staff_permission_grants', 'password_reset_tokens', 'audit_events', 'room_price_history', 'room_operating_periods', 'asset_types', 'assets', 'asset_placements', 'reservations', 'contracts', 'contract_parties', 'contract_contacts', 'contract_residencies', 'contract_terms', 'room_possessions', 'move_out_notices', 'handovers', 'handover_items', 'contract_violations', 'checkout_records', 'service_items', 'service_price_configs', 'contract_service_subscriptions', 'meters', 'meter_readings', 'consumption_segments', 'alert_policies', 'consumption_alerts', 'alert_baseline_sources', 'maintenance_schedules', 'maintenance_requests', 'maintenance_events', 'maintenance_costs', 'billing_documents', 'billing_items', 'cash_accounts', 'cash_transactions', 'fund_accounts', 'fund_entries', 'fund_holds', 'notifications', 'notification_recipients', 'stored_files', 'file_attachments'], 'erd-cu-tru': ['users', 'tenant_profiles', 'properties', 'rooms', 'contracts', 'contract_parties', 'contract_contacts', 'contract_residencies', 'contract_terms', 'room_possessions', 'handovers', 'handover_items', 'checkout_records'], 'erd-dien-nuoc': ['properties', 'rooms', 'contracts', 'service_items', 'service_price_configs', 'contract_service_subscriptions', 'meters', 'meter_readings', 'consumption_segments', 'alert_policies', 'consumption_alerts', 'alert_baseline_sources'], 'erd-tai-chinh': ['contracts', 'reservations', 'billing_documents', 'billing_items', 'cash_accounts', 'cash_transactions', 'fund_accounts', 'fund_entries', 'fund_holds', 'checkout_records'], 'erd-su-co': ['users', 'properties', 'rooms', 'assets', 'asset_placements', 'maintenance_requests', 'maintenance_events', 'maintenance_costs', 'maintenance_schedules', 'stored_files', 'file_attachments']}
     for filename, selected in variants.items():
         full=filename=='quanlytro-dbdiagram'
         dot=['digraph ERD {','graph [rankdir=LR, bgcolor="white", pad="0.25", nodesep="0.5", ranksep="1.05", splines=polyline, fontname="Arial"];',

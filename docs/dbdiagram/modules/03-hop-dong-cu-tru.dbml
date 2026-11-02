@@ -1,0 +1,357 @@
+// 03 · Hợp đồng và cư trú — một phần của model49 / V13.
+// Bảng chính giữ đủ cột; bảng ngoài nhóm chỉ là THAM CHIẾU RÚT GỌN.
+// Chỉ gồm FK có bảng nguồn thuộc nhóm. Không mở rộng đệ quy từ bảng tham chiếu.
+// Không dùng file từng phần để tạo lại database.
+Project CuTru {
+  database_type: 'PostgreSQL'
+  Note: 'Hợp đồng và cư trú: 12 bảng chính đầy đủ và 4 bảng tham chiếu rút gọn. 34 FK thật có bảng nguồn thuộc nhóm. Bảng xám chỉ hiện PK/cột đích FK và một mã/tên có thật để nhận diện; không phải toàn bộ định nghĩa bảng. Bản chuẩn đầy đủ: docs/quanlytro.dbml.'
+}
+
+Table reservations [headercolor: #2563EB] {
+  id bigint [pk, not null, increment]
+  room_id bigint [not null]
+  tenant_id bigint
+  reservation_code varchar(60) [not null, unique]
+  contact_name varchar(150)
+  contact_phone varchar(30)
+  start_date date [not null]
+  end_date date [not null]
+  expires_at timestamptz [not null]
+  status varchar(20) [not null, default: 'HELD']
+  conditions text [not null, default: '']
+  created_by bigint
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  checks {
+    `(start_date < end_date)` [name: 'reservations_check']
+    `((tenant_id IS NOT NULL) OR (btrim((COALESCE(contact_name, ''::character varying))::text) <> ''::text))` [name: 'reservations_check1']
+    `((status)::text = ANY ((ARRAY['HELD'::character varying, 'CONVERTED'::character varying, 'CANCELLED'::character varying, 'EXPIRED'::character varying])::text[]))` [name: 'reservations_status_check']
+  }
+
+  Note: 'Giữ chỗ có thời hạn và điều kiện hủy'
+}
+
+Table contracts [headercolor: #2563EB] {
+  id bigint [pk, not null, increment]
+  room_id bigint [not null]
+  reservation_id bigint [unique]
+  previous_contract_id bigint
+  continuation_reason varchar(30)
+  contract_code varchar(60) [not null, unique]
+  start_date date [not null]
+  reconciliation_status varchar(20) [not null, default: 'VERIFIED']
+  status varchar(20) [not null, default: 'DRAFT']
+  created_by bigint
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  checks {
+    `((previous_contract_id IS NULL) OR (previous_contract_id <> id))` [name: 'contracts_check']
+    `((previous_contract_id IS NULL) = (continuation_reason IS NULL))` [name: 'contracts_check1']
+    `((continuation_reason IS NULL) OR ((continuation_reason)::text = ANY ((ARRAY['ROOM_TRANSFER'::character varying, 'PARTY_CHANGE'::character varying, 'CONTINUATION'::character varying])::text[])))` [name: 'contracts_continuation_reason_check']
+    `((reconciliation_status)::text = ANY ((ARRAY['VERIFIED'::character varying, 'PENDING'::character varying])::text[]))` [name: 'contracts_reconciliation_status_check']
+    `((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'PENDING'::character varying, 'ACTIVE'::character varying, 'ENDED'::character varying, 'CANCELLED'::character varying])::text[]))` [name: 'contracts_status_check']
+  }
+
+  Note: 'Một phòng cố định, liên kết hợp đồng kế tiếp khi chuyển phòng/thay bên thuê'
+}
+
+Table contract_parties [headercolor: #2563EB] {
+  id bigint [pk, not null, increment]
+  contract_id bigint [not null]
+  tenant_id bigint [not null]
+  party_role varchar(30) [not null]
+  effective_from date [not null]
+  effective_to date
+  agreement_note text [not null, default: '']
+
+  indexes {
+    (contract_id, tenant_id, party_role, effective_from) [name: 'contract_parties_contract_id_tenant_id_party_role_effective_key', unique, type: btree]
+    tenant_id [name: 'idx_party_person', type: btree]
+  }
+
+  checks {
+    `((effective_to IS NULL) OR (effective_to > effective_from))` [name: 'contract_parties_check']
+    `((party_role)::text = ANY ((ARRAY['PRIMARY'::character varying, 'GUARANTOR'::character varying, 'WITNESS'::character varying])::text[]))` [name: 'contract_parties_party_role_check']
+  }
+
+  Note: 'Vai trò bên ký; không tự coi người ký là người ở\n\nCREATE UNIQUE INDEX uq_primary_party ON public.contract_parties USING btree (contract_id) WHERE ((party_role)::text = \'PRIMARY\'::text)'
+}
+
+Table contract_contacts [headercolor: #2563EB] {
+  id bigint [pk, not null, increment]
+  contract_id bigint [not null]
+  tenant_id bigint [not null]
+  contact_role varchar(20) [not null, default: 'PRIMARY']
+  effective_from date [not null]
+  effective_to date
+  can_view_billing boolean [not null, default: false]
+  authorized_by bigint
+
+  checks {
+    `((effective_to IS NULL) OR (effective_to > effective_from))` [name: 'contract_contacts_check']
+    `((contact_role)::text = ANY ((ARRAY['PRIMARY'::character varying, 'BACKUP'::character varying])::text[]))` [name: 'contract_contacts_contact_role_check']
+  }
+
+  Note: 'Liên hệ và quyền được cấp độc lập với bên ký\n\nCREATE INDEX contract_contacts_contract_id_daterange_excl ON public.contract_contacts USING gist (contract_id, daterange(effective_from, effective_to, \'[)\'::text)) WHERE ((contact_role)::text = \'PRIMARY\'::text)\n\ncontract_contacts_contract_id_daterange_excl: EXCLUDE USING gist (contract_id WITH =, daterange(effective_from, effective_to, \'[)\'::text) WITH &&) WHERE (((contact_role)::text = \'PRIMARY\'::text))'
+}
+
+Table contract_residencies [headercolor: #2563EB] {
+  id bigint [pk, not null, increment]
+  contract_id bigint [not null]
+  tenant_id bigint [not null]
+  effective_from date [not null]
+  effective_to date
+  relationship varchar(50)
+  recorded_by bigint
+
+  indexes {
+    tenant_id [name: 'idx_residency_person', type: btree]
+  }
+
+  checks {
+    `((effective_to IS NULL) OR (effective_to > effective_from))` [name: 'contract_residencies_check']
+  }
+
+  Note: 'Tất cả người thực ở kể cả người ký nếu có ở\n\nCREATE INDEX contract_residencies_contract_id_tenant_id_daterange_excl ON public.contract_residencies USING gist (contract_id, tenant_id, daterange(effective_from, effective_to, \'[)\'::text))\n\ncontract_residencies_contract_id_tenant_id_daterange_excl: EXCLUDE USING gist (contract_id WITH =, tenant_id WITH =, daterange(effective_from, effective_to, \'[)\'::text) WITH &&)'
+}
+
+Table contract_terms [headercolor: #2563EB] {
+  id bigint [pk, not null, increment]
+  contract_id bigint [not null]
+  version_no integer [not null]
+  effective_from date [not null]
+  lease_end date [not null]
+  rental_price numeric(14,2) [not null]
+  deposit_required numeric(14,2) [not null, default: 0]
+  payment_day smallint [not null, default: 5]
+  collection_timing varchar(20) [not null, default: 'IN_ADVANCE']
+  terms text [not null, default: '']
+  signed_at timestamptz
+  approved_by bigint
+  origin varchar(20) [not null, default: 'NATIVE']
+  status varchar(20) [not null, default: 'DRAFT']
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  indexes {
+    (contract_id, version_no) [name: 'contract_terms_contract_id_version_no_key', unique, type: btree]
+  }
+
+  checks {
+    `(lease_end > effective_from)` [name: 'contract_terms_check']
+    `(((status)::text <> 'APPROVED'::text) OR ((origin)::text = 'LEGACY_V10'::text) OR ((signed_at IS NOT NULL) AND (approved_by IS NOT NULL)))` [name: 'contract_terms_check1']
+    `((collection_timing)::text = ANY ((ARRAY['IN_ADVANCE'::character varying, 'IN_ARREARS'::character varying])::text[]))` [name: 'contract_terms_collection_timing_check']
+    `(deposit_required >= (0)::numeric)` [name: 'contract_terms_deposit_required_check']
+    `((origin)::text = ANY ((ARRAY['NATIVE'::character varying, 'LEGACY_V10'::character varying])::text[]))` [name: 'contract_terms_origin_check']
+    `((payment_day >= 1) AND (payment_day <= 31))` [name: 'contract_terms_payment_day_check']
+    `(rental_price >= (0)::numeric)` [name: 'contract_terms_rental_price_check']
+    `((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'APPROVED'::character varying])::text[]))` [name: 'contract_terms_status_check']
+    `(version_no > 0)` [name: 'contract_terms_version_no_check']
+  }
+
+  Note: 'Bản điều kiện và phụ lục đã duyệt có hiệu lực, không sửa đè\n\nCREATE UNIQUE INDEX uq_approved_terms_effective ON public.contract_terms USING btree (contract_id, effective_from) WHERE ((status)::text = \'APPROVED\'::text)'
+}
+
+Table room_possessions [headercolor: #2563EB] {
+  id bigint [pk, not null, increment]
+  contract_id bigint [not null]
+  taken_at timestamptz [not null]
+  returned_at timestamptz
+  recorded_by bigint
+  note text
+
+  checks {
+    `((returned_at IS NULL) OR (returned_at > taken_at))` [name: 'room_possessions_check']
+  }
+
+  Note: 'Quyền sử dụng thực tế không tự kết thúc khi hết hạn giấy\n\nCREATE INDEX room_possessions_contract_id_tstzrange_excl ON public.room_possessions USING gist (contract_id, tstzrange(taken_at, returned_at, \'[)\'::text))\n\nroom_possessions_contract_id_tstzrange_excl: EXCLUDE USING gist (contract_id WITH =, tstzrange(taken_at, returned_at, \'[)\'::text) WITH &&)'
+}
+
+Table move_out_notices [headercolor: #2563EB] {
+  id bigint [pk, not null, increment]
+  contract_id bigint [not null]
+  supersedes_notice_id bigint
+  requested_date date [not null]
+  reason text [not null, default: '']
+  status varchar(20) [not null, default: 'SUBMITTED']
+  submitted_by bigint [not null]
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  checks {
+    `((supersedes_notice_id IS NULL) OR (supersedes_notice_id <> id))` [name: 'move_out_notices_check']
+    `((status)::text = ANY ((ARRAY['SUBMITTED'::character varying, 'APPROVED'::character varying, 'CANCELLED'::character varying, 'SUPERSEDED'::character varying])::text[]))` [name: 'move_out_notices_status_check']
+  }
+
+  Note: 'Đề nghị trả, thay/hủy không tự giải phóng phòng'
+}
+
+Table handovers [headercolor: #2563EB] {
+  id bigint [pk, not null, increment]
+  contract_id bigint [not null]
+  possession_id bigint
+  handover_code varchar(60) [not null, unique]
+  handover_type varchar(20) [not null]
+  occurred_at timestamptz [not null]
+  status varchar(20) [not null, default: 'DRAFT']
+  given_by bigint
+  received_by_tenant_id bigint
+  confirmed_by bigint
+  confirmed_at timestamptz
+  note text
+
+  checks {
+    `(((status)::text <> 'CONFIRMED'::text) OR ((confirmed_at IS NOT NULL) AND (confirmed_by IS NOT NULL)))` [name: 'handovers_check']
+    `((handover_type)::text = ANY ((ARRAY['MOVE_IN'::character varying, 'MOVE_OUT'::character varying, 'RESPONSIBILITY'::character varying])::text[]))` [name: 'handovers_handover_type_check']
+    `((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'CONFIRMED'::character varying, 'UNCONFIRMED'::character varying])::text[]))` [name: 'handovers_status_check']
+  }
+
+  Note: 'Biên bản nhận/trả/giao trách nhiệm'
+}
+
+Table handover_items [headercolor: #2563EB] {
+  id bigint [pk, not null, increment]
+  handover_id bigint [not null]
+  asset_placement_id bigint
+  line_no integer [not null]
+  item_name_snapshot varchar(150) [not null]
+  quantity numeric(12,2) [not null]
+  condition_note text [not null]
+  note text
+
+  indexes {
+    (handover_id, line_no) [name: 'handover_items_handover_id_line_no_key', unique, type: btree]
+  }
+
+  checks {
+    `(line_no > 0)` [name: 'handover_items_line_no_check']
+    `(quantity >= (0)::numeric)` [name: 'handover_items_quantity_check']
+  }
+
+  Note: 'Snapshot đồ vật và tình trạng lúc giao'
+}
+
+Table contract_violations [headercolor: #2563EB] {
+  id bigint [pk, not null, increment]
+  contract_id bigint [not null]
+  violation_type varchar(50) [not null]
+  description text [not null]
+  occurred_on date [not null]
+  status varchar(20) [not null, default: 'OPEN']
+  resolution_note text
+  created_by bigint [not null]
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  checks {
+    `((status)::text = ANY ((ARRAY['OPEN'::character varying, 'HANDLING'::character varying, 'RESOLVED'::character varying, 'DISMISSED'::character varying])::text[]))` [name: 'contract_violations_status_check']
+  }
+
+  Note: 'Vi phạm và kết quả xử lý, không tự sinh khoản phạt'
+}
+
+Table checkout_records [headercolor: #2563EB] {
+  id bigint [pk, not null, increment]
+  contract_id bigint [not null]
+  return_handover_id bigint
+  billing_end date [not null]
+  status varchar(20) [not null, default: 'DRAFT']
+  deposit_snapshot numeric(14,2) [not null, default: 0]
+  advance_snapshot numeric(14,2) [not null, default: 0]
+  outstanding_snapshot numeric(14,2) [not null, default: 0]
+  approved_by bigint
+  approved_at timestamptz
+  notes text
+
+  checks {
+    `(advance_snapshot >= (0)::numeric)` [name: 'checkout_records_advance_snapshot_check']
+    `(((status)::text <> 'APPROVED'::text) OR ((approved_by IS NOT NULL) AND (approved_at IS NOT NULL)))` [name: 'checkout_records_check']
+    `(deposit_snapshot >= (0)::numeric)` [name: 'checkout_records_deposit_snapshot_check']
+    `(outstanding_snapshot >= (0)::numeric)` [name: 'checkout_records_outstanding_snapshot_check']
+    `((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'APPROVED'::character varying, 'LEGACY_RECORDED'::character varying])::text[]))` [name: 'checkout_records_status_check']
+  }
+
+  Note: 'Snapshot quyết toán trước cấn, không coi tính ra là đã hoàn\n\nCREATE UNIQUE INDEX uq_approved_checkout ON public.checkout_records USING btree (contract_id) WHERE ((status)::text = \'APPROVED\'::text)'
+}
+
+// THAM CHIẾU: asset_placements — 1/7 cột thật.
+Table asset_placements [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 1/7 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: rooms — 2/10 cột thật.
+Table rooms [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  room_code varchar(30) [not null]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/10 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: tenant_profiles — 2/9 cột thật.
+Table tenant_profiles [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  full_name varchar(150) [not null]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/9 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: users — 2/6 cột thật.
+Table users [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  username varchar(50) [not null, unique]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/6 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// FK có bảng nguồn trong nhóm
+Ref checkout_records_approved_by_fkey: checkout_records.approved_by >? users.id [delete: no action, update: no action]
+Ref checkout_records_contract_id_fkey: checkout_records.contract_id > contracts.id [delete: no action, update: no action]
+Ref checkout_records_return_handover_id_fkey: checkout_records.return_handover_id >? handovers.id [delete: no action, update: no action]
+Ref contract_contacts_authorized_by_fkey: contract_contacts.authorized_by >? users.id [delete: no action, update: no action]
+Ref contract_contacts_contract_id_fkey: contract_contacts.contract_id > contracts.id [delete: no action, update: no action]
+Ref contract_contacts_tenant_id_fkey: contract_contacts.tenant_id > tenant_profiles.id [delete: no action, update: no action]
+Ref contract_parties_contract_id_fkey: contract_parties.contract_id > contracts.id [delete: no action, update: no action]
+Ref contract_parties_tenant_id_fkey: contract_parties.tenant_id > tenant_profiles.id [delete: no action, update: no action]
+Ref contract_residencies_contract_id_fkey: contract_residencies.contract_id > contracts.id [delete: no action, update: no action]
+Ref contract_residencies_recorded_by_fkey: contract_residencies.recorded_by >? users.id [delete: no action, update: no action]
+Ref contract_residencies_tenant_id_fkey: contract_residencies.tenant_id > tenant_profiles.id [delete: no action, update: no action]
+Ref contract_terms_approved_by_fkey: contract_terms.approved_by >? users.id [delete: no action, update: no action]
+Ref contract_terms_contract_id_fkey: contract_terms.contract_id > contracts.id [delete: no action, update: no action]
+Ref contract_violations_contract_id_fkey: contract_violations.contract_id > contracts.id [delete: no action, update: no action]
+Ref contract_violations_created_by_fkey: contract_violations.created_by > users.id [delete: no action, update: no action]
+Ref contracts_created_by_fkey: contracts.created_by >? users.id [delete: no action, update: no action]
+Ref contracts_previous_contract_id_fkey: contracts.previous_contract_id >? contracts.id [delete: no action, update: no action]
+Ref contracts_reservation_id_fkey: reservations.id ?- contracts.reservation_id [delete: no action, update: no action]
+Ref contracts_room_id_fkey: contracts.room_id > rooms.id [delete: no action, update: no action]
+Ref handover_items_asset_placement_id_fkey: handover_items.asset_placement_id >? asset_placements.id [delete: no action, update: no action]
+Ref handover_items_handover_id_fkey: handover_items.handover_id > handovers.id [delete: no action, update: no action]
+Ref handovers_confirmed_by_fkey: handovers.confirmed_by >? users.id [delete: no action, update: no action]
+Ref handovers_contract_id_fkey: handovers.contract_id > contracts.id [delete: no action, update: no action]
+Ref handovers_given_by_fkey: handovers.given_by >? users.id [delete: no action, update: no action]
+Ref handovers_possession_id_fkey: handovers.possession_id >? room_possessions.id [delete: no action, update: no action]
+Ref handovers_received_by_tenant_id_fkey: handovers.received_by_tenant_id >? tenant_profiles.id [delete: no action, update: no action]
+Ref move_out_notices_contract_id_fkey: move_out_notices.contract_id > contracts.id [delete: no action, update: no action]
+Ref move_out_notices_submitted_by_fkey: move_out_notices.submitted_by > users.id [delete: no action, update: no action]
+Ref move_out_notices_supersedes_notice_id_fkey: move_out_notices.supersedes_notice_id >? move_out_notices.id [delete: no action, update: no action]
+Ref reservations_created_by_fkey: reservations.created_by >? users.id [delete: no action, update: no action]
+Ref reservations_room_id_fkey: reservations.room_id > rooms.id [delete: no action, update: no action]
+Ref reservations_tenant_id_fkey: reservations.tenant_id >? tenant_profiles.id [delete: no action, update: no action]
+Ref room_possessions_contract_id_fkey: room_possessions.contract_id > contracts.id [delete: no action, update: no action]
+Ref room_possessions_recorded_by_fkey: room_possessions.recorded_by >? users.id [delete: no action, update: no action]
+
+TableGroup CuTru [color: #2563EB] {
+  reservations
+  contracts
+  contract_parties
+  contract_contacts
+  contract_residencies
+  contract_terms
+  room_possessions
+  move_out_notices
+  handovers
+  handover_items
+  contract_violations
+  checkout_records
+}
+
+TableGroup ThamChieuRutGon [color: #64748B] {
+  asset_placements
+  rooms
+  tenant_profiles
+  users
+}

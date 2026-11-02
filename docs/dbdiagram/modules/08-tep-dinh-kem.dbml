@@ -1,0 +1,162 @@
+// 08 · Tệp đính kèm — một phần của model49 / V13.
+// Bảng chính giữ đủ cột; bảng ngoài nhóm chỉ là THAM CHIẾU RÚT GỌN.
+// Chỉ gồm FK có bảng nguồn thuộc nhóm. Không mở rộng đệ quy từ bảng tham chiếu.
+// Không dùng file từng phần để tạo lại database.
+Project Tep {
+  database_type: 'PostgreSQL'
+  Note: 'Tệp đính kèm: 2 bảng chính đầy đủ và 11 bảng tham chiếu rút gọn. 13 FK thật có bảng nguồn thuộc nhóm. Bảng xám chỉ hiện PK/cột đích FK và một mã/tên có thật để nhận diện; không phải toàn bộ định nghĩa bảng. Bản chuẩn đầy đủ: docs/quanlytro.dbml.'
+}
+
+Table stored_files [headercolor: #4D7C0F] {
+  id bigint [pk, not null, increment]
+  storage_key varchar(255) [not null, unique]
+  original_name varchar(255) [not null]
+  content_type varchar(100) [not null]
+  size_bytes bigint
+  sha256 varchar(64)
+  external_url text
+  uploaded_by bigint [not null]
+  uploaded_at timestamptz [not null, default: `clock_timestamp()`]
+
+  checks {
+    `((external_url IS NOT NULL) OR ((sha256 IS NOT NULL) AND (size_bytes IS NOT NULL)))` [name: 'stored_files_check']
+    `(size_bytes > 0)` [name: 'stored_files_size_bytes_check']
+  }
+
+  Note: 'Tệp và metadata, không chứa file thay đổi dưới cùng key'
+}
+
+Table file_attachments [headercolor: #4D7C0F] {
+  id bigint [pk, not null, increment]
+  file_id bigint [not null]
+  room_id bigint
+  asset_id bigint
+  handover_item_id bigint
+  meter_reading_id bigint
+  maintenance_request_id bigint
+  maintenance_cost_id bigint
+  contract_term_id bigint
+  billing_document_id bigint
+  violation_id bigint
+  fund_entry_id bigint
+  caption text [not null, default: '']
+  sort_order integer [not null, default: 0]
+  attached_by bigint [not null]
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  checks {
+    `(num_nonnulls(room_id, asset_id, handover_item_id, meter_reading_id, maintenance_request_id, maintenance_cost_id, contract_term_id, billing_document_id, violation_id, fund_entry_id) = 1)` [name: 'file_attachments_check']
+  }
+
+  Note: 'Một liên kết tới một đối tượng bằng FK thật'
+}
+
+// THAM CHIẾU: assets — 2/6 cột thật.
+Table assets [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  asset_code varchar(50) [not null, unique]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/6 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: billing_documents — 2/16 cột thật.
+Table billing_documents [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  document_code varchar(80) [not null, unique]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/16 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: contract_terms — 2/15 cột thật.
+Table contract_terms [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  status varchar(20) [not null, default: 'DRAFT']
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/15 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: contract_violations — 2/9 cột thật.
+Table contract_violations [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  status varchar(20) [not null, default: 'OPEN']
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/9 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: fund_entries — 2/13 cột thật.
+Table fund_entries [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  entry_code varchar(120) [not null, unique]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/13 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: handover_items — 2/8 cột thật.
+Table handover_items [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  item_name_snapshot varchar(150) [not null]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/8 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: maintenance_costs — 1/8 cột thật.
+Table maintenance_costs [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 1/8 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: maintenance_requests — 2/15 cột thật.
+Table maintenance_requests [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  title varchar(150) [not null]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/15 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: meter_readings — 2/12 cột thật.
+Table meter_readings [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  observed_at timestamptz [not null]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/12 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: rooms — 2/10 cột thật.
+Table rooms [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  room_code varchar(30) [not null]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/10 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: users — 2/6 cột thật.
+Table users [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  username varchar(50) [not null, unique]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/6 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// FK có bảng nguồn trong nhóm
+Ref file_attachments_asset_id_fkey: file_attachments.asset_id >? assets.id [delete: no action, update: no action]
+Ref file_attachments_attached_by_fkey: file_attachments.attached_by > users.id [delete: no action, update: no action]
+Ref file_attachments_billing_document_id_fkey: file_attachments.billing_document_id >? billing_documents.id [delete: no action, update: no action]
+Ref file_attachments_contract_term_id_fkey: file_attachments.contract_term_id >? contract_terms.id [delete: no action, update: no action]
+Ref file_attachments_file_id_fkey: file_attachments.file_id > stored_files.id [delete: no action, update: no action]
+Ref file_attachments_fund_entry_id_fkey: file_attachments.fund_entry_id >? fund_entries.id [delete: no action, update: no action]
+Ref file_attachments_handover_item_id_fkey: file_attachments.handover_item_id >? handover_items.id [delete: no action, update: no action]
+Ref file_attachments_maintenance_cost_id_fkey: file_attachments.maintenance_cost_id >? maintenance_costs.id [delete: no action, update: no action]
+Ref file_attachments_maintenance_request_id_fkey: file_attachments.maintenance_request_id >? maintenance_requests.id [delete: no action, update: no action]
+Ref file_attachments_meter_reading_id_fkey: file_attachments.meter_reading_id >? meter_readings.id [delete: no action, update: no action]
+Ref file_attachments_room_id_fkey: file_attachments.room_id >? rooms.id [delete: no action, update: no action]
+Ref file_attachments_violation_id_fkey: file_attachments.violation_id >? contract_violations.id [delete: no action, update: no action]
+Ref stored_files_uploaded_by_fkey: stored_files.uploaded_by > users.id [delete: no action, update: no action]
+
+TableGroup Tep [color: #4D7C0F] {
+  stored_files
+  file_attachments
+}
+
+TableGroup ThamChieuRutGon [color: #64748B] {
+  assets
+  billing_documents
+  contract_terms
+  contract_violations
+  fund_entries
+  handover_items
+  maintenance_costs
+  maintenance_requests
+  meter_readings
+  rooms
+  users
+}

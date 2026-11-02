@@ -1,0 +1,70 @@
+{
+  "schema": "V13-model49",
+  "schema_verified_on": "2026-11-01",
+  "canonical_dbml_sha256": "ed4aba6eb9252ed1371597958ae32adbb9fa91b9d051fcfe6152a878b8236ba7",
+  "modules": [
+    {
+      "slug": "01-tai-khoan-phan-quyen",
+      "owned_tables": 6,
+      "owned_columns": 46,
+      "reference_copies": 2,
+      "foreign_keys": 9
+    },
+    {
+      "slug": "02-nha-tro-tai-san",
+      "owned_tables": 7,
+      "owned_columns": 49,
+      "reference_copies": 1,
+      "foreign_keys": 10
+    },
+    {
+      "slug": "03-hop-dong-cu-tru",
+      "owned_tables": 12,
+      "owned_columns": 115,
+      "reference_copies": 4,
+      "foreign_keys": 34
+    },
+    {
+      "slug": "04-dich-vu-dien-nuoc",
+      "owned_tables": 9,
+      "owned_columns": 73,
+      "reference_copies": 6,
+      "foreign_keys": 28
+    },
+    {
+      "slug": "05-hoa-don-dong-tien",
+      "owned_tables": 7,
+      "owned_columns": 94,
+      "reference_copies": 13,
+      "foreign_keys": 35
+    },
+    {
+      "slug": "06-su-co-bao-tri",
+      "owned_tables": 4,
+      "owned_columns": 38,
+      "reference_copies": 6,
+      "foreign_keys": 15
+    },
+    {
+      "slug": "07-thong-bao",
+      "owned_tables": 2,
+      "owned_columns": 15,
+      "reference_copies": 5,
+      "foreign_keys": 7
+    },
+    {
+      "slug": "08-tep-dinh-kem",
+      "owned_tables": 2,
+      "owned_columns": 25,
+      "reference_copies": 11,
+      "foreign_keys": 13
+    }
+  ],
+  "owned_tables_once": 49,
+  "owned_columns_once": 455,
+  "foreign_key_sources_once": 151,
+  "owned_definitions_match_master": true,
+  "reference_columns_match_master": true,
+  "all_foreign_keys_match_master": true,
+  "all_passed": true
+}

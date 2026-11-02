@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 public final class ModelPersistence {
     private ModelPersistence() {}
+
     @Configuration
     @Profile("!model49")
     @EntityScan("com.hostel.entity")

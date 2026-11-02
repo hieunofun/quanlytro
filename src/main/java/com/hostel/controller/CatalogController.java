@@ -1,4 +1,5 @@
 package com.hostel.controller;
+
 import com.hostel.dto.Requests.*;
 import com.hostel.security.Access;
 import com.hostel.service.*;
@@ -11,47 +12,422 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.*;
 import static com.hostel.service.Database.*;
+
 @org.springframework.context.annotation.Profile("!model49")
-@RestController @RequestMapping("/api") @Transactional
+@RestController
+@RequestMapping("/api")
+@Transactional
 public class CatalogController {
- private final Database db;private final Access access;private final PasswordEncoder encoder;
- public CatalogController(Database db,Access access,PasswordEncoder encoder){this.db=db;this.access=access;this.encoder=encoder;}
- private Object row(String t,long id){return db.one("select * from "+t+" where id=?",id);}
- @GetMapping("/users") public Object users(){access.admin();return db.rows("select id,username,username full_name,role,status,created_at from users order by id");}
- @PostMapping("/users") public Object user(@Valid @RequestBody User r){access.admin();long id=db.insert("users","username,password_hash,role",r.username(),encoder.encode(r.password()),r.role());return Map.of("id",id);}
- public record Status(@NotNull @Pattern(regexp="ACTIVE|INACTIVE|LOCKED") String status){}
- @PutMapping("/users/{id}/status") public Object status(@PathVariable long id,@Valid @RequestBody Status r){access.admin();require(id!=access.userId(),"Cannot lock own account");db.one("select id from users where id=?",id);db.jdbc.update("update users set status=? where id=?",r.status(),id);return Map.of("id",id);}
- @GetMapping("/properties") public Object properties(){access.manager();return db.rows("select * from properties where "+access.propertyScope("id")+" order by id");}
- @PostMapping("/properties") public Object property(@Valid @RequestBody Property r){access.admin();return row("properties",db.insert("properties","property_code,name,address",r.code(),r.name(),r.address()));}
- @PutMapping("/properties/{id}") public Object propertyUpdate(@PathVariable long id,@Valid @RequestBody Property r){access.admin();db.one("select id from properties where id=?",id);db.jdbc.update("update properties set property_code=?,name=?,address=? where id=?",r.code(),r.name(),r.address(),id);return row("properties",id);}
- @PutMapping("/properties/{id}/status") public Object propertyStatus(@PathVariable long id,@Valid @RequestBody Status r){access.admin();require(!r.status().equals("LOCKED"),"Property status must be ACTIVE or INACTIVE");db.one("select id from properties where id=?",id);db.jdbc.update("update properties set status=? where id=?",r.status(),id);return row("properties",id);}
- @GetMapping("/assignments") public Object assignments(){access.admin();return db.rows("select e.*,u.username full_name,p.name property_name from employee_assignments e join users u on u.id=e.user_id join properties p on p.id=e.property_id order by e.id");}
- public record Assignment(@NotNull @Positive Long userId,@NotNull @Positive Long propertyId){}
- @PostMapping("/assignments") public Object assign(@Valid @RequestBody Assignment r){access.admin();long id=db.jdbc.queryForObject("insert into employee_assignments(user_id,property_id) values(?,?) on conflict(user_id,property_id) do update set is_active=true returning id",Long.class,r.userId(),r.propertyId());return row("employee_assignments",id);}
- @DeleteMapping("/assignments/{id}") public Object unassign(@PathVariable long id){access.admin();db.one("select id from employee_assignments where id=?",id);db.jdbc.update("update employee_assignments set is_active=false where id=?",id);return Map.of("id",id);}
- @GetMapping("/floors") public Object floors(@RequestParam(required=false) Long propertyId){access.manager();return db.rows("select distinct floor_number id,floor_number,property_id,'Tầng '||floor_number name from rooms where "+access.propertyScope("property_id")+(propertyId==null?"":" and property_id="+propertyId)+" order by property_id,floor_number");}
- @GetMapping("/rooms") public Object rooms(){String scope=access.role().equals("TENANT")?"r.id in (select c.room_id from contracts c where "+access.contractScope("c")+")":access.roomScope("r.id");var rows=db.rows("select r.*,r.display_status status,r.floor_number floor_id,p.name property_name from v_room_status r join properties p on p.id=r.property_id where "+scope+" order by r.property_id,r.floor_number,r.room_code");if(access.role().equals("TENANT"))rows.forEach(r->r.remove("internal_note"));return rows;}
- @GetMapping("/rooms/{id}") public Object room(@PathVariable long id){return access.room(id);}
- @PostMapping("/rooms") public Object room(@Valid @RequestBody Room r){access.admin();return row("rooms",db.insert("rooms","property_id,floor_number,room_code,base_price,max_occupants,area_sqm",r.propertyId(),r.floorNumber(),r.code(),r.price(),r.maxOccupants(),r.area()));}
- @PutMapping("/rooms/{id}") public Object roomUpdate(@PathVariable long id,@Valid @RequestBody Room r){access.manager();var before=access.room(id);require(id(before,"property_id")==r.propertyId(),"Moving a room between properties is unsupported");require(r.maxOccupants()>=((Number)before.get("max_occupants")).intValue()||db.jdbc.queryForObject("select count(*) from contracts where room_id=?",Long.class,id)==0,"Cannot lower capacity of a room with contract history");db.jdbc.update("update rooms set floor_number=?,room_code=?,base_price=?,max_occupants=?,area_sqm=? where id=?",r.floorNumber(),r.code(),r.price(),r.maxOccupants(),r.area(),id);return row("rooms",id);}
- public record RoomStatus(@NotNull @Pattern(regexp="AVAILABLE|MAINTENANCE") String status){}
- @PutMapping("/rooms/{id}/status") public Object roomStatus(@PathVariable long id,@Valid @RequestBody RoomStatus r){access.manager();access.room(id);if(r.status().equals("MAINTENANCE"))require(db.jdbc.queryForObject("select count(*) from contracts where room_id=? and status in ('ACTIVE','PENDING') and end_date>current_date",Long.class,id)==0,"Room has a current or future contract");db.jdbc.update("update rooms set operational_status=? where id=?",r.status(),id);return row("rooms",id);}
- @DeleteMapping("/rooms/{id}") public Object deleteRoom(@PathVariable long id){access.admin();access.room(id);db.jdbc.update("delete from rooms where id=?",id);return Map.of("id",id);}
- @GetMapping("/tenants") public Object tenants(){if(access.role().equals("TENANT"))return db.rows("select * from tenant_profiles where user_id=?",access.userId());String scope=access.role().equals("ADMIN")?"true":"t.id in (select c.primary_tenant_id from contracts c where "+access.contractScope("c")+") or t.id in (select m.tenant_id from contract_members m join contracts c on c.id=m.contract_id where "+access.contractScope("c")+")";return db.rows("select t.* from tenant_profiles t where "+scope+" order by t.id");}
- @PostMapping("/tenants") public Object tenant(@Valid @RequestBody Tenant r){access.admin();checkTenantUser(r.userId());return row("tenant_profiles",db.insert("tenant_profiles","user_id,full_name,identity_number,phone,email",r.userId(),r.fullName(),blank(r.identityNumber()),r.phone(),r.email()));}
- private String blank(String s){return s==null||s.isBlank()?null:s.trim();}
- private void checkTenantUser(Long user){if(user!=null)require("TENANT".equals(db.one("select role from users where id=?",user).get("role")),"Profile account must have TENANT role");}
- @PutMapping("/tenants/{id}") public Object tenantUpdate(@PathVariable long id,@Valid @RequestBody Tenant r){access.admin();checkTenantUser(r.userId());db.one("select id from tenant_profiles where id=?",id);db.jdbc.update("update tenant_profiles set user_id=?,full_name=?,identity_number=?,phone=?,email=? where id=?",r.userId(),r.fullName(),blank(r.identityNumber()),r.phone(),r.email(),id);return row("tenant_profiles",id);}
- public record Profile(LocalDate dateOfBirth,@Size(max=150) String hometown){}
- @PutMapping("/tenants/{id}/profile") public Object profile(@PathVariable long id,@Valid @RequestBody Profile r){access.admin();db.one("select id from tenant_profiles where id=?",id);db.jdbc.update("update tenant_profiles set date_of_birth=?,hometown=? where id=?",r.dateOfBirth(),r.hometown(),id);return row("tenant_profiles",id);}
- @GetMapping("/services") public Object services(){access.manager();return db.rows("select *,case service_code when 'ELEC' then 'ELECTRICITY' when 'WATER' then 'WATER' else 'FIXED_SERVICE' end service_type from service_items order by id");}
- public record Service(@NotBlank @Size(max=30) @Pattern(regexp="[A-Z0-9_]+") String code,@NotBlank @Size(max=100) String name,@NotNull @Pattern(regexp="METER_BASED|PER_ROOM|PER_PERSON") String calculationType,@NotBlank @Size(max=30) String unitName){}
- @PostMapping("/services") public Object service(@Valid @RequestBody Service r){access.admin();return row("service_items",db.insert("service_items","service_code,name,calculation_type,unit_name,is_mandatory",r.code(),r.name(),r.calculationType(),r.unitName(),false));}
- public record Policy(@Min(1) @Max(31) int meterCutoffDay,@Min(1) @Max(28) int invoiceIssueDay){}
- @PutMapping("/properties/{id}/billing-policy") public Object policy(@PathVariable long id,@Valid @RequestBody Policy r){access.admin();db.one("select id from properties where id=?",id);db.jdbc.update("update properties set meter_cutoff_day=?,invoice_issue_day=? where id=?",r.meterCutoffDay(),r.invoiceIssueDay(),id);return row("properties",id);}
- @GetMapping("/prices") public Object prices(){access.manager();return db.rows("select p.*,s.name,s.calculation_type from service_price_configs p join service_items s on s.id=p.service_item_id where "+access.propertyScope("p.property_id")+" order by p.effective_from desc");}
- @PostMapping("/prices") public Object price(@Valid @RequestBody Price r){access.admin();return row("service_price_configs",db.insert("service_price_configs","property_id,service_item_id,unit_price,effective_from",r.propertyId(),r.serviceId(),r.unitPrice(),r.effectiveFrom()));}
- @GetMapping("/thresholds") public Object thresholds(){access.manager();return db.rows("select id, id property_id,alert_threshold_percentage threshold_percentage,alert_history_months calculation_window_months from properties where "+access.propertyScope("id"));}
- @PostMapping("/thresholds") public Object threshold(@Valid @RequestBody Threshold r){access.admin();db.one("select id from properties where id=?",r.propertyId());db.jdbc.update("update properties set alert_threshold_percentage=?,alert_history_months=? where id=?",r.percentage(),r.months(),r.propertyId());return row("properties",r.propertyId());}
- @GetMapping({"/rooms/{id}/assignees","/properties/{id}/assignees"}) public Object assignees(@PathVariable long id,jakarta.servlet.http.HttpServletRequest request){long property=request.getRequestURI().contains("/rooms/")?id(access.room(id),"property_id"):id;access.property(property);return db.rows("select u.id,u.username full_name from users u where status='ACTIVE' and (role='ADMIN' or role='STAFF' and exists(select 1 from employee_assignments a where a.user_id=u.id and a.property_id=? and a.is_active)) order by id",property);}
+    private final Database db;
+    private final Access access;
+    private final PasswordEncoder encoder;
+
+    public CatalogController(Database db, Access access, PasswordEncoder encoder) {
+        this.db = db;
+        this.access = access;
+        this.encoder = encoder;
+    }
+
+    private Object row(String t, long id) {
+        return db.one("select * from " + t + " where id=?", id);
+    }
+
+    @GetMapping("/users")
+    public Object users() {
+        access.admin();
+        return db.rows(
+                "select id,username,username full_name,role,status,created_at from users order by"
+                        + " id");
+    }
+
+    @PostMapping("/users")
+    public Object user(@Valid @RequestBody User r) {
+        access.admin();
+        long id =
+                db.insert(
+                        "users",
+                        "username,password_hash,role",
+                        r.username(),
+                        encoder.encode(r.password()),
+                        r.role());
+        return Map.of("id", id);
+    }
+
+    public record Status(@NotNull @Pattern(regexp = "ACTIVE|INACTIVE|LOCKED") String status) {}
+
+    @PutMapping("/users/{id}/status")
+    public Object status(@PathVariable long id, @Valid @RequestBody Status r) {
+        access.admin();
+        require(id != access.userId(), "Cannot lock own account");
+        db.one("select id from users where id=?", id);
+        db.jdbc.update("update users set status=? where id=?", r.status(), id);
+        return Map.of("id", id);
+    }
+
+    @GetMapping("/properties")
+    public Object properties() {
+        access.manager();
+        return db.rows(
+                "select * from properties where " + access.propertyScope("id") + " order by id");
+    }
+
+    @PostMapping("/properties")
+    public Object property(@Valid @RequestBody Property r) {
+        access.admin();
+        return row(
+                "properties",
+                db.insert(
+                        "properties",
+                        "property_code,name,address",
+                        r.code(),
+                        r.name(),
+                        r.address()));
+    }
+
+    @PutMapping("/properties/{id}")
+    public Object propertyUpdate(@PathVariable long id, @Valid @RequestBody Property r) {
+        access.admin();
+        db.one("select id from properties where id=?", id);
+        db.jdbc.update(
+                "update properties set property_code=?,name=?,address=? where id=?",
+                r.code(),
+                r.name(),
+                r.address(),
+                id);
+        return row("properties", id);
+    }
+
+    @PutMapping("/properties/{id}/status")
+    public Object propertyStatus(@PathVariable long id, @Valid @RequestBody Status r) {
+        access.admin();
+        require(!r.status().equals("LOCKED"), "Property status must be ACTIVE or INACTIVE");
+        db.one("select id from properties where id=?", id);
+        db.jdbc.update("update properties set status=? where id=?", r.status(), id);
+        return row("properties", id);
+    }
+
+    @GetMapping("/assignments")
+    public Object assignments() {
+        access.admin();
+        return db.rows(
+                "select e.*,u.username full_name,p.name property_name from employee_assignments e"
+                        + " join users u on u.id=e.user_id join properties p on p.id=e.property_id"
+                        + " order by e.id");
+    }
+
+    public record Assignment(@NotNull @Positive Long userId, @NotNull @Positive Long propertyId) {}
+
+    @PostMapping("/assignments")
+    public Object assign(@Valid @RequestBody Assignment r) {
+        access.admin();
+        long id =
+                db.jdbc.queryForObject(
+                        "insert into employee_assignments(user_id,property_id) values(?,?) on"
+                                + " conflict(user_id,property_id) do update set is_active=true"
+                                + " returning id",
+                        Long.class,
+                        r.userId(),
+                        r.propertyId());
+        return row("employee_assignments", id);
+    }
+
+    @DeleteMapping("/assignments/{id}")
+    public Object unassign(@PathVariable long id) {
+        access.admin();
+        db.one("select id from employee_assignments where id=?", id);
+        db.jdbc.update("update employee_assignments set is_active=false where id=?", id);
+        return Map.of("id", id);
+    }
+
+    @GetMapping("/floors")
+    public Object floors(@RequestParam(required = false) Long propertyId) {
+        access.manager();
+        return db.rows(
+                "select distinct floor_number id,floor_number,property_id,'Tầng '||floor_number"
+                        + " name from rooms where "
+                        + access.propertyScope("property_id")
+                        + (propertyId == null ? "" : " and property_id=" + propertyId)
+                        + " order by property_id,floor_number");
+    }
+
+    @GetMapping("/rooms")
+    public Object rooms() {
+        String scope =
+                access.role().equals("TENANT")
+                        ? "r.id in (select c.room_id from contracts c where "
+                                + access.contractScope("c")
+                                + ")"
+                        : access.roomScope("r.id");
+        var rows =
+                db.rows(
+                        "select r.*,r.display_status status,r.floor_number floor_id,p.name"
+                                + " property_name from v_room_status r join properties p on"
+                                + " p.id=r.property_id where "
+                                + scope
+                                + " order by r.property_id,r.floor_number,r.room_code");
+        if (access.role().equals("TENANT")) {
+            rows.forEach(r -> r.remove("internal_note"));
+        }
+        return rows;
+    }
+
+    @GetMapping("/rooms/{id}")
+    public Object room(@PathVariable long id) {
+        return access.room(id);
+    }
+
+    @PostMapping("/rooms")
+    public Object room(@Valid @RequestBody Room r) {
+        access.admin();
+        return row(
+                "rooms",
+                db.insert(
+                        "rooms",
+                        "property_id,floor_number,room_code,base_price,max_occupants,area_sqm",
+                        r.propertyId(),
+                        r.floorNumber(),
+                        r.code(),
+                        r.price(),
+                        r.maxOccupants(),
+                        r.area()));
+    }
+
+    @PutMapping("/rooms/{id}")
+    public Object roomUpdate(@PathVariable long id, @Valid @RequestBody Room r) {
+        access.manager();
+        var before = access.room(id);
+        require(
+                id(before, "property_id") == r.propertyId(),
+                "Moving a room between properties is unsupported");
+        require(
+                r.maxOccupants() >= ((Number) before.get("max_occupants")).intValue()
+                        || db.jdbc.queryForObject(
+                                        "select count(*) from contracts where room_id=?",
+                                        Long.class,
+                                        id)
+                                == 0,
+                "Cannot lower capacity of a room with contract history");
+        db.jdbc.update(
+                "update rooms set"
+                        + " floor_number=?,room_code=?,base_price=?,max_occupants=?,area_sqm=? where"
+                        + " id=?",
+                r.floorNumber(),
+                r.code(),
+                r.price(),
+                r.maxOccupants(),
+                r.area(),
+                id);
+        return row("rooms", id);
+    }
+
+    public record RoomStatus(@NotNull @Pattern(regexp = "AVAILABLE|MAINTENANCE") String status) {}
+
+    @PutMapping("/rooms/{id}/status")
+    public Object roomStatus(@PathVariable long id, @Valid @RequestBody RoomStatus r) {
+        access.manager();
+        access.room(id);
+        if (r.status().equals("MAINTENANCE")) {
+            require(
+                    db.jdbc.queryForObject(
+                                    "select count(*) from contracts where room_id=? and status in"
+                                            + " ('ACTIVE','PENDING') and end_date>current_date",
+                                    Long.class,
+                                    id)
+                            == 0,
+                    "Room has a current or future contract");
+        }
+        db.jdbc.update("update rooms set operational_status=? where id=?", r.status(), id);
+        return row("rooms", id);
+    }
+
+    @DeleteMapping("/rooms/{id}")
+    public Object deleteRoom(@PathVariable long id) {
+        access.admin();
+        access.room(id);
+        db.jdbc.update("delete from rooms where id=?", id);
+        return Map.of("id", id);
+    }
+
+    @GetMapping("/tenants")
+    public Object tenants() {
+        if (access.role().equals("TENANT")) {
+            return db.rows("select * from tenant_profiles where user_id=?", access.userId());
+        }
+        String scope =
+                access.role().equals("ADMIN")
+                        ? "true"
+                        : "t.id in (select c.primary_tenant_id from contracts c where "
+                                + access.contractScope("c")
+                                + ") or t.id in (select m.tenant_id from contract_members m join"
+                                + " contracts c on c.id=m.contract_id where "
+                                + access.contractScope("c")
+                                + ")";
+        return db.rows("select t.* from tenant_profiles t where " + scope + " order by t.id");
+    }
+
+    @PostMapping("/tenants")
+    public Object tenant(@Valid @RequestBody Tenant r) {
+        access.admin();
+        checkTenantUser(r.userId());
+        return row(
+                "tenant_profiles",
+                db.insert(
+                        "tenant_profiles",
+                        "user_id,full_name,identity_number,phone,email",
+                        r.userId(),
+                        r.fullName(),
+                        blank(r.identityNumber()),
+                        r.phone(),
+                        r.email()));
+    }
+
+    private String blank(String s) {
+        return s == null || s.isBlank() ? null : s.trim();
+    }
+
+    private void checkTenantUser(Long user) {
+        if (user != null) {
+            require(
+                    "TENANT".equals(db.one("select role from users where id=?", user).get("role")),
+                    "Profile account must have TENANT role");
+        }
+    }
+
+    @PutMapping("/tenants/{id}")
+    public Object tenantUpdate(@PathVariable long id, @Valid @RequestBody Tenant r) {
+        access.admin();
+        checkTenantUser(r.userId());
+        db.one("select id from tenant_profiles where id=?", id);
+        db.jdbc.update(
+                "update tenant_profiles set user_id=?,full_name=?,identity_number=?,phone=?,email=?"
+                        + " where id=?",
+                r.userId(),
+                r.fullName(),
+                blank(r.identityNumber()),
+                r.phone(),
+                r.email(),
+                id);
+        return row("tenant_profiles", id);
+    }
+
+    public record Profile(LocalDate dateOfBirth, @Size(max = 150) String hometown) {}
+
+    @PutMapping("/tenants/{id}/profile")
+    public Object profile(@PathVariable long id, @Valid @RequestBody Profile r) {
+        access.admin();
+        db.one("select id from tenant_profiles where id=?", id);
+        db.jdbc.update(
+                "update tenant_profiles set date_of_birth=?,hometown=? where id=?",
+                r.dateOfBirth(),
+                r.hometown(),
+                id);
+        return row("tenant_profiles", id);
+    }
+
+    @GetMapping("/services")
+    public Object services() {
+        access.manager();
+        return db.rows(
+                "select *,case service_code when 'ELEC' then 'ELECTRICITY' when 'WATER' then"
+                        + " 'WATER' else 'FIXED_SERVICE' end service_type from service_items order by"
+                        + " id");
+    }
+
+    public record Service(
+            @NotBlank @Size(max = 30) @Pattern(regexp = "[A-Z0-9_]+") String code,
+            @NotBlank @Size(max = 100) String name,
+            @NotNull @Pattern(regexp = "METER_BASED|PER_ROOM|PER_PERSON") String calculationType,
+            @NotBlank @Size(max = 30) String unitName) {}
+
+    @PostMapping("/services")
+    public Object service(@Valid @RequestBody Service r) {
+        access.admin();
+        return row(
+                "service_items",
+                db.insert(
+                        "service_items",
+                        "service_code,name,calculation_type,unit_name,is_mandatory",
+                        r.code(),
+                        r.name(),
+                        r.calculationType(),
+                        r.unitName(),
+                        false));
+    }
+
+    public record Policy(
+            @Min(1) @Max(31) int meterCutoffDay, @Min(1) @Max(28) int invoiceIssueDay) {}
+
+    @PutMapping("/properties/{id}/billing-policy")
+    public Object policy(@PathVariable long id, @Valid @RequestBody Policy r) {
+        access.admin();
+        db.one("select id from properties where id=?", id);
+        db.jdbc.update(
+                "update properties set meter_cutoff_day=?,invoice_issue_day=? where id=?",
+                r.meterCutoffDay(),
+                r.invoiceIssueDay(),
+                id);
+        return row("properties", id);
+    }
+
+    @GetMapping("/prices")
+    public Object prices() {
+        access.manager();
+        return db.rows(
+                "select p.*,s.name,s.calculation_type from service_price_configs p join"
+                        + " service_items s on s.id=p.service_item_id where "
+                        + access.propertyScope("p.property_id")
+                        + " order by p.effective_from desc");
+    }
+
+    @PostMapping("/prices")
+    public Object price(@Valid @RequestBody Price r) {
+        access.admin();
+        return row(
+                "service_price_configs",
+                db.insert(
+                        "service_price_configs",
+                        "property_id,service_item_id,unit_price,effective_from",
+                        r.propertyId(),
+                        r.serviceId(),
+                        r.unitPrice(),
+                        r.effectiveFrom()));
+    }
+
+    @GetMapping("/thresholds")
+    public Object thresholds() {
+        access.manager();
+        return db.rows(
+                "select id, id property_id,alert_threshold_percentage"
+                        + " threshold_percentage,alert_history_months calculation_window_months from"
+                        + " properties where "
+                        + access.propertyScope("id"));
+    }
+
+    @PostMapping("/thresholds")
+    public Object threshold(@Valid @RequestBody Threshold r) {
+        access.admin();
+        db.one("select id from properties where id=?", r.propertyId());
+        db.jdbc.update(
+                "update properties set alert_threshold_percentage=?,alert_history_months=? where"
+                        + " id=?",
+                r.percentage(),
+                r.months(),
+                r.propertyId());
+        return row("properties", r.propertyId());
+    }
+
+    @GetMapping({"/rooms/{id}/assignees", "/properties/{id}/assignees"})
+    public Object assignees(
+            @PathVariable long id, jakarta.servlet.http.HttpServletRequest request) {
+        long property =
+                request.getRequestURI().contains("/rooms/")
+                        ? id(access.room(id), "property_id")
+                        : id;
+        access.property(property);
+        return db.rows(
+                "select u.id,u.username full_name from users u where status='ACTIVE' and"
+                        + " (role='ADMIN' or role='STAFF' and exists(select 1 from employee_assignments"
+                        + " a where a.user_id=u.id and a.property_id=? and a.is_active)) order by id",
+                property);
+    }
 }

@@ -1,0 +1,360 @@
+{
+  "created_on": "2026-11-01",
+  "speaker_notes": false,
+  "slides": [
+    {
+      "title": "Backend hệ thống\nquản lý nhà trọ",
+      "kind": "title",
+      "subtitle": "Hợp đồng · điện nước · hóa đơn · thu tiền · quyết toán",
+      "body": "Java 21  |  Spring Boot  |  PostgreSQL\nBản kiểm tra ngày 01/11/2026",
+      "sources": [
+        "pom.xml",
+        "docs/implementation-validation49.json"
+      ]
+    },
+    {
+      "title": "Các phần backend đang có",
+      "kind": "bullets",
+      "bullets": [
+        "Hợp đồng, người thực ở và giao/trả phòng.",
+        "Chỉ số điện nước, cảnh báo và hóa đơn có nguồn.",
+        "Thu tiền, cọc, trả trước, khấu trừ và hoàn tiền.",
+        "Sự cố, chi phí sửa chữa và phân quyền theo phạm vi."
+      ],
+      "sources": [
+        "src/main/java/com/hostel/model49/Api49.java",
+        "src/main/java/com/hostel/model49/Operations49.java"
+      ]
+    },
+    {
+      "title": "Một yêu cầu đi qua backend như thế nào?",
+      "kind": "flow",
+      "steps": [
+        "Client\nHTTP + JSON",
+        "JWT Filter\nXác thực",
+        "Controller\nNhận request",
+        "Service\nQuy tắc nghiệp vụ",
+        "PostgreSQL\nGiao dịch + ràng buộc"
+      ],
+      "body": "Truy vấn nghiệp vụ chủ yếu qua Database / JdbcTemplate.\nJPA có ánh xạ entity và repository đọc snapshot; không mô tả toàn bộ truy cập dữ liệu là JPA.",
+      "sources": [
+        "src/main/java/com/hostel/security/JwtFilter.java",
+        "src/main/java/com/hostel/model49/Api49.java",
+        "src/main/java/com/hostel/service/Database.java",
+        "src/main/java/com/hostel/model49/repository/BillingItemSnapshotRepository.java"
+      ]
+    },
+    {
+      "title": "CSDL tách rõ nguồn của từng nghiệp vụ",
+      "kind": "table",
+      "headers": [
+        "Nhóm",
+        "Các bảng chính"
+      ],
+      "rows": [
+        [
+          "Cư trú",
+          "contracts, contract_terms, contract_residencies, room_possessions"
+        ],
+        [
+          "Điện nước",
+          "meters, meter_readings, consumption_segments"
+        ],
+        [
+          "Chứng từ",
+          "billing_documents, billing_items"
+        ],
+        [
+          "Tiền",
+          "cash_transactions, fund_accounts, fund_entries, fund_holds"
+        ]
+      ],
+      "body": "Toàn mô hình: 49 bảng, 151 khóa ngoại, 10 view. Bảng trên chỉ nêu các nhóm chính.\nFlyway hiện tại tới V13; tiền và công nợ được tính từ nguồn qua view.",
+      "sources": [
+        "docs/design-schema.json",
+        "src/main/resources/db/migration/V13__billing_integrity_and_receipt_intent.sql"
+      ]
+    },
+    {
+      "title": "Phân quyền được kiểm tra ở backend",
+      "kind": "table",
+      "headers": [
+        "Vai trò",
+        "Phạm vi"
+      ],
+      "rows": [
+        [
+          "ADMIN",
+          "Quản lý toàn bộ trong mô hình một chủ nhà."
+        ],
+        [
+          "STAFF",
+          "Đúng phòng/khu được giao; hoàn/cấn cọc/điều chỉnh cần quyền bổ sung."
+        ],
+        [
+          "TENANT",
+          "Hợp đồng, hóa đơn và dữ liệu cá nhân được cấp quyền."
+        ]
+      ],
+      "body": "JWT truy cập và refresh xoay vòng. Phiên lưu trong RAM của một instance; khởi động lại cần đăng nhập lại.",
+      "sources": [
+        "src/main/java/com/hostel/model49/Access49.java",
+        "src/main/java/com/hostel/security/SessionRegistry.java",
+        "src/test/java/com/hostel/BusinessIntegrityTests.java"
+      ]
+    },
+    {
+      "title": "Ký hợp đồng và nhận phòng là hai việc riêng",
+      "kind": "flow",
+      "steps": [
+        "DRAFT\nSoạn hợp đồng",
+        "ACTIVE\nGhi nhận đã ký",
+        "Giao phòng\nThời điểm thực tế",
+        "Trả phòng\nGhi bàn giao",
+        "Quyết toán\nDuyệt tài chính"
+      ],
+      "body": "Cọc cam kết không phải tiền đã nhận. Người đứng tên không tự được tính là đang ở.\nSau trả phòng: TURNOVER → kiểm tra, chuẩn bị → READY.",
+      "sources": [
+        "src/main/java/com/hostel/model49/Leases49.java",
+        "src/test/java/com/hostel/Model49Tests.java"
+      ]
+    },
+    {
+      "title": "Hóa đơn giữ cách tính và nguồn số liệu",
+      "kind": "bullets",
+      "bullets": [
+        "Tiền phòng chia theo số ngày của tháng; mốc kết thúc không bao gồm.",
+        "Dịch vụ chia ngày theo phòng, số lượng hoặc ngày-người thực ở.",
+        "Điện nước = chênh chỉ số × đơn giá có hiệu lực; không chia sản lượng giả định.",
+        "Đã phát hành: giữ dòng gốc và sửa sai bằng chứng từ điều chỉnh."
+      ],
+      "sources": [
+        "src/main/java/com/hostel/model49/Billing49.java",
+        "src/main/java/com/hostel/model49/Finance49.java",
+        "src/main/resources/db/migration/V11__approved_49_table_model.sql"
+      ]
+    },
+    {
+      "title": "Đổi khách giữa tháng: không tính trùng",
+      "kind": "table",
+      "headers": [
+        "",
+        "Khách A",
+        "Phòng trống",
+        "Khách B"
+      ],
+      "rows": [
+        [
+          "Khoảng tính",
+          "01–15/01",
+          "16/01",
+          "17–31/01"
+        ],
+        [
+          "Tiền phòng",
+          "1.500.000",
+          "0",
+          "1.500.000"
+        ],
+        [
+          "Điện",
+          "30 kWh",
+          "2 kWh chủ nhà",
+          "28 kWh"
+        ],
+        [
+          "Tổng hóa đơn",
+          "1.770.000",
+          "Không gán cho khách",
+          "1.763.000"
+        ]
+      ],
+      "body": "Dữ liệu thử qua API thật. Tiền phòng 3.100.000/tháng; điện 3.500/kWh.\nTổng gồm phòng, internet, dịch vụ theo người và điện. Dịch vụ phụ không phát sinh; giá rác bằng 0 trong bộ thử.",
+      "sources": [
+        "docs/backend-review/demo-evidence.json",
+        "src/test/java/com/hostel/BusinessIntegrityTests.java"
+      ]
+    },
+    {
+      "title": "Tiền thực nhận khác tiền phân bổ",
+      "kind": "money",
+      "cards": [
+        [
+          "Khách B nộp",
+          "1.800.000"
+        ],
+        [
+          "Phân bổ hóa đơn",
+          "1.763.000"
+        ],
+        [
+          "Còn trả trước",
+          "37.000"
+        ]
+      ],
+      "body": "Gửi lại cùng mã phiếu không ghi thêm tiền.\nTham chiếu ngân hàng đã xác nhận không được ghi hai lần.",
+      "sources": [
+        "src/main/java/com/hostel/model49/Billing49.java",
+        "src/main/java/com/hostel/model49/Finance49.java",
+        "docs/backend-review/api-transcript.json"
+      ]
+    },
+    {
+      "title": "Sửa tiền điện sau khi đã thu đủ",
+      "kind": "money",
+      "cards": [
+        [
+          "Ban đầu: 50 × 3.500",
+          "175.000"
+        ],
+        [
+          "Đúng: 40 × 3.500",
+          "140.000"
+        ],
+        [
+          "Điều chỉnh giảm",
+          "35.000"
+        ]
+      ],
+      "body": "Giữ hóa đơn và chỉ số gốc. Bản điểm đo mới liên kết dòng điều chỉnh.\n35.000 trở về đúng quỹ đã thanh toán; chưa có nghĩa đã chi hoàn.\nNếu đã có kỳ sau phụ thuộc: chặn sửa để đối soát chuỗi.",
+      "sources": [
+        "src/main/java/com/hostel/model49/Finance49.java",
+        "docs/backend-review/demo-evidence.json"
+      ]
+    },
+    {
+      "title": "Trả phòng: chốt nợ rồi ghi tiền hoàn",
+      "kind": "money",
+      "cards": [
+        [
+          "Cọc thực nhận A",
+          "2.000.000"
+        ],
+        [
+          "Cấn các khoản A",
+          "1.770.000"
+        ],
+        [
+          "Đã chi hoàn A",
+          "230.000"
+        ]
+      ],
+      "body": "Duyệt quyết toán và chi hoàn là hai thao tác.\nTrả sớm: điều chỉnh tiền phòng và dịch vụ PRORATED đã phát hành.\nFULL_PERIOD / ONE_TIME giữ theo chế độ thu; khoản tranh chấp không tự bị cấn.",
+      "sources": [
+        "src/main/java/com/hostel/model49/Settlements49.java",
+        "src/main/java/com/hostel/model49/Finance49.java",
+        "src/test/java/com/hostel/BusinessIntegrityTests.java",
+        "docs/backend-review/demo-evidence.json"
+      ]
+    },
+    {
+      "title": "Các kiểm soát khi ghi dữ liệu",
+      "kind": "bullets",
+      "bullets": [
+        "Thao tác tài chính chạy trong giao dịch; lỗi thì rollback.",
+        "Khóa bản ghi và mã chống lặp khi thu, phân bổ, hoàn tiền.",
+        "UNIQUE / FK / CHECK / EXCLUDE bảo vệ tính nhất quán ở PostgreSQL.",
+        "Sổ tiền và chứng từ đã phát hành được bảo vệ khỏi sửa đè."
+      ],
+      "sources": [
+        "src/main/java/com/hostel/model49/Finance49.java",
+        "src/main/java/com/hostel/model49/Api49.java",
+        "src/main/resources/db/migration/V11__approved_49_table_model.sql",
+        "src/test/java/com/hostel/Model49Tests.java"
+      ]
+    },
+    {
+      "title": "Kết quả kiểm chứng đã chạy",
+      "kind": "table",
+      "headers": [
+        "Phạm vi",
+        "Kết quả"
+      ],
+      "rows": [
+        [
+          "Ứng dụng/API V13",
+          "64 ca đạt"
+        ],
+        [
+          "Migration",
+          "8 ca đạt"
+        ],
+        [
+          "Hồi quy V10 + đơn vị",
+          "54 ca đạt"
+        ],
+        [
+          "Tổng Java",
+          "126 ca; 0 lỗi; 0 bỏ qua"
+        ],
+        [
+          "DDL và quy tắc SQL",
+          "20 ca đạt"
+        ]
+      ],
+      "body": "Có ca HTTP gọi thật vào Spring Boot và PostgreSQL riêng.\nSố lượng test không phải tỷ lệ bao phủ hoặc xác nhận đúng mọi nghiệp vụ.",
+      "sources": [
+        "docs/implementation-validation49.json",
+        "docs/database-validation.json",
+        "docs/backend-review/demo-evidence.json"
+      ]
+    },
+    {
+      "title": "Mở backend và dữ liệu minh chứng",
+      "kind": "table",
+      "headers": [
+        "Nội dung",
+        "Nơi xem"
+      ],
+      "rows": [
+        [
+          "Ứng dụng local",
+          "http://127.0.0.1:8093"
+        ],
+        [
+          "API kiểm tra",
+          "backend.postman_collection.json"
+        ],
+        [
+          "Dữ liệu quyết toán A",
+          "GET /api/contracts/6/settlement"
+        ],
+        [
+          "Hóa đơn B",
+          "GET /api/invoices/2"
+        ],
+        [
+          "Đối chiếu CSDL",
+          "backend-readonly.sql"
+        ]
+      ],
+      "body": "Bộ request dùng đúng ID đã tạo; token lấy khi đăng nhập.\nTất cả tên người và dữ liệu trong bộ thử là giả.",
+      "sources": [
+        "docs/backend-review/backend.postman_collection.json",
+        "docs/backend-review/api-transcript.json"
+      ]
+    },
+    {
+      "title": "Giới hạn hiện tại",
+      "kind": "bullets",
+      "bullets": [
+        "Một chủ nhà; phiên xác thực trong RAM của một instance.",
+        "Xác minh chuyển khoản và ghi nhận đã hoàn còn là thao tác thủ công.",
+        "Chưa tự đối soát dây chuyền nhiều kỳ đo; thiếu điểm ranh giới thì phải bổ sung.",
+        "Chưa kiểm chứng tải lớn và phục hồi dữ liệu thực tế."
+      ],
+      "sources": [
+        "src/main/java/com/hostel/security/SessionRegistry.java",
+        "src/main/java/com/hostel/model49/Finance49.java",
+        "src/main/java/com/hostel/model49/Billing49.java",
+        "docs/implementation-validation49.json"
+      ]
+    }
+  ],
+  "evidence": {
+    "java": 126,
+    "current_model": 64,
+    "sql": 20,
+    "demo_requests": 67
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "validated_on": "2026-11-01",
+  "source": "PostgreSQL public schema, hostel_review49, migrations V1–V13",
+  "parser_version": "10.3.1",
+  "tables": 49,
+  "columns": 455,
+  "primary_keys": 49,
+  "foreign_keys": 151,
+  "checks": 132,
+  "exclusion_constraints_documented": 7,
+  "partial_indexes_documented": 14,
+  "table_groups": 8,
+  "sql_views_listed_not_drawn": [
+    "v_billing_lines",
+    "v_contract_current",
+    "v_document_balances",
+    "v_fund_balances",
+    "v_fund_movements",
+    "v_item_applications",
+    "v_item_balances",
+    "v_maintenance",
+    "v_room_status",
+    "v_segments"
+  ],
+  "checks_performed": [
+    "table and column sets; physical column order",
+    "PostgreSQL types; nullability; primary and unique keys; identity",
+    "all default values and expressions; CHECK expressions; EXCLUDE and partial-index SQL notes",
+    "index columns and uniqueness",
+    "all foreign-key endpoints, cardinality, optionality, ON DELETE and ON UPDATE",
+    "group membership; no fabricated enums"
+  ],
+  "excluded": [
+    "flyway_schema_history infrastructure table",
+    "SQL views are listed in the project note, not represented as base tables",
+    "triggers and functions remain in PostgreSQL migrations; DBML is not a migration replacement"
+  ],
+  "dbml_sha256": "ed4aba6eb9252ed1371597958ae32adbb9fa91b9d051fcfe6152a878b8236ba7",
+  "all_passed": true
+}

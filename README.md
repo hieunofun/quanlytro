@@ -4,9 +4,12 @@ Backend Java 21 / Spring Boot, PostgreSQL và frontend React. Phiên bản hiệ
 
 ## Tài liệu hiện hành
 
+- [Kiểm chứng backend ngày 01/11, slide và bộ API minh chứng](docs/KIEM-CHUNG-BACKEND-2026-11-01.md).
+
 - [Thay đổi backend, nghiệp vụ, nguồn tham khảo và giới hạn V13](docs/TRIEN-KHAI-BACKEND-V13.md).
 - [API V13](docs/API49.md), [CSDL](docs/DATABASE.md), [từ điển dữ liệu](docs/TU-DIEN-DU-LIEU-49-BANG.md).
-- [DBML](docs/quanlytro.dbml), [ERD PDF](docs/diagrams/quanlytro-dbdiagram.pdf), [ERD SVG](docs/diagrams/quanlytro-dbdiagram.svg).
+- [8 sơ đồ CSDL theo nghiệp vụ](docs/dbdiagram/modules/index.html), [tải 8 PDF](docs/dbdiagram/modules/8-so-do-nghiep-vu.zip), [DBML đầy đủ](docs/quanlytro.dbml).
+- [Sơ đồ tổng để tra cứu](docs/dbdiagram/index.html), [PDF tổng](docs/dbdiagram/quanlytro-database.pdf).
 - [Kết quả Java/HTTP/migration](docs/implementation-validation49.json), [kết quả SQL](docs/database-validation.json).
 - [Đối chiếu OpenKOS, LeaseBook và sản phẩm Việt Nam](docs/KHUYEN-NGHI-BACKEND-NGHIEP-VU-2026-10-30.md).
 

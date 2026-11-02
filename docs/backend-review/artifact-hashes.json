@@ -1,0 +1,13 @@
+{
+  "validated_on": "2026-11-01",
+  "base_commit": "fec5797",
+  "new_changes_committed": false,
+  "files": {
+    "src/main/java/com/hostel/model49/Finance49.java": "e29c350dd2e7155714999f3a4ea7c653c728736d6c55bef6aa6d2110e4a7db3a",
+    "src/main/java/com/hostel/model49/Settlements49.java": "a8e0f240864684f0b35bc2df953c58e6c898779487c7a357b5dbad151833157c",
+    "src/test/java/com/hostel/BusinessIntegrityTests.java": "fa23de95c9800a7dcdc1f19194d557aa16f2e7f961f56dcb50f8ee3761af8adb",
+    "docs/implementation-validation49.json": "9500207ba5252be7466d1e349653bc68dc9211605ce4977a69cf8e21c42184a6",
+    "docs/backend-review/demo-evidence.json": "c8a02c7e6055131b2dfeff3b1a7037bb395c6e87b60e9cb0f3fe5a54ee8aa93e"
+  },
+  "jar_sha256": "898d9fece952e1f6d6d2fa2507722ab5ffe70a1dbe292686e7be3d9b875b7dde"
+}

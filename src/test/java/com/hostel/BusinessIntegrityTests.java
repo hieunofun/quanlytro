@@ -287,4 +287,73 @@ class BusinessIntegrityTests {
         assertEquals(409,send("/fund-entries","POST",Map.of("code","DISP-PAY-"+suffix,"entryType","PAYMENT","fromFundId",deposit,"debitItemId",line,"amount",200),token).statusCode());
         money("1000",get("/fund-accounts/"+deposit).get("balance"));
     }
+
+    long subscribe(String code,String type,String mode,int price,long targetTenant)throws Exception{
+        long service=id(post("/catalog/services",Map.of("serviceCode",code+"-"+suffix,"name",code,"unitName","Unit","calculationType",type)));
+        post("/catalog/prices",Map.of("propertyId",property,"serviceItemId",service,"effectiveFrom","2026-01-01","unitPrice",price));
+        post("/catalog/subscriptions",Map.of("contractId",targetTenant,"serviceItemId",service,"effectiveFrom","2026-01-01","quantity",1,"chargeMode",mode));
+        return service;
+    }
+    @Test void paidProratedServicesFollowActualPersonDaysAtEarlyCheckout()throws Exception{
+        subscribe("NET","PER_ROOM","PRORATED",310,contract);subscribe("PERSON","PER_PERSON","PRORATED",31,contract);
+        subscribe("FULL","PER_ROOM","FULL_PERIOD",99,contract);subscribe("ONCE","ONE_TIME","ONE_TIME",199,contract);
+        post("/contracts/"+contract+"/members",Map.of("tenantId",tenant,"effectiveFrom","2026-01-01"));
+        long friend=id(post("/tenants",Map.of("fullName","Other resident")));
+        post("/contracts/"+contract+"/members",Map.of("tenantId",friend,"effectiveFrom","2026-01-01","effectiveTo","2026-01-11"));
+        possess();long d=id(post("/invoices",Map.of("contractId",contract,"period","2026-01","issueDate","2026-01-01")));
+        post("/invoices/"+d+"/issue",Map.of());money("649",get("/invoices/"+d).get("total_amount"));
+        post("/invoices/"+d+"/payments",payBody("SERVICE-PAY-"+suffix,649));
+        post("/contracts/"+contract+"/checkout",Map.of("billingEnd","2026-01-16","returnedAt","2026-01-16T10:00:00+07:00"));
+        post("/contracts/"+contract+"/checkout/approve",Map.of("reason","Verified early return and prorated subscriptions"));
+        var original=get("/invoices/"+d);money("473",original.get("total_amount"));money("473",original.get("paid_amount"));
+        money("176",get("/fund-accounts/"+advance).get("balance"));
+        money("0",get("/contracts/"+contract+"/checkout").get("actual_refund_amount"));
+    }
+    @Test void refundRetryRejectsChangedBankReferenceAndDuplicateBankTransfer()throws Exception{
+        receive(1000,"DEPOSIT","BANK-DEP-"+suffix);
+        var body=new HashMap<String,Object>(Map.of("cashAccountId",account,"amount",200,"code","BANK-REF-"+suffix,"method","BANK_TRANSFER_MANUAL","externalReference","BANK-OUT-"+suffix,"paid",true,"occurredAt","2026-02-01T10:00:00+07:00","reason","Verified actual outgoing transfer"));
+        post("/fund-accounts/"+deposit+"/refund",body);post("/fund-accounts/"+deposit+"/refund",body);
+        var changed=new HashMap<>(body);changed.put("externalReference","DIFFERENT-"+suffix);
+        assertEquals(400,send("/fund-accounts/"+deposit+"/refund","POST",changed,token).statusCode());
+        changed=new HashMap<>(body);changed.put("code","SECOND-REF-"+suffix);
+        assertEquals(409,send("/fund-accounts/"+deposit+"/refund","POST",changed,token).statusCode());
+        money("800",get("/fund-accounts/"+deposit).get("balance"));
+    }
+    @Test void sameRoomTurnoverSplitsRentMeterResponsibilityAndCashExactly()throws Exception{
+        ok(send("/properties/"+property+"/billing-policy","PUT",Map.of("meterCutoffDay",31),token));
+        room=id(post("/rooms",Map.of("propertyId",property,"code","TURN-"+suffix,"price",3100000,"maxOccupants",4,"openedOn","2026-01-01")));
+        contract=id(post("/contracts",Map.of("code","TURN-A-"+suffix,"roomId",room,"tenantId",tenant,"startDate","2026-01-01","endDate","2027-01-01","rentalPrice",3100000,"deposit",2000000,"signedAt","2025-12-31T10:00:00+07:00")));
+        db.jdbc.update("delete from contract_service_subscriptions where contract_id=?",contract);
+        advance=fund("ADVANCE");deposit=fund("DEPOSIT");
+        long net=subscribe("TURN-NET","PER_ROOM","PRORATED",310000,contract),people=subscribe("TURN-PERSON","PER_PERSON","PRORATED",31000,contract);
+        long meter=device();long electricity=((Number)db.one("select service_item_id from meters where id=?",meter).get("service_item_id")).longValue();
+        post("/catalog/subscriptions",Map.of("contractId",contract,"serviceItemId",electricity,"effectiveFrom","2026-01-01"));
+        receive(2000000,"DEPOSIT","TURN-DEP-A-"+suffix);
+        post("/contracts/"+contract+"/members",Map.of("tenantId",tenant,"effectiveFrom","2026-01-01"));
+        post("/contracts/"+contract+"/possessions",Map.of("takenAt","2026-01-01T10:00:00+07:00"));
+        var aUsage=post("/meter-readings",Map.of("meterId",meter,"contractId",contract,"startAt","2026-01-01T10:00:00+07:00","endAt","2026-01-16T10:00:00+07:00","oldIndex",100,"newIndex",130));
+        post("/contracts/"+contract+"/checkout",Map.of("billingEnd","2026-01-16","returnedAt","2026-01-16T10:00:00+07:00"));
+        post("/contracts/"+contract+"/checkout/approve",Map.of("reason","Confirmed return with final measurements","useDeposit",true));
+        var aCheckout=get("/contracts/"+contract+"/checkout");money("0",aCheckout.get("debt_remaining"));money("230000",aCheckout.get("refund_due"));
+        post("/fund-accounts/"+deposit+"/refund",Map.of("cashAccountId",account,"amount",230000,"code","TURN-REF-A-"+suffix,"paid",true,"occurredAt","2026-01-16T11:00:00+07:00","reason","Paid verified deposit remainder"));
+        var owner=post("/meter-readings",Map.of("meterId",meter,"startAt","2026-01-16T10:00:00+07:00","endAt","2026-01-17T10:00:00+07:00","oldIndex",130,"newIndex",132));
+        long turnover=((Number)db.one("select id from room_operating_periods where room_id=? and status='TURNOVER'",room).get("id")).longValue();
+        ok(send("/catalog/room-operating-periods/"+turnover,"PUT",Map.of("validTo","2026-01-17T10:00:00+07:00","reason","Inspection and cleaning completed"),token));
+        post("/catalog/room-operating-periods",Map.of("roomId",room,"validFrom","2026-01-17T10:00:00+07:00","status","READY"));
+        long bPerson=id(post("/tenants",Map.of("fullName","New tenant")));
+        long b=id(post("/contracts",Map.of("code","TURN-B-"+suffix,"roomId",room,"tenantId",bPerson,"startDate","2026-01-17","endDate","2027-01-17","rentalPrice",3100000,"deposit",2000000,"signedAt","2026-01-16T10:00:00+07:00")));
+        db.jdbc.update("delete from contract_service_subscriptions where contract_id=?",b);
+        for(long service:List.of(net,people,electricity))post("/catalog/subscriptions",Map.of("contractId",b,"serviceItemId",service,"effectiveFrom","2026-01-17"));
+        post("/cash-transactions",Map.of("cashAccountId",account,"contractId",b,"amount",2000000,"fundType","DEPOSIT","code","TURN-DEP-B-"+suffix,"confirmed",true,"occurredAt","2026-01-17T09:00:00+07:00"));
+        post("/contracts/"+b+"/members",Map.of("tenantId",bPerson,"effectiveFrom","2026-01-17"));
+        post("/contracts/"+b+"/possessions",Map.of("takenAt","2026-01-17T10:00:00+07:00"));
+        var bUsage=post("/meter-readings",Map.of("meterId",meter,"contractId",b,"startAt","2026-01-17T10:00:00+07:00","endAt","2026-02-01T00:00:00+07:00","oldIndex",132,"newIndex",160));
+        long bDoc=id(post("/invoices",Map.of("contractId",b,"period","2026-01","issueDate","2026-02-01")));post("/invoices/"+bDoc+"/issue",Map.of());
+        money("1763000",get("/invoices/"+bDoc).get("total_amount"));post("/invoices/"+bDoc+"/payments",payBody("TURN-PAY-B-"+suffix,1800000));
+        money("30",aUsage.get("consumption"));money("2",owner.get("consumption"));money("28",bUsage.get("consumption"));
+        money("3000000",db.jdbc.queryForObject("select sum(charge_amount) from v_item_balances where contract_id in (?,?) and document_status='ISSUED' and item_kind='ROOM_RENT'",BigDecimal.class,contract,b));
+        money("2037000",db.jdbc.queryForObject("select sum(balance) from v_fund_balances where contract_id in (?,?)",BigDecimal.class,contract,b));
+        money("5570000",db.jdbc.queryForObject("select sum(case direction when 'IN' then amount else -amount end) from cash_transactions where cash_account_id=? and status='CONFIRMED'",BigDecimal.class,account));
+        assertEquals(0,db.jdbc.queryForObject("select count(*) from billing_items where segment_id=?",Integer.class,owner.get("id")));
+    }
 }

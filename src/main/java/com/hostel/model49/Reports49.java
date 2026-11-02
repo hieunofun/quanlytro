@@ -8,26 +8,256 @@ import org.springframework.http.*;
 import java.math.BigDecimal;
 import java.time.*;
 import java.util.*;
-@RestController @RequestMapping("/api") @Profile("model49")
+
+@RestController
+@RequestMapping("/api")
+@Profile("model49")
 public class Reports49 {
-    private final Database db;private final Access49 access;private final PdfService pdf;
-    public Reports49(Database db,Access49 access,PdfService pdf){this.db=db;this.access=access;this.pdf=pdf;}
-    private String cashScope(){return access.role().equals("ADMIN")?"true":"(a.property_id in (select property_id from employee_assignments where user_id="+access.user()+" and revoked_at is null and property_id is not null) or tx.recorded_by="+access.user()+")";}
-    @GetMapping("/dashboard") public Object dashboard(@RequestParam(required=false) String period){
-        access.manager();LocalDate p=period==null?YearMonth.now(ZoneId.of("Asia/Ho_Chi_Minh")).atDay(1):YearMonth.parse(period).atDay(1);
-        var result=new LinkedHashMap<String,Object>(db.one("select count(*) total_rooms,count(*) filter(where display_status='AVAILABLE') available_rooms,count(*) filter(where display_status='RENTED') rented_rooms,count(*) filter(where operational_status in ('TURNOVER','MAINTENANCE')) maintenance_rooms from v_room_status r where "+access.roomScope("r.id")));
-        result.putAll(db.one("select coalesce(sum(i.charge_amount),0) billed,coalesce(sum(i.paid_amount),0) credited,coalesce(sum(i.balance_due),0) outstanding from v_item_balances i join contracts c on c.id=i.contract_id join billing_documents d on d.id=i.document_id where i.document_status='ISSUED' and "+access.contractScope("c",true)+" and coalesce(d.billing_period,date_trunc('month',d.issue_date)::date)=?",p));
-        result.put("collected",db.jdbc.queryForObject("select coalesce(sum(tx.amount),0) from cash_transactions tx join cash_accounts a on a.id=tx.cash_account_id where tx.status='CONFIRMED' and tx.direction='IN' and tx.occurred_at>=?::date and tx.occurred_at<?::date and "+cashScope(),BigDecimal.class,p,p.plusMonths(1)));
-        result.put("refunded",db.jdbc.queryForObject("select coalesce(sum(tx.amount),0) from cash_transactions tx join cash_accounts a on a.id=tx.cash_account_id where tx.status='CONFIRMED' and tx.direction='OUT' and tx.occurred_at>=?::date and tx.occurred_at<?::date and "+cashScope(),BigDecimal.class,p,p.plusMonths(1)));
-        result.put("expiringContracts",db.rows("select c.*,r.room_code from v_contract_current c join rooms r on r.id=c.room_id where c.status='ACTIVE' and c.end_date between current_date and current_date+30 and "+access.contractScope("c",true)));
-        result.put("open_maintenance",db.jdbc.queryForObject("select count(*) from v_maintenance m where m.status not in ('COMPLETED','CANCELLED') and ("+access.roomScope("m.resolved_room_id")+" or can_manage_property("+access.user()+",m.resolved_property_id))",Long.class));result.put("period",p.toString().substring(0,7));return result;
+    private final Database db;
+    private final Access49 access;
+    private final PdfService pdf;
+
+    public Reports49(Database db, Access49 access, PdfService pdf) {
+        this.db = db;
+        this.access = access;
+        this.pdf = pdf;
     }
-    @GetMapping("/reports/debts") public Object debts(){access.manager();return db.rows("select d.document_code invoice_code,d.billing_period,r.room_code,t.full_name,sum(i.charge_amount) total_amount,sum(i.paid_amount) paid_amount,sum(i.balance_due) balance_due,d.due_date from v_item_balances i join billing_documents d on d.id=i.document_id join v_contract_current c on c.id=i.contract_id join rooms r on r.id=c.room_id left join tenant_profiles t on t.id=c.primary_tenant_id where i.document_status='ISSUED' and "+access.contractScope("c",true)+" group by d.id,d.document_code,d.billing_period,r.room_code,t.full_name,d.due_date having sum(i.balance_due)>0 order by d.due_date");}
-    @GetMapping("/reports/revenue") public Object revenue(){access.manager();return db.rows("with bills as(select to_char(coalesce(d.billing_period,d.issue_date),'YYYY-MM') period,sum(i.charge_amount) billed,sum(i.balance_due) outstanding from v_item_balances i join billing_documents d on d.id=i.document_id join contracts c on c.id=i.contract_id where i.document_status='ISSUED' and "+access.contractScope("c",true)+" group by period),cash as(select to_char(tx.occurred_at at time zone 'Asia/Ho_Chi_Minh','YYYY-MM') period,sum(tx.amount) filter(where tx.direction='IN') collected,sum(tx.amount) filter(where tx.direction='OUT') refunded from cash_transactions tx join cash_accounts a on a.id=tx.cash_account_id where tx.status='CONFIRMED' and "+cashScope()+" group by period) select coalesce(b.period,c.period) billing_period,coalesce(b.billed,0) billed,coalesce(c.collected,0) collected,coalesce(c.refunded,0) refunded,coalesce(b.outstanding,0) outstanding from bills b full join cash c on c.period=b.period order by billing_period");}
-    @GetMapping("/reports/revenue-quarterly") public Object quarterly(){@SuppressWarnings("unchecked") var rows=(List<Map<String,Object>>)revenue();var groups=new LinkedHashMap<String,Map<String,Object>>();for(var row:rows){YearMonth p=YearMonth.parse(row.get("billing_period").toString());String key=p.getYear()+"-Q"+((p.getMonthValue()-1)/3+1);var out=groups.computeIfAbsent(key,k->new LinkedHashMap<>(Map.of("quarter",key,"billed",BigDecimal.ZERO,"collected",BigDecimal.ZERO,"refunded",BigDecimal.ZERO,"outstanding",BigDecimal.ZERO)));for(String f:List.of("billed","collected","refunded","outstanding"))out.put(f,((BigDecimal)out.get(f)).add((BigDecimal)row.get(f)));}return groups.values();}
-    @GetMapping("/reports/occupancy") public Object occupancy(){access.manager();return db.rows("select p.id,p.name,count(r.id) total_rooms,count(r.id) filter(where r.display_status='RENTED') rented_rooms,round(100.0*count(r.id) filter(where r.display_status='RENTED')/nullif(count(r.id),0),2) occupancy_percentage from properties p join v_room_status r on r.property_id=p.id where "+access.roomScope("r.id")+" group by p.id,p.name order by p.id");}
-    @GetMapping("/reports/occupancy-history") public Object occupancyHistory(){access.manager();return db.rows("select p.name,to_char(m.month,'YYYY-MM') period,count(distinct r.id) total_rooms,sum(greatest(0,least(coalesce(r.retired_on,(m.month+interval '1 month')::date),(m.month+interval '1 month')::date)-greatest(r.opened_on,m.month::date))) available_room_days,coalesce(sum((select sum(greatest(0,least(coalesce(x.returned_at::date,(m.month+interval '1 month')::date),(m.month+interval '1 month')::date)-greatest(x.taken_at::date,m.month::date))) from room_possessions x join contracts c on c.id=x.contract_id where c.room_id=r.id)),0) occupied_room_days from properties p join rooms r on r.property_id=p.id cross join generate_series(date_trunc('month',current_date)-interval '11 months',date_trunc('month',current_date),interval '1 month') m(month) where "+access.roomScope("r.id")+" group by p.id,p.name,m.month order by m.month,p.id");}
-    @GetMapping("/reports/maintenance") public Object maintenance(){access.manager();return db.rows("select to_char(m.created_at,'YYYY-MM') period,m.incident_type,m.status,count(*) total,sum(m.actual_cost) cost from v_maintenance m where ("+access.roomScope("m.resolved_room_id")+" or can_manage_property("+access.user()+",m.resolved_property_id)) group by period,m.incident_type,m.status order by period");}
-    @GetMapping(value="/reports/debts.csv",produces="text/csv;charset=UTF-8") public String csv(){@SuppressWarnings("unchecked") var rows=(List<Map<String,Object>>)debts();StringBuilder out=new StringBuilder("\uFEFFMã chứng từ,Kỳ,Phòng,Người thuê,Tổng,Đã phân bổ,Nợ,Hạn\r\n");for(var r:rows){out.append(String.join(",",r.values().stream().map(v->{String s=Objects.toString(v,"");if(s.matches("^[=+@-].*"))s="'"+s;return "\""+s.replace("\"","\"\"")+"\"";}).toList())).append("\r\n");}return out.toString();}
-    @GetMapping("/reports/pdf") public ResponseEntity<byte[]> report()throws java.io.IOException{@SuppressWarnings("unchecked") var rows=(List<Map<String,Object>>)debts();return ResponseEntity.ok().contentType(MediaType.APPLICATION_PDF).header("Content-Disposition","attachment; filename=debts.pdf").body(pdf.render("CÔNG NỢ ĐANG MỞ",rows.stream().map(Object::toString).toList()));}
+
+    private String cashScope() {
+        return access.role().equals("ADMIN")
+                ? "true"
+                : "(a.property_id in (select property_id from employee_assignments where user_id="
+                        + access.user()
+                        + " and revoked_at is null and property_id is not null) or tx.recorded_by="
+                        + access.user()
+                        + ")";
+    }
+
+    @GetMapping("/dashboard")
+    public Object dashboard(@RequestParam(required = false) String period) {
+        access.manager();
+        LocalDate p =
+                period == null
+                        ? YearMonth.now(ZoneId.of("Asia/Ho_Chi_Minh")).atDay(1)
+                        : YearMonth.parse(period).atDay(1);
+        var result =
+                new LinkedHashMap<String, Object>(
+                        db.one(
+                                "select count(*) total_rooms,count(*) filter(where"
+                                        + " display_status='AVAILABLE') available_rooms,count(*)"
+                                        + " filter(where display_status='RENTED') rented_rooms,count(*)"
+                                        + " filter(where operational_status in"
+                                        + " ('TURNOVER','MAINTENANCE')) maintenance_rooms from"
+                                        + " v_room_status r where "
+                                        + access.roomScope("r.id")));
+        result.putAll(
+                db.one(
+                        "select coalesce(sum(i.charge_amount),0)"
+                                + " billed,coalesce(sum(i.paid_amount),0)"
+                                + " credited,coalesce(sum(i.balance_due),0) outstanding from"
+                                + " v_item_balances i join contracts c on c.id=i.contract_id join"
+                                + " billing_documents d on d.id=i.document_id where"
+                                + " i.document_status='ISSUED' and "
+                                + access.contractScope("c", true)
+                                + " and coalesce(d.billing_period,date_trunc('month',d.issue_date)::date)=?",
+                        p));
+        result.put(
+                "collected",
+                db.jdbc.queryForObject(
+                        "select coalesce(sum(tx.amount),0) from cash_transactions tx join"
+                                + " cash_accounts a on a.id=tx.cash_account_id where"
+                                + " tx.status='CONFIRMED' and tx.direction='IN' and"
+                                + " tx.occurred_at>=?::date and tx.occurred_at<?::date and "
+                                + cashScope(),
+                        BigDecimal.class,
+                        p,
+                        p.plusMonths(1)));
+        result.put(
+                "refunded",
+                db.jdbc.queryForObject(
+                        "select coalesce(sum(tx.amount),0) from cash_transactions tx join"
+                                + " cash_accounts a on a.id=tx.cash_account_id where"
+                                + " tx.status='CONFIRMED' and tx.direction='OUT' and"
+                                + " tx.occurred_at>=?::date and tx.occurred_at<?::date and "
+                                + cashScope(),
+                        BigDecimal.class,
+                        p,
+                        p.plusMonths(1)));
+        result.put(
+                "expiringContracts",
+                db.rows(
+                        "select c.*,r.room_code from v_contract_current c join rooms r on"
+                                + " r.id=c.room_id where c.status='ACTIVE' and c.end_date between"
+                                + " current_date and current_date+30 and "
+                                + access.contractScope("c", true)));
+        result.put(
+                "open_maintenance",
+                db.jdbc.queryForObject(
+                        "select count(*) from v_maintenance m where m.status not in"
+                                + " ('COMPLETED','CANCELLED') and ("
+                                + access.roomScope("m.resolved_room_id")
+                                + " or can_manage_property("
+                                + access.user()
+                                + ",m.resolved_property_id))",
+                        Long.class));
+        result.put("period", p.toString().substring(0, 7));
+        return result;
+    }
+
+    @GetMapping("/reports/debts")
+    public Object debts() {
+        access.manager();
+        return db.rows(
+                "select d.document_code"
+                        + " invoice_code,d.billing_period,r.room_code,t.full_name,sum(i.charge_amount)"
+                        + " total_amount,sum(i.paid_amount) paid_amount,sum(i.balance_due)"
+                        + " balance_due,d.due_date from v_item_balances i join billing_documents d on"
+                        + " d.id=i.document_id join v_contract_current c on c.id=i.contract_id join"
+                        + " rooms r on r.id=c.room_id left join tenant_profiles t on"
+                        + " t.id=c.primary_tenant_id where i.document_status='ISSUED' and "
+                        + access.contractScope("c", true)
+                        + " group by"
+                        + " d.id,d.document_code,d.billing_period,r.room_code,t.full_name,d.due_date"
+                        + " having sum(i.balance_due)>0 order by d.due_date");
+    }
+
+    @GetMapping("/reports/revenue")
+    public Object revenue() {
+        access.manager();
+        return db.rows(
+                "with bills as(select to_char(coalesce(d.billing_period,d.issue_date),'YYYY-MM')"
+                        + " period,sum(i.charge_amount) billed,sum(i.balance_due) outstanding from"
+                        + " v_item_balances i join billing_documents d on d.id=i.document_id join"
+                        + " contracts c on c.id=i.contract_id where i.document_status='ISSUED' and "
+                        + access.contractScope("c", true)
+                        + " group by period),cash as(select to_char(tx.occurred_at at time zone"
+                        + " 'Asia/Ho_Chi_Minh','YYYY-MM') period,sum(tx.amount) filter(where"
+                        + " tx.direction='IN') collected,sum(tx.amount) filter(where"
+                        + " tx.direction='OUT') refunded from cash_transactions tx join"
+                        + " cash_accounts a on a.id=tx.cash_account_id where tx.status='CONFIRMED'"
+                        + " and "
+                        + cashScope()
+                        + " group by period) select coalesce(b.period,c.period)"
+                        + " billing_period,coalesce(b.billed,0) billed,coalesce(c.collected,0)"
+                        + " collected,coalesce(c.refunded,0) refunded,coalesce(b.outstanding,0)"
+                        + " outstanding from bills b full join cash c on c.period=b.period order by"
+                        + " billing_period");
+    }
+
+    @GetMapping("/reports/revenue-quarterly")
+    public Object quarterly() {
+        @SuppressWarnings("unchecked")
+        var rows = (List<Map<String, Object>>) revenue();
+        var groups = new LinkedHashMap<String, Map<String, Object>>();
+        for (var row : rows) {
+            YearMonth p = YearMonth.parse(row.get("billing_period").toString());
+            String key = p.getYear() + "-Q" + ((p.getMonthValue() - 1) / 3 + 1);
+            var out =
+                    groups.computeIfAbsent(
+                            key,
+                            k ->
+                                    new LinkedHashMap<>(
+                                            Map.of(
+                                                    "quarter",
+                                                    key,
+                                                    "billed",
+                                                    BigDecimal.ZERO,
+                                                    "collected",
+                                                    BigDecimal.ZERO,
+                                                    "refunded",
+                                                    BigDecimal.ZERO,
+                                                    "outstanding",
+                                                    BigDecimal.ZERO)));
+            for (String f : List.of("billed", "collected", "refunded", "outstanding")) {
+                out.put(f, ((BigDecimal) out.get(f)).add((BigDecimal) row.get(f)));
+            }
+        }
+        return groups.values();
+    }
+
+    @GetMapping("/reports/occupancy")
+    public Object occupancy() {
+        access.manager();
+        return db.rows(
+                "select p.id,p.name,count(r.id) total_rooms,count(r.id) filter(where"
+                        + " r.display_status='RENTED') rented_rooms,round(100.0*count(r.id)"
+                        + " filter(where r.display_status='RENTED')/nullif(count(r.id),0),2)"
+                        + " occupancy_percentage from properties p join v_room_status r on"
+                        + " r.property_id=p.id where "
+                        + access.roomScope("r.id")
+                        + " group by p.id,p.name order by p.id");
+    }
+
+    @GetMapping("/reports/occupancy-history")
+    public Object occupancyHistory() {
+        access.manager();
+        return db.rows(
+                "select p.name,to_char(m.month,'YYYY-MM') period,count(distinct r.id)"
+                        + " total_rooms,sum(greatest(0,least(coalesce(r.retired_on,(m.month+interval '1"
+                        + " month')::date),(m.month+interval '1"
+                        + " month')::date)-greatest(r.opened_on,m.month::date)))"
+                        + " available_room_days,coalesce(sum((select"
+                        + " sum(greatest(0,least(coalesce(x.returned_at::date,(m.month+interval '1"
+                        + " month')::date),(m.month+interval '1"
+                        + " month')::date)-greatest(x.taken_at::date,m.month::date))) from"
+                        + " room_possessions x join contracts c on c.id=x.contract_id where"
+                        + " c.room_id=r.id)),0) occupied_room_days from properties p join rooms r on"
+                        + " r.property_id=p.id cross join"
+                        + " generate_series(date_trunc('month',current_date)-interval '11"
+                        + " months',date_trunc('month',current_date),interval '1 month') m(month) where"
+                        + " "
+                        + access.roomScope("r.id")
+                        + " group by p.id,p.name,m.month order by m.month,p.id");
+    }
+
+    @GetMapping("/reports/maintenance")
+    public Object maintenance() {
+        access.manager();
+        return db.rows(
+                "select to_char(m.created_at,'YYYY-MM') period,m.incident_type,m.status,count(*)"
+                        + " total,sum(m.actual_cost) cost from v_maintenance m where ("
+                        + access.roomScope("m.resolved_room_id")
+                        + " or can_manage_property("
+                        + access.user()
+                        + ",m.resolved_property_id)) group by period,m.incident_type,m.status order"
+                        + " by period");
+    }
+
+    @GetMapping(value = "/reports/debts.csv", produces = "text/csv;charset=UTF-8")
+    public String csv() {
+        @SuppressWarnings("unchecked")
+        var rows = (List<Map<String, Object>>) debts();
+        StringBuilder out =
+                new StringBuilder(
+                        "\uFEFFMã chứng từ,Kỳ,Phòng,Người thuê,Tổng,Đã phân bổ,Nợ,Hạn\r\n");
+        for (var r : rows) {
+            out.append(
+                            String.join(
+                                    ",",
+                                    r.values().stream()
+                                            .map(
+                                                    v -> {
+                                                        String s = Objects.toString(v, "");
+                                                        if (s.matches("^[=+@-].*")) {
+                                                            s = "'" + s;
+                                                        }
+                                                        return "\""
+                                                                + s.replace("\"", "\"\"")
+                                                                + "\"";
+                                                    })
+                                            .toList()))
+                    .append("\r\n");
+        }
+        return out.toString();
+    }
+
+    @GetMapping("/reports/pdf")
+    public ResponseEntity<byte[]> report() throws java.io.IOException {
+        @SuppressWarnings("unchecked")
+        var rows = (List<Map<String, Object>>) debts();
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header("Content-Disposition", "attachment; filename=debts.pdf")
+                .body(pdf.render("CÔNG NỢ ĐANG MỞ", rows.stream().map(Object::toString).toList()));
+    }
 }

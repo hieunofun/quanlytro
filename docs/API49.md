@@ -43,7 +43,7 @@ Tiếp nhận khách: gửi **một trong hai** `tenantId` (hồ sơ đã xác m
 | GET | `/contracts/{id}/funds` | Cọc, trả trước, số đang tạm giữ |
 | POST | `/fund-entries` | `code,entryType,amount,reason,fromFundId?,toFundId?,debitItemId?,creditItemId?,originalEntryId?` |
 | POST | `/fund-accounts/{id}/reconcile` | ADMIN: `verifiedBalance,reason`, chỉ quỹ PENDING |
-| POST | `/fund-accounts/{id}/refund` | `cashAccountId,code,amount,method?,occurredAt,paid=true,reason` |
+| POST | `/fund-accounts/{id}/refund` | `cashAccountId,code,amount,method?,occurredAt,paid=true,reason,externalReference?` |
 | GET/POST | `/fund-accounts/{id}/holds` | Tạo: `amount,reviewOn,reason,billingItemId?` |
 | POST | `/fund-holds/{id}/release` | `reason` |
 | POST | `/reservations/{id}/fund` | Mở quỹ giữ chỗ; nhận tiền bằng phiếu thu rồi chuyển từ UNAPPLIED |
@@ -68,6 +68,8 @@ Ví dụ thu 1 triệu cọc, chưa trả hóa đơn:
 ```
 
 `code` dùng chống gửi lại phiếu/bút toán cùng nội dung; mã đã dùng với nội dung khác bị từ chối. Không dùng lại mã thu của một hợp đồng cho hợp đồng khác.
+
+Hoàn tiền cũng kiểm tra phương thức, thời điểm và tham chiếu ngân hàng khi gửi lại. Khi trả sớm, quyết toán lập điều chỉnh cho tiền phòng và dịch vụ PRORATED đã phát hành, dùng ngày-người thực ở cho dịch vụ theo người; FULL_PERIOD/ONE_TIME giữ chế độ thu đã chọn. Phần phân bổ dư trở lại đúng nguồn quỹ, chưa có nghĩa đã chi hoàn.
 
 Từ V13, phiếu thu qua `/invoices/{id}/payments` lưu `payment_document_id`: không dùng lại cùng mã cho hóa đơn khác ngay cả trong cùng hợp đồng. Số tiền, phương thức, thời điểm và tham chiếu ngân hàng gửi lại phải khớp khoản gốc. Khi không gửi thời điểm, lần thử lại giữ thời điểm đã lưu. Hai mã yêu cầu khác nhau với cùng `externalReference` của tài khoản nhận không được tính tiền hai lần. Tiền thật và bút toán nhận tối đa hai chữ số thập phân; chỉ số tối đa ba chữ số, không âm.
 

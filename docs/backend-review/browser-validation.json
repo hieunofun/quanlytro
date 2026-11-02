@@ -1,0 +1,17 @@
+{
+  "validated_on": "2026-11-01",
+  "passed": true,
+  "scope": "Read-only browser review of API-seeded fictional data; not a complete UI-only creation flow",
+  "checks": [
+    "login",
+    "settlement A actual refund 230000",
+    "invoice B total 1763000",
+    "linked meter credit 35000",
+    "no JavaScript errors"
+  ],
+  "screenshots": [
+    "settlement-a.png",
+    "invoice-b.png",
+    "meter-correction.png"
+  ]
+}

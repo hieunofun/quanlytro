@@ -1,0 +1,160 @@
+// 06 · Sự cố và bảo trì — một phần của model49 / V13.
+// Bảng chính giữ đủ cột; bảng ngoài nhóm chỉ là THAM CHIẾU RÚT GỌN.
+// Chỉ gồm FK có bảng nguồn thuộc nhóm. Không mở rộng đệ quy từ bảng tham chiếu.
+// Không dùng file từng phần để tạo lại database.
+Project SuCo {
+  database_type: 'PostgreSQL'
+  Note: 'Sự cố và bảo trì: 4 bảng chính đầy đủ và 6 bảng tham chiếu rút gọn. 15 FK thật có bảng nguồn thuộc nhóm. Bảng xám chỉ hiện PK/cột đích FK và một mã/tên có thật để nhận diện; không phải toàn bộ định nghĩa bảng. Bản chuẩn đầy đủ: docs/quanlytro.dbml.'
+}
+
+Table maintenance_schedules [headercolor: #B45309] {
+  id bigint [pk, not null, increment]
+  asset_id bigint
+  room_id bigint
+  property_id bigint
+  title varchar(150) [not null]
+  interval_days integer [not null]
+  next_due date [not null]
+  is_active boolean [not null, default: true]
+  created_by bigint
+
+  checks {
+    `(num_nonnulls(asset_id, room_id, property_id) = 1)` [name: 'maintenance_schedules_check']
+    `(interval_days > 0)` [name: 'maintenance_schedules_interval_days_check']
+  }
+
+  Note: 'Lịch định kỳ, không ghi đè lịch sử lần đã làm'
+}
+
+Table maintenance_requests [headercolor: #B45309] {
+  id bigint [pk, not null, increment]
+  room_id bigint
+  property_id bigint
+  asset_placement_id bigint
+  schedule_id bigint
+  scheduled_for date
+  submitted_by bigint [not null]
+  assigned_to bigint
+  title varchar(150) [not null]
+  description text [not null]
+  priority varchar(20) [not null, default: 'NORMAL']
+  status varchar(20) [not null, default: 'NEW']
+  incident_type varchar(50) [not null, default: 'GENERAL']
+  expected_date date [not null]
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  indexes {
+    (schedule_id, scheduled_for) [name: 'maintenance_requests_schedule_id_scheduled_for_key', unique, type: btree]
+  }
+
+  checks {
+    `(num_nonnulls(room_id, property_id, asset_placement_id) = 1)` [name: 'maintenance_requests_check']
+    `((schedule_id IS NULL) = (scheduled_for IS NULL))` [name: 'maintenance_requests_check1']
+    `((priority)::text = ANY ((ARRAY['URGENT'::character varying, 'NORMAL'::character varying, 'LOW'::character varying])::text[]))` [name: 'maintenance_requests_priority_check']
+    `((status)::text = ANY ((ARRAY['NEW'::character varying, 'ACCEPTED'::character varying, 'IN_PROGRESS'::character varying, 'COMPLETED'::character varying, 'CANCELLED'::character varying])::text[]))` [name: 'maintenance_requests_status_check']
+  }
+
+  Note: 'Sự cố theo vị trí, không bắt có hợp đồng'
+}
+
+Table maintenance_events [headercolor: #B45309] {
+  id bigint [pk, not null, increment]
+  request_id bigint [not null]
+  action varchar(30) [not null]
+  actor_id bigint [not null]
+  note text [not null, default: '']
+  recorded_at timestamptz [not null, default: `clock_timestamp()`]
+
+  Note: 'Từng lần xử lý/giao việc/hoàn thành/tái phát'
+}
+
+Table maintenance_costs [headercolor: #B45309] {
+  id bigint [pk, not null, increment]
+  request_id bigint [not null]
+  description text [not null]
+  amount numeric(14,2) [not null]
+  incurred_on date [not null]
+  advanced_by_tenant_id bigint
+  recorded_by bigint [not null]
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  checks {
+    `(amount >= (0)::numeric)` [name: 'maintenance_costs_amount_check']
+  }
+
+  Note: 'Chi phí thực tế, không đồng nhất bồi thường'
+}
+
+// THAM CHIẾU: asset_placements — 1/7 cột thật.
+Table asset_placements [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 1/7 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: assets — 2/6 cột thật.
+Table assets [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  asset_code varchar(50) [not null, unique]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/6 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: properties — 2/9 cột thật.
+Table properties [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  property_code varchar(30) [not null, unique]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/9 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: rooms — 2/10 cột thật.
+Table rooms [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  room_code varchar(30) [not null]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/10 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: tenant_profiles — 2/9 cột thật.
+Table tenant_profiles [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  full_name varchar(150) [not null]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/9 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: users — 2/6 cột thật.
+Table users [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  username varchar(50) [not null, unique]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/6 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// FK có bảng nguồn trong nhóm
+Ref maintenance_costs_advanced_by_tenant_id_fkey: maintenance_costs.advanced_by_tenant_id >? tenant_profiles.id [delete: no action, update: no action]
+Ref maintenance_costs_recorded_by_fkey: maintenance_costs.recorded_by > users.id [delete: no action, update: no action]
+Ref maintenance_costs_request_id_fkey: maintenance_costs.request_id > maintenance_requests.id [delete: no action, update: no action]
+Ref maintenance_events_actor_id_fkey: maintenance_events.actor_id > users.id [delete: no action, update: no action]
+Ref maintenance_events_request_id_fkey: maintenance_events.request_id > maintenance_requests.id [delete: no action, update: no action]
+Ref maintenance_requests_asset_placement_id_fkey: maintenance_requests.asset_placement_id >? asset_placements.id [delete: no action, update: no action]
+Ref maintenance_requests_assigned_to_fkey: maintenance_requests.assigned_to >? users.id [delete: no action, update: no action]
+Ref maintenance_requests_property_id_fkey: maintenance_requests.property_id >? properties.id [delete: no action, update: no action]
+Ref maintenance_requests_room_id_fkey: maintenance_requests.room_id >? rooms.id [delete: no action, update: no action]
+Ref maintenance_requests_schedule_id_fkey: maintenance_requests.schedule_id >? maintenance_schedules.id [delete: no action, update: no action]
+Ref maintenance_requests_submitted_by_fkey: maintenance_requests.submitted_by > users.id [delete: no action, update: no action]
+Ref maintenance_schedules_asset_id_fkey: maintenance_schedules.asset_id >? assets.id [delete: no action, update: no action]
+Ref maintenance_schedules_created_by_fkey: maintenance_schedules.created_by >? users.id [delete: no action, update: no action]
+Ref maintenance_schedules_property_id_fkey: maintenance_schedules.property_id >? properties.id [delete: no action, update: no action]
+Ref maintenance_schedules_room_id_fkey: maintenance_schedules.room_id >? rooms.id [delete: no action, update: no action]
+
+TableGroup SuCo [color: #B45309] {
+  maintenance_schedules
+  maintenance_requests
+  maintenance_events
+  maintenance_costs
+}
+
+TableGroup ThamChieuRutGon [color: #64748B] {
+  asset_placements
+  assets
+  properties
+  rooms
+  tenant_profiles
+  users
+}

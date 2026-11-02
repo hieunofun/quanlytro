@@ -1,10 +1,10 @@
 {
-  "validated_on": "2026-10-30",
+  "validated_on": "2026-11-01",
   "schema": "V13-model49",
   "suites": [
     {
       "name": "com.hostel.BusinessIntegrityTests",
-      "tests": 29,
+      "tests": 32,
       "failures": 0,
       "errors": 0,
       "skipped": 0
@@ -94,7 +94,7 @@
       "skipped": 0
     }
   ],
-  "tests": 123,
+  "tests": 126,
   "failures": 0,
   "errors": 0,
   "scope_notes": [
@@ -104,18 +104,8 @@
     "Browser results from previous runs are not included as current evidence.",
     "These results do not certify production deployment, all real-world policies or migration of the user live database."
   ],
-  "current_model_tests": 61,
+  "current_model_tests": 64,
   "migration_tests": 8,
   "historical_and_unit_tests": 54,
-  "all_passed": true,
-  "packaged_smoke": {
-    "url": "http://127.0.0.1:8093",
-    "database": "hostel_review13_20261030",
-    "database_port": 55450,
-    "migration_version": 13,
-    "health": "UP",
-    "login_role": "ADMIN",
-    "jar_sha256": "26a3e8fa574b79cf654caab35407a06b38a0003d5566e3a2f1c691e8df97fd00",
-    "scope": "Fresh isolated database; packaged JAR health, login and authenticated profile. No live data migration or new browser acceptance run."
-  }
+  "all_passed": true
 }

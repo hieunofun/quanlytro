@@ -1,5 +1,11 @@
 # Backend và nghiệp vụ V13 — 30/10/2026
 
+> **Cập nhật 01/11/2026:** đã kiểm tra thêm luồng đổi khách giữa tháng, sửa dịch vụ chia ngày khi trả sớm và chống trùng tham chiếu hoàn tiền. Kết quả mới: **126 test Java và 20 ca SQL đạt**; có slide và bộ API minh chứng. Xem [báo cáo hiện hành](KIEM-CHUNG-BACKEND-2026-11-01.md). Số liệu ngày 30/10 bên dưới giữ làm lịch sử.
+
+> **Sơ đồ CSDL ngày 01/11:** [bản xem và tìm bảng](dbdiagram/index.html), [PDF](dbdiagram/quanlytro-database.pdf), [DBML](quanlytro.dbml). Xuất bằng dbdiagram.io từ PostgreSQL đang chạy; đủ 49 bảng, 455 cột, 151 FK. [Nguồn và kiểm chứng](dbdiagram/README.md).
+
+> **Bản chia theo nghiệp vụ để trình bày:** [8 phần độc lập](dbdiagram/modules/index.html), [tải 8 file PDF](dbdiagram/modules/8-so-do-nghiep-vu.zip). Bảng chính giữ đủ cột, bảng ngoài nhóm ghi rõ tham chiếu rút gọn. [Quy tắc phân nhóm và kết quả kiểm tra](dbdiagram/modules/README.md).
+
 Triển khai trên Spring Boot/Java 21/PostgreSQL hiện tại. Giữ 49 bảng; V13 thêm hai liên kết truy vết, không chuyển sang backend của dự án khác. Mã nguồn V13 đi kèm tài liệu này; chưa nâng cấp database đang sử dụng của người dùng.
 
 ## Phần đã triển khai
@@ -27,7 +33,7 @@ Metadata PostgreSQL thực thi: **49 bảng, 455 cột, 151 khóa ngoại, 132 C
 
 - [Migration V13](../src/main/resources/db/migration/V13__billing_integrity_and_receipt_intent.sql) nâng cấp từ V12; V1–V12 được giữ nguyên.
 - [DDL tạo mới](quanlytro.sql) + [quy tắc hiện hành](database-rules.sql) dùng cho database trống. Không chạy DDL này đè database có dữ liệu; ứng dụng nâng cấp bằng Flyway.
-- [DBML](quanlytro.dbml), [từ điển dữ liệu](TU-DIEN-DU-LIEU-49-BANG.md), [ERD SVG](diagrams/quanlytro-dbdiagram.svg), [ERD PDF](diagrams/quanlytro-dbdiagram.pdf).
+- [DBML](quanlytro.dbml), [từ điển dữ liệu](TU-DIEN-DU-LIEU-49-BANG.md), [ERD dbdiagram SVG](dbdiagram/quanlytro-dbdiagram.svg), [ERD PDF](dbdiagram/quanlytro-database.pdf).
 - [API V13](API49.md); tài liệu V10 chỉ dùng đối chiếu lịch sử.
 
 Đã đối chiếu schema OpenKOS về [phân bổ thanh toán](https://github.com/senatroxx/OpenKos/blob/aeb354411dad78de3f13e7856d43c849c65b389e/database/migrations/2026_07_11_133727_create_payment_allocations_table.php), [chuỗi chỉ số và nguồn điều chỉnh](https://github.com/senatroxx/OpenKos/blob/aeb354411dad78de3f13e7856d43c849c65b389e/database/migrations/2026_09_09_094617_create_utility_readings_table.php), [quyết toán cọc](https://github.com/senatroxx/OpenKos/blob/aeb354411dad78de3f13e7856d43c849c65b389e/database/migrations/2026_09_11_064836_create_deposit_settlements_table.php). Học việc tách nguồn và trạng thái; giữ mô hình sổ quỹ của bài để ghi đủ tiền thu dư và cọc thực nhận. Chính sách tiền dư/cấn quỹ đối chiếu [ADR-011 của LeaseBook](https://github.com/jwh3times/LeaseBook/blob/64a10ddefffbc2b0c02beb6bfbf7eb04518a5354/docs/adr/ADR-011-deposit-prepayment-over-application-policy.md). [Resident](https://resident.vn/) cung cấp đối chiếu quy trình chốt số → hóa đơn → thu/gạch nợ, chưa truy cập backend của nhà cung cấp.

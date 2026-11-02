@@ -1,0 +1,2933 @@
+{
+  "renderer": "dbdiagram.io",
+  "tablePositions": [
+    {
+      "name": "users",
+      "schemaName": "public",
+      "x": 0,
+      "y": 80
+    },
+    {
+      "name": "tenant_profiles",
+      "schemaName": "public",
+      "x": 359.02490234375,
+      "y": 80
+    },
+    {
+      "name": "employee_assignments",
+      "schemaName": "public",
+      "x": 704.86787109375,
+      "y": 80
+    },
+    {
+      "name": "staff_permission_grants",
+      "schemaName": "public",
+      "x": 0,
+      "y": 369
+    },
+    {
+      "name": "password_reset_tokens",
+      "schemaName": "public",
+      "x": 359.02490234375,
+      "y": 465
+    },
+    {
+      "name": "audit_events",
+      "schemaName": "public",
+      "x": 704.86787109375,
+      "y": 369
+    },
+    {
+      "name": "properties",
+      "schemaName": "public",
+      "x": 1333.2890625,
+      "y": 80
+    },
+    {
+      "name": "rooms",
+      "schemaName": "public",
+      "x": 1709.7275390625,
+      "y": 80
+    },
+    {
+      "name": "room_price_history",
+      "schemaName": "public",
+      "x": 2055.3544921875,
+      "y": 80
+    },
+    {
+      "name": "room_operating_periods",
+      "schemaName": "public",
+      "x": 1333.2890625,
+      "y": 465
+    },
+    {
+      "name": "asset_types",
+      "schemaName": "public",
+      "x": 1709.7275390625,
+      "y": 497
+    },
+    {
+      "name": "assets",
+      "schemaName": "public",
+      "x": 2055.3544921875,
+      "y": 369
+    },
+    {
+      "name": "asset_placements",
+      "schemaName": "public",
+      "x": 1333.2890625,
+      "y": 786
+    },
+    {
+      "name": "maintenance_schedules",
+      "schemaName": "public",
+      "x": 2616.060546875,
+      "y": 80
+    },
+    {
+      "name": "maintenance_requests",
+      "schemaName": "public",
+      "x": 2965.63525390625,
+      "y": 80
+    },
+    {
+      "name": "maintenance_events",
+      "schemaName": "public",
+      "x": 3321.869140625,
+      "y": 80
+    },
+    {
+      "name": "maintenance_costs",
+      "schemaName": "public",
+      "x": 2616.060546875,
+      "y": 465
+    },
+    {
+      "name": "reservations",
+      "schemaName": "public",
+      "x": 0,
+      "y": 1797
+    },
+    {
+      "name": "contracts",
+      "schemaName": "public",
+      "x": 390.77587890625,
+      "y": 1797
+    },
+    {
+      "name": "contract_parties",
+      "schemaName": "public",
+      "x": 786.48583984375,
+      "y": 1797
+    },
+    {
+      "name": "contract_contacts",
+      "schemaName": "public",
+      "x": 0,
+      "y": 2310
+    },
+    {
+      "name": "contract_residencies",
+      "schemaName": "public",
+      "x": 390.77587890625,
+      "y": 2246
+    },
+    {
+      "name": "contract_terms",
+      "schemaName": "public",
+      "x": 786.48583984375,
+      "y": 2118
+    },
+    {
+      "name": "room_possessions",
+      "schemaName": "public",
+      "x": 0,
+      "y": 2663
+    },
+    {
+      "name": "move_out_notices",
+      "schemaName": "public",
+      "x": 390.77587890625,
+      "y": 2567
+    },
+    {
+      "name": "handovers",
+      "schemaName": "public",
+      "x": 786.48583984375,
+      "y": 2695
+    },
+    {
+      "name": "handover_items",
+      "schemaName": "public",
+      "x": 0,
+      "y": 2952
+    },
+    {
+      "name": "contract_violations",
+      "schemaName": "public",
+      "x": 390.77587890625,
+      "y": 2920
+    },
+    {
+      "name": "checkout_records",
+      "schemaName": "public",
+      "x": 786.48583984375,
+      "y": 3176
+    },
+    {
+      "name": "service_items",
+      "schemaName": "public",
+      "x": 1333.2890625,
+      "y": 1797
+    },
+    {
+      "name": "service_price_configs",
+      "schemaName": "public",
+      "x": 1740.9580078125,
+      "y": 1797
+    },
+    {
+      "name": "contract_service_subscriptions",
+      "schemaName": "public",
+      "x": 2122.42138671875,
+      "y": 1797
+    },
+    {
+      "name": "meters",
+      "schemaName": "public",
+      "x": 1333.2890625,
+      "y": 2118
+    },
+    {
+      "name": "meter_readings",
+      "schemaName": "public",
+      "x": 1740.9580078125,
+      "y": 2118
+    },
+    {
+      "name": "consumption_segments",
+      "schemaName": "public",
+      "x": 2122.42138671875,
+      "y": 2150
+    },
+    {
+      "name": "alert_policies",
+      "schemaName": "public",
+      "x": 1333.2890625,
+      "y": 2439
+    },
+    {
+      "name": "consumption_alerts",
+      "schemaName": "public",
+      "x": 1740.9580078125,
+      "y": 2599
+    },
+    {
+      "name": "alert_baseline_sources",
+      "schemaName": "public",
+      "x": 2122.42138671875,
+      "y": 2503
+    },
+    {
+      "name": "billing_documents",
+      "schemaName": "public",
+      "x": 2616.060546875,
+      "y": 1797
+    },
+    {
+      "name": "billing_items",
+      "schemaName": "public",
+      "x": 2991.33173828125,
+      "y": 1797
+    },
+    {
+      "name": "cash_accounts",
+      "schemaName": "public",
+      "x": 3387.04169921875,
+      "y": 1797
+    },
+    {
+      "name": "cash_transactions",
+      "schemaName": "public",
+      "x": 2616.060546875,
+      "y": 2406
+    },
+    {
+      "name": "fund_accounts",
+      "schemaName": "public",
+      "x": 2991.33173828125,
+      "y": 2662
+    },
+    {
+      "name": "fund_entries",
+      "schemaName": "public",
+      "x": 3387.04169921875,
+      "y": 2086
+    },
+    {
+      "name": "fund_holds",
+      "schemaName": "public",
+      "x": 2616.060546875,
+      "y": 3047
+    },
+    {
+      "name": "notifications",
+      "schemaName": "public",
+      "x": 0,
+      "y": 953
+    },
+    {
+      "name": "notification_recipients",
+      "schemaName": "public",
+      "x": 389.6740234375,
+      "y": 953
+    },
+    {
+      "name": "stored_files",
+      "schemaName": "public",
+      "x": 2616.060546875,
+      "y": 953
+    },
+    {
+      "name": "file_attachments",
+      "schemaName": "public",
+      "x": 2970.30830078125,
+      "y": 953
+    }
+  ],
+  "groups": [
+    {
+      "group": "TaiKhoan",
+      "title": "01 · Tài khoản và phân quyền",
+      "x": 0,
+      "y": 0,
+      "width": 962.89423828125,
+      "height": 753
+    },
+    {
+      "group": "NhaTro",
+      "title": "02 · Nhà trọ và tài sản",
+      "x": 1333.2890625,
+      "y": 0,
+      "width": 974.4423828125,
+      "height": 1042
+    },
+    {
+      "group": "SuCo",
+      "title": "06 · Sự cố và bảo trì",
+      "x": 2616.060546875,
+      "y": 0,
+      "width": 963.8349609375,
+      "height": 753
+    },
+    {
+      "group": "CuTru",
+      "title": "03 · Hợp đồng và cư trú",
+      "x": 0,
+      "y": 1717,
+      "width": 1113.2890625,
+      "height": 1843
+    },
+    {
+      "group": "DienNuoc",
+      "title": "04 · Dịch vụ và điện nước",
+      "x": 1333.2890625,
+      "y": 1717,
+      "width": 1062.771484375,
+      "height": 1298
+    },
+    {
+      "group": "TaiChinh",
+      "title": "05 · Hóa đơn và dòng tiền",
+      "x": 2616.060546875,
+      "y": 1717,
+      "width": 1036.75234375,
+      "height": 1650
+    },
+    {
+      "group": "ThongBao",
+      "title": "07 · Thông báo",
+      "x": 0,
+      "y": 873,
+      "width": 625.9533203125,
+      "height": 464
+    },
+    {
+      "group": "Tep",
+      "title": "08 · Tệp đính kèm",
+      "x": 2616.060546875,
+      "y": 873,
+      "width": 617.16767578125,
+      "height": 624
+    }
+  ],
+  "diagramViz": {
+    "tablePositions": [
+      {
+        "name": "users",
+        "schemaName": "public",
+        "x": 0,
+        "y": 80
+      },
+      {
+        "name": "tenant_profiles",
+        "schemaName": "public",
+        "x": 359.02490234375,
+        "y": 80
+      },
+      {
+        "name": "employee_assignments",
+        "schemaName": "public",
+        "x": 704.86787109375,
+        "y": 80
+      },
+      {
+        "name": "staff_permission_grants",
+        "schemaName": "public",
+        "x": 0,
+        "y": 369
+      },
+      {
+        "name": "password_reset_tokens",
+        "schemaName": "public",
+        "x": 359.02490234375,
+        "y": 465
+      },
+      {
+        "name": "audit_events",
+        "schemaName": "public",
+        "x": 704.86787109375,
+        "y": 369
+      },
+      {
+        "name": "properties",
+        "schemaName": "public",
+        "x": 1333.2890625,
+        "y": 80
+      },
+      {
+        "name": "rooms",
+        "schemaName": "public",
+        "x": 1709.7275390625,
+        "y": 80
+      },
+      {
+        "name": "room_price_history",
+        "schemaName": "public",
+        "x": 2055.3544921875,
+        "y": 80
+      },
+      {
+        "name": "room_operating_periods",
+        "schemaName": "public",
+        "x": 1333.2890625,
+        "y": 465
+      },
+      {
+        "name": "asset_types",
+        "schemaName": "public",
+        "x": 1709.7275390625,
+        "y": 497
+      },
+      {
+        "name": "assets",
+        "schemaName": "public",
+        "x": 2055.3544921875,
+        "y": 369
+      },
+      {
+        "name": "asset_placements",
+        "schemaName": "public",
+        "x": 1333.2890625,
+        "y": 786
+      },
+      {
+        "name": "reservations",
+        "schemaName": "public",
+        "x": 0,
+        "y": 1797
+      },
+      {
+        "name": "contracts",
+        "schemaName": "public",
+        "x": 390.77587890625,
+        "y": 1797
+      },
+      {
+        "name": "contract_parties",
+        "schemaName": "public",
+        "x": 786.48583984375,
+        "y": 1797
+      },
+      {
+        "name": "contract_contacts",
+        "schemaName": "public",
+        "x": 0,
+        "y": 2310
+      },
+      {
+        "name": "contract_residencies",
+        "schemaName": "public",
+        "x": 390.77587890625,
+        "y": 2246
+      },
+      {
+        "name": "contract_terms",
+        "schemaName": "public",
+        "x": 786.48583984375,
+        "y": 2118
+      },
+      {
+        "name": "room_possessions",
+        "schemaName": "public",
+        "x": 0,
+        "y": 2663
+      },
+      {
+        "name": "move_out_notices",
+        "schemaName": "public",
+        "x": 390.77587890625,
+        "y": 2567
+      },
+      {
+        "name": "handovers",
+        "schemaName": "public",
+        "x": 786.48583984375,
+        "y": 2695
+      },
+      {
+        "name": "handover_items",
+        "schemaName": "public",
+        "x": 0,
+        "y": 2952
+      },
+      {
+        "name": "contract_violations",
+        "schemaName": "public",
+        "x": 390.77587890625,
+        "y": 2920
+      },
+      {
+        "name": "checkout_records",
+        "schemaName": "public",
+        "x": 786.48583984375,
+        "y": 3176
+      },
+      {
+        "name": "service_items",
+        "schemaName": "public",
+        "x": 1333.2890625,
+        "y": 1797
+      },
+      {
+        "name": "service_price_configs",
+        "schemaName": "public",
+        "x": 1740.9580078125,
+        "y": 1797
+      },
+      {
+        "name": "contract_service_subscriptions",
+        "schemaName": "public",
+        "x": 2122.42138671875,
+        "y": 1797
+      },
+      {
+        "name": "meters",
+        "schemaName": "public",
+        "x": 1333.2890625,
+        "y": 2118
+      },
+      {
+        "name": "meter_readings",
+        "schemaName": "public",
+        "x": 1740.9580078125,
+        "y": 2118
+      },
+      {
+        "name": "consumption_segments",
+        "schemaName": "public",
+        "x": 2122.42138671875,
+        "y": 2150
+      },
+      {
+        "name": "alert_policies",
+        "schemaName": "public",
+        "x": 1333.2890625,
+        "y": 2439
+      },
+      {
+        "name": "consumption_alerts",
+        "schemaName": "public",
+        "x": 1740.9580078125,
+        "y": 2599
+      },
+      {
+        "name": "alert_baseline_sources",
+        "schemaName": "public",
+        "x": 2122.42138671875,
+        "y": 2503
+      },
+      {
+        "name": "billing_documents",
+        "schemaName": "public",
+        "x": 2616.060546875,
+        "y": 1797
+      },
+      {
+        "name": "billing_items",
+        "schemaName": "public",
+        "x": 2991.33173828125,
+        "y": 1797
+      },
+      {
+        "name": "cash_accounts",
+        "schemaName": "public",
+        "x": 3387.04169921875,
+        "y": 1797
+      },
+      {
+        "name": "cash_transactions",
+        "schemaName": "public",
+        "x": 2616.060546875,
+        "y": 2406
+      },
+      {
+        "name": "fund_accounts",
+        "schemaName": "public",
+        "x": 2991.33173828125,
+        "y": 2662
+      },
+      {
+        "name": "fund_entries",
+        "schemaName": "public",
+        "x": 3387.04169921875,
+        "y": 2086
+      },
+      {
+        "name": "fund_holds",
+        "schemaName": "public",
+        "x": 2616.060546875,
+        "y": 3047
+      },
+      {
+        "name": "maintenance_schedules",
+        "schemaName": "public",
+        "x": 2616.060546875,
+        "y": 80
+      },
+      {
+        "name": "maintenance_requests",
+        "schemaName": "public",
+        "x": 2965.63525390625,
+        "y": 80
+      },
+      {
+        "name": "maintenance_events",
+        "schemaName": "public",
+        "x": 3321.869140625,
+        "y": 80
+      },
+      {
+        "name": "maintenance_costs",
+        "schemaName": "public",
+        "x": 2616.060546875,
+        "y": 465
+      },
+      {
+        "name": "notifications",
+        "schemaName": "public",
+        "x": 0,
+        "y": 953
+      },
+      {
+        "name": "notification_recipients",
+        "schemaName": "public",
+        "x": 389.6740234375,
+        "y": 953
+      },
+      {
+        "name": "stored_files",
+        "schemaName": "public",
+        "x": 2616.060546875,
+        "y": 953
+      },
+      {
+        "name": "file_attachments",
+        "schemaName": "public",
+        "x": 2970.30830078125,
+        "y": 953
+      }
+    ],
+    "tableGroupCollapseStates": [],
+    "stickyNoteLayouts": [],
+    "referencePaths": [
+      {
+        "firstFieldNames": [
+          "alert_id"
+        ],
+        "firstTableName": "alert_baseline_sources",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "consumption_alerts",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "source_segment_id"
+        ],
+        "firstTableName": "alert_baseline_sources",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "consumption_segments",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "property_id"
+        ],
+        "firstTableName": "alert_policies",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "properties",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "room_id"
+        ],
+        "firstTableName": "alert_policies",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "rooms",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "service_item_id"
+        ],
+        "firstTableName": "alert_policies",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "service_items",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "asset_id"
+        ],
+        "firstTableName": "asset_placements",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "assets",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "property_id"
+        ],
+        "firstTableName": "asset_placements",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "properties",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "recorded_by"
+        ],
+        "firstTableName": "asset_placements",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "room_id"
+        ],
+        "firstTableName": "asset_placements",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "rooms",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "asset_type_id"
+        ],
+        "firstTableName": "assets",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "asset_types",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "actor_user_id"
+        ],
+        "firstTableName": "audit_events",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "checkout_id"
+        ],
+        "firstTableName": "billing_documents",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "checkout_records",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "contract_id"
+        ],
+        "firstTableName": "billing_documents",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "contracts",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "created_by"
+        ],
+        "firstTableName": "billing_documents",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "issued_by"
+        ],
+        "firstTableName": "billing_documents",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "related_document_id"
+        ],
+        "firstTableName": "billing_documents",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "billing_documents",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "reservation_id"
+        ],
+        "firstTableName": "billing_documents",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "reservations",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "adjusts_item_id"
+        ],
+        "firstTableName": "billing_items",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "billing_items",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "contract_term_id"
+        ],
+        "firstTableName": "billing_items",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "contract_terms",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "document_id"
+        ],
+        "firstTableName": "billing_items",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "billing_documents",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "handover_item_id"
+        ],
+        "firstTableName": "billing_items",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "handover_items",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "maintenance_cost_id"
+        ],
+        "firstTableName": "billing_items",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "maintenance_costs",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "segment_id"
+        ],
+        "firstTableName": "billing_items",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "consumption_segments",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "service_price_config_id"
+        ],
+        "firstTableName": "billing_items",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "service_price_configs",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "subscription_id"
+        ],
+        "firstTableName": "billing_items",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "contract_service_subscriptions",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "violation_id"
+        ],
+        "firstTableName": "billing_items",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "contract_violations",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "property_id"
+        ],
+        "firstTableName": "cash_accounts",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "properties",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "cash_account_id"
+        ],
+        "firstTableName": "cash_transactions",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "cash_accounts",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "confirmed_by"
+        ],
+        "firstTableName": "cash_transactions",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "payer_or_payee_id"
+        ],
+        "firstTableName": "cash_transactions",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "tenant_profiles",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "payment_document_id"
+        ],
+        "firstTableName": "cash_transactions",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "billing_documents",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "recorded_by"
+        ],
+        "firstTableName": "cash_transactions",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "approved_by"
+        ],
+        "firstTableName": "checkout_records",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "contract_id"
+        ],
+        "firstTableName": "checkout_records",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "contracts",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "return_handover_id"
+        ],
+        "firstTableName": "checkout_records",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "handovers",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "checked_by"
+        ],
+        "firstTableName": "consumption_alerts",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "policy_id"
+        ],
+        "firstTableName": "consumption_alerts",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "alert_policies",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "segment_id"
+        ],
+        "firstTableName": "consumption_alerts",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "consumption_segments",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "consumption_alerts",
+        "firstSchemaName": "public",
+        "firstRelation": "0..1",
+        "secondFieldNames": [
+          "supersedes_alert_id"
+        ],
+        "secondTableName": "consumption_alerts",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "contract_id"
+        ],
+        "firstTableName": "consumption_segments",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "contracts",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "end_reading_id"
+        ],
+        "firstTableName": "consumption_segments",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "meter_readings",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "recorded_by"
+        ],
+        "firstTableName": "consumption_segments",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "start_reading_id"
+        ],
+        "firstTableName": "consumption_segments",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "meter_readings",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "consumption_segments",
+        "firstSchemaName": "public",
+        "firstRelation": "0..1",
+        "secondFieldNames": [
+          "supersedes_segment_id"
+        ],
+        "secondTableName": "consumption_segments",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "authorized_by"
+        ],
+        "firstTableName": "contract_contacts",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "contract_id"
+        ],
+        "firstTableName": "contract_contacts",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "contracts",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "tenant_id"
+        ],
+        "firstTableName": "contract_contacts",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "tenant_profiles",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "contract_id"
+        ],
+        "firstTableName": "contract_parties",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "contracts",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "tenant_id"
+        ],
+        "firstTableName": "contract_parties",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "tenant_profiles",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "contract_id"
+        ],
+        "firstTableName": "contract_residencies",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "contracts",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "recorded_by"
+        ],
+        "firstTableName": "contract_residencies",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "tenant_id"
+        ],
+        "firstTableName": "contract_residencies",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "tenant_profiles",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "contract_id"
+        ],
+        "firstTableName": "contract_service_subscriptions",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "contracts",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "recorded_by"
+        ],
+        "firstTableName": "contract_service_subscriptions",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "service_item_id"
+        ],
+        "firstTableName": "contract_service_subscriptions",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "service_items",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "approved_by"
+        ],
+        "firstTableName": "contract_terms",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "contract_id"
+        ],
+        "firstTableName": "contract_terms",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "contracts",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "contract_id"
+        ],
+        "firstTableName": "contract_violations",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "contracts",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "created_by"
+        ],
+        "firstTableName": "contract_violations",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "created_by"
+        ],
+        "firstTableName": "contracts",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "previous_contract_id"
+        ],
+        "firstTableName": "contracts",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "contracts",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "reservations",
+        "firstSchemaName": "public",
+        "firstRelation": "0..1",
+        "secondFieldNames": [
+          "reservation_id"
+        ],
+        "secondTableName": "contracts",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "room_id"
+        ],
+        "firstTableName": "contracts",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "rooms",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "property_id"
+        ],
+        "firstTableName": "employee_assignments",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "properties",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "room_id"
+        ],
+        "firstTableName": "employee_assignments",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "rooms",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "user_id"
+        ],
+        "firstTableName": "employee_assignments",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "asset_id"
+        ],
+        "firstTableName": "file_attachments",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "assets",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "attached_by"
+        ],
+        "firstTableName": "file_attachments",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "billing_document_id"
+        ],
+        "firstTableName": "file_attachments",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "billing_documents",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "contract_term_id"
+        ],
+        "firstTableName": "file_attachments",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "contract_terms",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "file_id"
+        ],
+        "firstTableName": "file_attachments",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "stored_files",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "fund_entry_id"
+        ],
+        "firstTableName": "file_attachments",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "fund_entries",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "handover_item_id"
+        ],
+        "firstTableName": "file_attachments",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "handover_items",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "maintenance_cost_id"
+        ],
+        "firstTableName": "file_attachments",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "maintenance_costs",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "maintenance_request_id"
+        ],
+        "firstTableName": "file_attachments",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "maintenance_requests",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "meter_reading_id"
+        ],
+        "firstTableName": "file_attachments",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "meter_readings",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "room_id"
+        ],
+        "firstTableName": "file_attachments",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "rooms",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "violation_id"
+        ],
+        "firstTableName": "file_attachments",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "contract_violations",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "beneficiary_tenant_id"
+        ],
+        "firstTableName": "fund_accounts",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "tenant_profiles",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "contract_id"
+        ],
+        "firstTableName": "fund_accounts",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "contracts",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "reservation_id"
+        ],
+        "firstTableName": "fund_accounts",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "reservations",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "cash_transactions",
+        "firstSchemaName": "public",
+        "firstRelation": "0..1",
+        "secondFieldNames": [
+          "unapplied_receipt_id"
+        ],
+        "secondTableName": "fund_accounts",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "cash_transaction_id"
+        ],
+        "firstTableName": "fund_entries",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "cash_transactions",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "credit_item_id"
+        ],
+        "firstTableName": "fund_entries",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "billing_items",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "debit_item_id"
+        ],
+        "firstTableName": "fund_entries",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "billing_items",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "from_fund_id"
+        ],
+        "firstTableName": "fund_entries",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "fund_accounts",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "original_entry_id"
+        ],
+        "firstTableName": "fund_entries",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "fund_entries",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "posted_by"
+        ],
+        "firstTableName": "fund_entries",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "to_fund_id"
+        ],
+        "firstTableName": "fund_entries",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "fund_accounts",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "created_by"
+        ],
+        "firstTableName": "fund_holds",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "fund_account_id"
+        ],
+        "firstTableName": "fund_holds",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "fund_accounts",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "related_billing_item_id"
+        ],
+        "firstTableName": "fund_holds",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "billing_items",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "asset_placement_id"
+        ],
+        "firstTableName": "handover_items",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "asset_placements",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "handover_id"
+        ],
+        "firstTableName": "handover_items",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "handovers",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "confirmed_by"
+        ],
+        "firstTableName": "handovers",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "contract_id"
+        ],
+        "firstTableName": "handovers",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "contracts",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "given_by"
+        ],
+        "firstTableName": "handovers",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "possession_id"
+        ],
+        "firstTableName": "handovers",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "room_possessions",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "received_by_tenant_id"
+        ],
+        "firstTableName": "handovers",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "tenant_profiles",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "advanced_by_tenant_id"
+        ],
+        "firstTableName": "maintenance_costs",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "tenant_profiles",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "recorded_by"
+        ],
+        "firstTableName": "maintenance_costs",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "request_id"
+        ],
+        "firstTableName": "maintenance_costs",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "maintenance_requests",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "actor_id"
+        ],
+        "firstTableName": "maintenance_events",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "request_id"
+        ],
+        "firstTableName": "maintenance_events",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "maintenance_requests",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "asset_placement_id"
+        ],
+        "firstTableName": "maintenance_requests",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "asset_placements",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "assigned_to"
+        ],
+        "firstTableName": "maintenance_requests",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "property_id"
+        ],
+        "firstTableName": "maintenance_requests",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "properties",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "room_id"
+        ],
+        "firstTableName": "maintenance_requests",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "rooms",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "schedule_id"
+        ],
+        "firstTableName": "maintenance_requests",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "maintenance_schedules",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "submitted_by"
+        ],
+        "firstTableName": "maintenance_requests",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "asset_id"
+        ],
+        "firstTableName": "maintenance_schedules",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "assets",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "created_by"
+        ],
+        "firstTableName": "maintenance_schedules",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "property_id"
+        ],
+        "firstTableName": "maintenance_schedules",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "properties",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "room_id"
+        ],
+        "firstTableName": "maintenance_schedules",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "rooms",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "billing_items",
+        "firstSchemaName": "public",
+        "firstRelation": "0..1",
+        "secondFieldNames": [
+          "correction_item_id"
+        ],
+        "secondTableName": "meter_readings",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "handover_id"
+        ],
+        "firstTableName": "meter_readings",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "handovers",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "meter_id"
+        ],
+        "firstTableName": "meter_readings",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "meters",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "recorded_by"
+        ],
+        "firstTableName": "meter_readings",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "meter_readings",
+        "firstSchemaName": "public",
+        "firstRelation": "0..1",
+        "secondFieldNames": [
+          "supersedes_reading_id"
+        ],
+        "secondTableName": "meter_readings",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "recorded_by"
+        ],
+        "firstTableName": "meters",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "room_id"
+        ],
+        "firstTableName": "meters",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "rooms",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "service_item_id"
+        ],
+        "firstTableName": "meters",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "service_items",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "contract_id"
+        ],
+        "firstTableName": "move_out_notices",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "contracts",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "submitted_by"
+        ],
+        "firstTableName": "move_out_notices",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "supersedes_notice_id"
+        ],
+        "firstTableName": "move_out_notices",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "move_out_notices",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "notification_id"
+        ],
+        "firstTableName": "notification_recipients",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "notifications",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "user_id"
+        ],
+        "firstTableName": "notification_recipients",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "billing_document_id"
+        ],
+        "firstTableName": "notifications",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "billing_documents",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "consumption_alert_id"
+        ],
+        "firstTableName": "notifications",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "consumption_alerts",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "contract_id"
+        ],
+        "firstTableName": "notifications",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "contracts",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "created_by"
+        ],
+        "firstTableName": "notifications",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "maintenance_request_id"
+        ],
+        "firstTableName": "notifications",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "maintenance_requests",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "issued_by"
+        ],
+        "firstTableName": "password_reset_tokens",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "user_id"
+        ],
+        "firstTableName": "password_reset_tokens",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "created_by"
+        ],
+        "firstTableName": "reservations",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "room_id"
+        ],
+        "firstTableName": "reservations",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "rooms",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "tenant_id"
+        ],
+        "firstTableName": "reservations",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "tenant_profiles",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "recorded_by"
+        ],
+        "firstTableName": "room_operating_periods",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "room_id"
+        ],
+        "firstTableName": "room_operating_periods",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "rooms",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "contract_id"
+        ],
+        "firstTableName": "room_possessions",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "contracts",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "recorded_by"
+        ],
+        "firstTableName": "room_possessions",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "recorded_by"
+        ],
+        "firstTableName": "room_price_history",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "room_id"
+        ],
+        "firstTableName": "room_price_history",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "rooms",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "property_id"
+        ],
+        "firstTableName": "rooms",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "properties",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "property_id"
+        ],
+        "firstTableName": "service_price_configs",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "properties",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "recorded_by"
+        ],
+        "firstTableName": "service_price_configs",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "0..1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "service_item_id"
+        ],
+        "firstTableName": "service_price_configs",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "service_items",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "assignment_id"
+        ],
+        "firstTableName": "staff_permission_grants",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "employee_assignments",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "granted_by"
+        ],
+        "firstTableName": "staff_permission_grants",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "uploaded_by"
+        ],
+        "firstTableName": "stored_files",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "users",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "users",
+        "firstSchemaName": "public",
+        "firstRelation": "0..1",
+        "secondFieldNames": [
+          "user_id"
+        ],
+        "secondTableName": "tenant_profiles",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      }
+    ],
+    "diagramRelationshipMode": "All"
+  }
+}

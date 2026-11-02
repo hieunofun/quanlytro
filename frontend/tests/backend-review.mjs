@@ -1,0 +1,32 @@
+import {chromium} from 'playwright';
+import {readFile,mkdir,writeFile} from 'node:fs/promises';
+import {fileURLToPath} from 'node:url';
+import assert from 'node:assert/strict';
+const evidence=JSON.parse(await readFile(new URL('../../docs/backend-review/demo-evidence.json',import.meta.url),'utf8'));
+const out=fileURLToPath(new URL('../../.runtime/backend-review-browser/',import.meta.url));await mkdir(out,{recursive:true});
+const browser=await chromium.launch({channel:'chrome',headless:true});
+const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
+try{
+ await page.goto(evidence.base_url);
+ await page.getByLabel('Tên đăng nhập').fill('admin');await page.getByLabel('Mật khẩu',{exact:true}).fill(process.env.ADMIN_PASSWORD||'ReviewAdmin49#2026');
+ await page.getByRole('button',{name:'Đăng nhập',exact:true}).click();await page.locator('.sidebar').waitFor();
+ const nav=async name=>{await page.locator('nav').getByRole('button',{name,exact:true}).click();await page.getByRole('heading',{level:1,name,exact:true}).waitFor();await page.getByText('Đang tải dữ liệu…',{exact:true}).waitFor({state:'hidden'});};
+ await nav('Hợp đồng');
+ await page.getByRole('row').filter({has:page.getByText(evidence.prefix+'-A',{exact:true})}).getByRole('button',{name:'Xem',exact:true}).click();
+ await page.getByRole('heading',{name:'Quyết toán trả phòng',exact:true}).waitFor();
+ await page.screenshot({path:out+'settlement-a.png',fullPage:true});
+ const settlement=page.getByRole('region',{name:'Quyết toán trả phòng'});assert.match(await settlement.innerText(),/230[.,]000/);
+ await nav('Hóa đơn');
+ const bCode='INV-'+evidence.contracts.b+'-2026-01-01';
+ await page.getByRole('row').filter({has:page.getByText(bCode,{exact:true})}).getByRole('button',{name:'Xem',exact:true}).click();
+ await page.getByRole('heading',{name:'Chi tiết cách tính',exact:true}).waitFor();await page.screenshot({path:out+'invoice-b.png',fullPage:true});
+ assert.match(await page.locator('body').innerText(),/1[.,]763[.,]000/);
+ await nav('Hóa đơn');
+ await page.getByRole('row').filter({has:page.getByText(evidence.prefix+'-ELEC-C',{exact:true})}).getByRole('button',{name:'Xem',exact:true}).click();
+ await page.getByRole('heading',{name:'Chứng từ điều chỉnh liên quan',exact:true}).waitFor();
+ await page.screenshot({path:out+'meter-correction.png',fullPage:true});
+ assert.match(await page.locator('body').innerText(),/35[.,]000/);
+ assert.equal(await page.locator('.banner.error').count(),0);assert.deepEqual(errors,[]);
+ const result={validated_on:'2026-11-01',passed:true,scope:'Read-only browser review of API-seeded fictional data; not a complete UI-only creation flow',checks:['login','settlement A actual refund 230000','invoice B total 1763000','linked meter credit 35000','no JavaScript errors'],screenshots:['settlement-a.png','invoice-b.png','meter-correction.png']};
+ await writeFile(new URL('../../docs/backend-review/browser-validation.json',import.meta.url),JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result));
+}catch(error){await page.screenshot({path:out+'failure.png',fullPage:true});throw error;}finally{await browser.close();}

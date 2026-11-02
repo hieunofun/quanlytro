@@ -1,0 +1,98 @@
+// 07 · Thông báo — một phần của model49 / V13.
+// Bảng chính giữ đủ cột; bảng ngoài nhóm chỉ là THAM CHIẾU RÚT GỌN.
+// Chỉ gồm FK có bảng nguồn thuộc nhóm. Không mở rộng đệ quy từ bảng tham chiếu.
+// Không dùng file từng phần để tạo lại database.
+Project ThongBao {
+  database_type: 'PostgreSQL'
+  Note: 'Thông báo: 2 bảng chính đầy đủ và 5 bảng tham chiếu rút gọn. 7 FK thật có bảng nguồn thuộc nhóm. Bảng xám chỉ hiện PK/cột đích FK và một mã/tên có thật để nhận diện; không phải toàn bộ định nghĩa bảng. Bản chuẩn đầy đủ: docs/quanlytro.dbml.'
+}
+
+Table notifications [headercolor: #BE185D] {
+  id bigint [pk, not null, increment]
+  notification_type varchar(40) [not null]
+  title varchar(200) [not null]
+  body text [not null]
+  billing_document_id bigint
+  contract_id bigint
+  maintenance_request_id bigint
+  consumption_alert_id bigint
+  deduplication_key varchar(180) [not null, unique]
+  created_by bigint
+  sent_at timestamptz [not null, default: `clock_timestamp()`]
+
+  checks {
+    `(num_nonnulls(billing_document_id, contract_id, maintenance_request_id, consumption_alert_id) <= 1)` [name: 'notifications_check']
+  }
+
+  Note: 'Sự kiện thông báo có nguồn và khóa chống lặp'
+}
+
+Table notification_recipients [headercolor: #BE185D] {
+  id bigint [pk, not null, increment]
+  notification_id bigint [not null]
+  user_id bigint [not null]
+  read_at timestamptz
+
+  indexes {
+    (notification_id, user_id) [name: 'notification_recipients_notification_id_user_id_key', unique, type: btree]
+  }
+
+  Note: 'Trạng thái đọc riêng từng tài khoản'
+}
+
+// THAM CHIẾU: billing_documents — 2/16 cột thật.
+Table billing_documents [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  document_code varchar(80) [not null, unique]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/16 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: consumption_alerts — 2/12 cột thật.
+Table consumption_alerts [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  status varchar(30) [not null, default: 'PENDING']
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/12 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: contracts — 2/11 cột thật.
+Table contracts [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  contract_code varchar(60) [not null, unique]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/11 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: maintenance_requests — 2/15 cột thật.
+Table maintenance_requests [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  title varchar(150) [not null]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/15 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: users — 2/6 cột thật.
+Table users [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  username varchar(50) [not null, unique]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/6 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// FK có bảng nguồn trong nhóm
+Ref notification_recipients_notification_id_fkey: notification_recipients.notification_id > notifications.id [delete: no action, update: no action]
+Ref notification_recipients_user_id_fkey: notification_recipients.user_id > users.id [delete: no action, update: no action]
+Ref notifications_billing_document_id_fkey: notifications.billing_document_id >? billing_documents.id [delete: no action, update: no action]
+Ref notifications_consumption_alert_id_fkey: notifications.consumption_alert_id >? consumption_alerts.id [delete: no action, update: no action]
+Ref notifications_contract_id_fkey: notifications.contract_id >? contracts.id [delete: no action, update: no action]
+Ref notifications_created_by_fkey: notifications.created_by >? users.id [delete: no action, update: no action]
+Ref notifications_maintenance_request_id_fkey: notifications.maintenance_request_id >? maintenance_requests.id [delete: no action, update: no action]
+
+TableGroup ThongBao [color: #BE185D] {
+  notifications
+  notification_recipients
+}
+
+TableGroup ThamChieuRutGon [color: #64748B] {
+  billing_documents
+  consumption_alerts
+  contracts
+  maintenance_requests
+  users
+}

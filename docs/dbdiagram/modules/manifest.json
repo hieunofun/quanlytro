@@ -1,0 +1,1130 @@
+{
+  "schema": "V13-model49",
+  "schema_verified_on": "2026-11-01",
+  "canonical_dbml_sha256": "ed4aba6eb9252ed1371597958ae32adbb9fa91b9d051fcfe6152a878b8236ba7",
+  "policy": "All 49 tables are fully shown once as owned tables; all 151 FK sources assigned once; one-hop external parents are explicitly abbreviated reference copies.",
+  "modules": [
+    {
+      "number": 1,
+      "group": "TaiKhoan",
+      "slug": "01-tai-khoan-phan-quyen",
+      "title": "Tài khoản và phân quyền",
+      "color": "#475569",
+      "owned_tables": [
+        "users",
+        "tenant_profiles",
+        "employee_assignments",
+        "staff_permission_grants",
+        "password_reset_tokens",
+        "audit_events"
+      ],
+      "context_tables": [
+        "properties",
+        "rooms"
+      ],
+      "columns_shown": {
+        "users": [
+          "id",
+          "username",
+          "password_hash",
+          "role",
+          "status",
+          "created_at"
+        ],
+        "tenant_profiles": [
+          "id",
+          "user_id",
+          "full_name",
+          "identity_number",
+          "phone",
+          "email",
+          "date_of_birth",
+          "hometown",
+          "created_at"
+        ],
+        "employee_assignments": [
+          "id",
+          "user_id",
+          "property_id",
+          "room_id",
+          "assigned_at",
+          "revoked_at"
+        ],
+        "staff_permission_grants": [
+          "id",
+          "assignment_id",
+          "action_code",
+          "amount_limit",
+          "expires_at",
+          "granted_by",
+          "created_at"
+        ],
+        "password_reset_tokens": [
+          "id",
+          "user_id",
+          "token_hash",
+          "issued_by",
+          "expires_at",
+          "used_at",
+          "attempts",
+          "created_at"
+        ],
+        "audit_events": [
+          "id",
+          "actor_user_id",
+          "actor_type",
+          "action",
+          "resource_type",
+          "resource_id",
+          "before_data",
+          "after_data",
+          "reason",
+          "recorded_at"
+        ],
+        "properties": [
+          "id",
+          "property_code"
+        ],
+        "rooms": [
+          "id",
+          "room_code"
+        ]
+      },
+      "owned_columns": 46,
+      "foreign_keys": [
+        "audit_events_actor_user_id_fkey",
+        "employee_assignments_property_id_fkey",
+        "employee_assignments_room_id_fkey",
+        "employee_assignments_user_id_fkey",
+        "password_reset_tokens_issued_by_fkey",
+        "password_reset_tokens_user_id_fkey",
+        "staff_permission_grants_assignment_id_fkey",
+        "staff_permission_grants_granted_by_fkey",
+        "tenant_profiles_user_id_fkey"
+      ],
+      "dbml_sha256": "4b3c4c66625aaf28a90d0d724122073a61197c46dc35680ebe67b84d0d9697e9"
+    },
+    {
+      "number": 2,
+      "group": "NhaTro",
+      "slug": "02-nha-tro-tai-san",
+      "title": "Nhà trọ và tài sản",
+      "color": "#0F766E",
+      "owned_tables": [
+        "properties",
+        "rooms",
+        "room_price_history",
+        "room_operating_periods",
+        "asset_types",
+        "assets",
+        "asset_placements"
+      ],
+      "context_tables": [
+        "users"
+      ],
+      "columns_shown": {
+        "properties": [
+          "id",
+          "property_code",
+          "name",
+          "address",
+          "status",
+          "meter_cutoff_day",
+          "invoice_issue_day",
+          "collection_timing",
+          "created_at"
+        ],
+        "rooms": [
+          "id",
+          "property_id",
+          "floor_number",
+          "room_code",
+          "max_occupants",
+          "area_sqm",
+          "description",
+          "internal_note",
+          "opened_on",
+          "retired_on"
+        ],
+        "room_price_history": [
+          "id",
+          "room_id",
+          "effective_from",
+          "amount",
+          "recorded_by",
+          "created_at"
+        ],
+        "room_operating_periods": [
+          "id",
+          "room_id",
+          "valid_from",
+          "valid_to",
+          "status",
+          "recorded_by",
+          "note"
+        ],
+        "asset_types": [
+          "id",
+          "code",
+          "name",
+          "unit_name"
+        ],
+        "assets": [
+          "id",
+          "asset_type_id",
+          "asset_code",
+          "quantity",
+          "status",
+          "note"
+        ],
+        "asset_placements": [
+          "id",
+          "asset_id",
+          "room_id",
+          "property_id",
+          "valid_from",
+          "valid_to",
+          "recorded_by"
+        ],
+        "users": [
+          "id",
+          "username"
+        ]
+      },
+      "owned_columns": 49,
+      "foreign_keys": [
+        "asset_placements_asset_id_fkey",
+        "asset_placements_property_id_fkey",
+        "asset_placements_recorded_by_fkey",
+        "asset_placements_room_id_fkey",
+        "assets_asset_type_id_fkey",
+        "room_operating_periods_recorded_by_fkey",
+        "room_operating_periods_room_id_fkey",
+        "room_price_history_recorded_by_fkey",
+        "room_price_history_room_id_fkey",
+        "rooms_property_id_fkey"
+      ],
+      "dbml_sha256": "a1f648c8cd78647de590546ba7f35d2bf79c4e3bc4587726b3ad0c3f541abac0"
+    },
+    {
+      "number": 3,
+      "group": "CuTru",
+      "slug": "03-hop-dong-cu-tru",
+      "title": "Hợp đồng và cư trú",
+      "color": "#2563EB",
+      "owned_tables": [
+        "reservations",
+        "contracts",
+        "contract_parties",
+        "contract_contacts",
+        "contract_residencies",
+        "contract_terms",
+        "room_possessions",
+        "move_out_notices",
+        "handovers",
+        "handover_items",
+        "contract_violations",
+        "checkout_records"
+      ],
+      "context_tables": [
+        "asset_placements",
+        "rooms",
+        "tenant_profiles",
+        "users"
+      ],
+      "columns_shown": {
+        "reservations": [
+          "id",
+          "room_id",
+          "tenant_id",
+          "reservation_code",
+          "contact_name",
+          "contact_phone",
+          "start_date",
+          "end_date",
+          "expires_at",
+          "status",
+          "conditions",
+          "created_by",
+          "created_at"
+        ],
+        "contracts": [
+          "id",
+          "room_id",
+          "reservation_id",
+          "previous_contract_id",
+          "continuation_reason",
+          "contract_code",
+          "start_date",
+          "reconciliation_status",
+          "status",
+          "created_by",
+          "created_at"
+        ],
+        "contract_parties": [
+          "id",
+          "contract_id",
+          "tenant_id",
+          "party_role",
+          "effective_from",
+          "effective_to",
+          "agreement_note"
+        ],
+        "contract_contacts": [
+          "id",
+          "contract_id",
+          "tenant_id",
+          "contact_role",
+          "effective_from",
+          "effective_to",
+          "can_view_billing",
+          "authorized_by"
+        ],
+        "contract_residencies": [
+          "id",
+          "contract_id",
+          "tenant_id",
+          "effective_from",
+          "effective_to",
+          "relationship",
+          "recorded_by"
+        ],
+        "contract_terms": [
+          "id",
+          "contract_id",
+          "version_no",
+          "effective_from",
+          "lease_end",
+          "rental_price",
+          "deposit_required",
+          "payment_day",
+          "collection_timing",
+          "terms",
+          "signed_at",
+          "approved_by",
+          "origin",
+          "status",
+          "created_at"
+        ],
+        "room_possessions": [
+          "id",
+          "contract_id",
+          "taken_at",
+          "returned_at",
+          "recorded_by",
+          "note"
+        ],
+        "move_out_notices": [
+          "id",
+          "contract_id",
+          "supersedes_notice_id",
+          "requested_date",
+          "reason",
+          "status",
+          "submitted_by",
+          "created_at"
+        ],
+        "handovers": [
+          "id",
+          "contract_id",
+          "possession_id",
+          "handover_code",
+          "handover_type",
+          "occurred_at",
+          "status",
+          "given_by",
+          "received_by_tenant_id",
+          "confirmed_by",
+          "confirmed_at",
+          "note"
+        ],
+        "handover_items": [
+          "id",
+          "handover_id",
+          "asset_placement_id",
+          "line_no",
+          "item_name_snapshot",
+          "quantity",
+          "condition_note",
+          "note"
+        ],
+        "contract_violations": [
+          "id",
+          "contract_id",
+          "violation_type",
+          "description",
+          "occurred_on",
+          "status",
+          "resolution_note",
+          "created_by",
+          "created_at"
+        ],
+        "checkout_records": [
+          "id",
+          "contract_id",
+          "return_handover_id",
+          "billing_end",
+          "status",
+          "deposit_snapshot",
+          "advance_snapshot",
+          "outstanding_snapshot",
+          "approved_by",
+          "approved_at",
+          "notes"
+        ],
+        "asset_placements": [
+          "id"
+        ],
+        "rooms": [
+          "id",
+          "room_code"
+        ],
+        "tenant_profiles": [
+          "id",
+          "full_name"
+        ],
+        "users": [
+          "id",
+          "username"
+        ]
+      },
+      "owned_columns": 115,
+      "foreign_keys": [
+        "checkout_records_approved_by_fkey",
+        "checkout_records_contract_id_fkey",
+        "checkout_records_return_handover_id_fkey",
+        "contract_contacts_authorized_by_fkey",
+        "contract_contacts_contract_id_fkey",
+        "contract_contacts_tenant_id_fkey",
+        "contract_parties_contract_id_fkey",
+        "contract_parties_tenant_id_fkey",
+        "contract_residencies_contract_id_fkey",
+        "contract_residencies_recorded_by_fkey",
+        "contract_residencies_tenant_id_fkey",
+        "contract_terms_approved_by_fkey",
+        "contract_terms_contract_id_fkey",
+        "contract_violations_contract_id_fkey",
+        "contract_violations_created_by_fkey",
+        "contracts_created_by_fkey",
+        "contracts_previous_contract_id_fkey",
+        "contracts_reservation_id_fkey",
+        "contracts_room_id_fkey",
+        "handover_items_asset_placement_id_fkey",
+        "handover_items_handover_id_fkey",
+        "handovers_confirmed_by_fkey",
+        "handovers_contract_id_fkey",
+        "handovers_given_by_fkey",
+        "handovers_possession_id_fkey",
+        "handovers_received_by_tenant_id_fkey",
+        "move_out_notices_contract_id_fkey",
+        "move_out_notices_submitted_by_fkey",
+        "move_out_notices_supersedes_notice_id_fkey",
+        "reservations_created_by_fkey",
+        "reservations_room_id_fkey",
+        "reservations_tenant_id_fkey",
+        "room_possessions_contract_id_fkey",
+        "room_possessions_recorded_by_fkey"
+      ],
+      "dbml_sha256": "468c5524b3cf6b1fde553c00aeef1a3b0fb4b6e9af8ee2e85e25ac5c15d290e5"
+    },
+    {
+      "number": 4,
+      "group": "DienNuoc",
+      "slug": "04-dich-vu-dien-nuoc",
+      "title": "Dịch vụ và điện nước",
+      "color": "#0284C7",
+      "owned_tables": [
+        "service_items",
+        "service_price_configs",
+        "contract_service_subscriptions",
+        "meters",
+        "meter_readings",
+        "consumption_segments",
+        "alert_policies",
+        "consumption_alerts",
+        "alert_baseline_sources"
+      ],
+      "context_tables": [
+        "billing_items",
+        "contracts",
+        "handovers",
+        "properties",
+        "rooms",
+        "users"
+      ],
+      "columns_shown": {
+        "service_items": [
+          "id",
+          "service_code",
+          "name",
+          "unit_name",
+          "calculation_type",
+          "is_mandatory",
+          "is_active"
+        ],
+        "service_price_configs": [
+          "id",
+          "property_id",
+          "service_item_id",
+          "effective_from",
+          "unit_price",
+          "recorded_by",
+          "created_at"
+        ],
+        "contract_service_subscriptions": [
+          "id",
+          "contract_id",
+          "service_item_id",
+          "effective_from",
+          "effective_to",
+          "quantity",
+          "charge_mode",
+          "recorded_by"
+        ],
+        "meters": [
+          "id",
+          "room_id",
+          "service_item_id",
+          "meter_code",
+          "installed_at",
+          "retired_at",
+          "recorded_by"
+        ],
+        "meter_readings": [
+          "id",
+          "meter_id",
+          "observed_at",
+          "reading_value",
+          "time_precision",
+          "revision_no",
+          "supersedes_reading_id",
+          "handover_id",
+          "recorded_by",
+          "reason",
+          "recorded_at",
+          "correction_item_id"
+        ],
+        "consumption_segments": [
+          "id",
+          "start_reading_id",
+          "end_reading_id",
+          "contract_id",
+          "responsibility",
+          "supersedes_segment_id",
+          "recorded_by",
+          "created_at"
+        ],
+        "alert_policies": [
+          "id",
+          "service_item_id",
+          "property_id",
+          "room_id",
+          "effective_from",
+          "history_months",
+          "minimum_days",
+          "threshold_percentage",
+          "absolute_daily_threshold"
+        ],
+        "consumption_alerts": [
+          "id",
+          "segment_id",
+          "policy_id",
+          "supersedes_alert_id",
+          "baseline_daily_average",
+          "applied_threshold",
+          "method",
+          "status",
+          "context_note",
+          "checked_by",
+          "checked_at",
+          "created_at"
+        ],
+        "alert_baseline_sources": [
+          "id",
+          "alert_id",
+          "source_segment_id"
+        ],
+        "billing_items": [
+          "id",
+          "item_name_snapshot"
+        ],
+        "contracts": [
+          "id",
+          "contract_code"
+        ],
+        "handovers": [
+          "id",
+          "handover_code"
+        ],
+        "properties": [
+          "id",
+          "property_code"
+        ],
+        "rooms": [
+          "id",
+          "room_code"
+        ],
+        "users": [
+          "id",
+          "username"
+        ]
+      },
+      "owned_columns": 73,
+      "foreign_keys": [
+        "alert_baseline_sources_alert_id_fkey",
+        "alert_baseline_sources_source_segment_id_fkey",
+        "alert_policies_property_id_fkey",
+        "alert_policies_room_id_fkey",
+        "alert_policies_service_item_id_fkey",
+        "consumption_alerts_checked_by_fkey",
+        "consumption_alerts_policy_id_fkey",
+        "consumption_alerts_segment_id_fkey",
+        "consumption_alerts_supersedes_alert_id_fkey",
+        "consumption_segments_contract_id_fkey",
+        "consumption_segments_end_reading_id_fkey",
+        "consumption_segments_recorded_by_fkey",
+        "consumption_segments_start_reading_id_fkey",
+        "consumption_segments_supersedes_segment_id_fkey",
+        "contract_service_subscriptions_contract_id_fkey",
+        "contract_service_subscriptions_recorded_by_fkey",
+        "contract_service_subscriptions_service_item_id_fkey",
+        "meter_readings_correction_item_id_fkey",
+        "meter_readings_handover_id_fkey",
+        "meter_readings_meter_id_fkey",
+        "meter_readings_recorded_by_fkey",
+        "meter_readings_supersedes_reading_id_fkey",
+        "meters_recorded_by_fkey",
+        "meters_room_id_fkey",
+        "meters_service_item_id_fkey",
+        "service_price_configs_property_id_fkey",
+        "service_price_configs_recorded_by_fkey",
+        "service_price_configs_service_item_id_fkey"
+      ],
+      "dbml_sha256": "3cd8c384438f9e6a7df113da30c6f36637cdcaaab5bf5c96624ee43db2925197"
+    },
+    {
+      "number": 5,
+      "group": "TaiChinh",
+      "slug": "05-hoa-don-dong-tien",
+      "title": "Hóa đơn và dòng tiền",
+      "color": "#7C3AED",
+      "owned_tables": [
+        "billing_documents",
+        "billing_items",
+        "cash_accounts",
+        "cash_transactions",
+        "fund_accounts",
+        "fund_entries",
+        "fund_holds"
+      ],
+      "context_tables": [
+        "checkout_records",
+        "consumption_segments",
+        "contract_service_subscriptions",
+        "contract_terms",
+        "contract_violations",
+        "contracts",
+        "handover_items",
+        "maintenance_costs",
+        "properties",
+        "reservations",
+        "service_price_configs",
+        "tenant_profiles",
+        "users"
+      ],
+      "columns_shown": {
+        "billing_documents": [
+          "id",
+          "contract_id",
+          "reservation_id",
+          "checkout_id",
+          "related_document_id",
+          "document_code",
+          "document_type",
+          "billing_period",
+          "issue_date",
+          "due_date",
+          "status",
+          "reason",
+          "created_by",
+          "issued_by",
+          "issued_at",
+          "created_at"
+        ],
+        "billing_items": [
+          "id",
+          "document_id",
+          "line_no",
+          "item_kind",
+          "direction",
+          "adjusts_item_id",
+          "contract_term_id",
+          "subscription_id",
+          "segment_id",
+          "service_price_config_id",
+          "handover_item_id",
+          "maintenance_cost_id",
+          "violation_id",
+          "item_name_snapshot",
+          "unit_name_snapshot",
+          "unit_price_snapshot",
+          "calculation_basis",
+          "quantity_snapshot",
+          "calculation_period",
+          "service_from",
+          "service_to",
+          "verification_status",
+          "basis_note",
+          "source_key"
+        ],
+        "cash_accounts": [
+          "id",
+          "property_id",
+          "account_code",
+          "name",
+          "account_type",
+          "is_active"
+        ],
+        "cash_transactions": [
+          "id",
+          "cash_account_id",
+          "payer_or_payee_id",
+          "transaction_code",
+          "direction",
+          "amount",
+          "method",
+          "occurred_at",
+          "recorded_at",
+          "status",
+          "external_reference",
+          "counterparty_note",
+          "reason",
+          "recorded_by",
+          "confirmed_by",
+          "confirmed_at",
+          "payment_document_id"
+        ],
+        "fund_accounts": [
+          "id",
+          "fund_code",
+          "fund_type",
+          "reconciliation_status",
+          "contract_id",
+          "reservation_id",
+          "unapplied_receipt_id",
+          "beneficiary_tenant_id",
+          "created_at"
+        ],
+        "fund_entries": [
+          "id",
+          "entry_code",
+          "entry_type",
+          "cash_transaction_id",
+          "from_fund_id",
+          "to_fund_id",
+          "debit_item_id",
+          "credit_item_id",
+          "original_entry_id",
+          "amount",
+          "reason",
+          "posted_by",
+          "posted_at"
+        ],
+        "fund_holds": [
+          "id",
+          "fund_account_id",
+          "related_billing_item_id",
+          "amount",
+          "reason",
+          "review_on",
+          "created_by",
+          "released_at",
+          "created_at"
+        ],
+        "checkout_records": [
+          "id",
+          "status"
+        ],
+        "consumption_segments": [
+          "id"
+        ],
+        "contract_service_subscriptions": [
+          "id"
+        ],
+        "contract_terms": [
+          "id",
+          "status"
+        ],
+        "contract_violations": [
+          "id",
+          "status"
+        ],
+        "contracts": [
+          "id",
+          "contract_code"
+        ],
+        "handover_items": [
+          "id",
+          "item_name_snapshot"
+        ],
+        "maintenance_costs": [
+          "id"
+        ],
+        "properties": [
+          "id",
+          "property_code"
+        ],
+        "reservations": [
+          "id",
+          "reservation_code"
+        ],
+        "service_price_configs": [
+          "id"
+        ],
+        "tenant_profiles": [
+          "id",
+          "full_name"
+        ],
+        "users": [
+          "id",
+          "username"
+        ]
+      },
+      "owned_columns": 94,
+      "foreign_keys": [
+        "billing_documents_checkout_id_fkey",
+        "billing_documents_contract_id_fkey",
+        "billing_documents_created_by_fkey",
+        "billing_documents_issued_by_fkey",
+        "billing_documents_related_document_id_fkey",
+        "billing_documents_reservation_id_fkey",
+        "billing_items_adjusts_item_id_fkey",
+        "billing_items_contract_term_id_fkey",
+        "billing_items_document_id_fkey",
+        "billing_items_handover_item_id_fkey",
+        "billing_items_maintenance_cost_id_fkey",
+        "billing_items_segment_id_fkey",
+        "billing_items_service_price_config_id_fkey",
+        "billing_items_subscription_id_fkey",
+        "billing_items_violation_id_fkey",
+        "cash_accounts_property_id_fkey",
+        "cash_transactions_cash_account_id_fkey",
+        "cash_transactions_confirmed_by_fkey",
+        "cash_transactions_payer_or_payee_id_fkey",
+        "cash_transactions_payment_document_id_fkey",
+        "cash_transactions_recorded_by_fkey",
+        "fund_accounts_beneficiary_tenant_id_fkey",
+        "fund_accounts_contract_id_fkey",
+        "fund_accounts_reservation_id_fkey",
+        "fund_accounts_unapplied_receipt_id_fkey",
+        "fund_entries_cash_transaction_id_fkey",
+        "fund_entries_credit_item_id_fkey",
+        "fund_entries_debit_item_id_fkey",
+        "fund_entries_from_fund_id_fkey",
+        "fund_entries_original_entry_id_fkey",
+        "fund_entries_posted_by_fkey",
+        "fund_entries_to_fund_id_fkey",
+        "fund_holds_created_by_fkey",
+        "fund_holds_fund_account_id_fkey",
+        "fund_holds_related_billing_item_id_fkey"
+      ],
+      "dbml_sha256": "2e97d7b0f9a124e04a2d11e1c2a9c13a2f07e737c4b79269a04c2e053cda03fc"
+    },
+    {
+      "number": 6,
+      "group": "SuCo",
+      "slug": "06-su-co-bao-tri",
+      "title": "Sự cố và bảo trì",
+      "color": "#B45309",
+      "owned_tables": [
+        "maintenance_schedules",
+        "maintenance_requests",
+        "maintenance_events",
+        "maintenance_costs"
+      ],
+      "context_tables": [
+        "asset_placements",
+        "assets",
+        "properties",
+        "rooms",
+        "tenant_profiles",
+        "users"
+      ],
+      "columns_shown": {
+        "maintenance_schedules": [
+          "id",
+          "asset_id",
+          "room_id",
+          "property_id",
+          "title",
+          "interval_days",
+          "next_due",
+          "is_active",
+          "created_by"
+        ],
+        "maintenance_requests": [
+          "id",
+          "room_id",
+          "property_id",
+          "asset_placement_id",
+          "schedule_id",
+          "scheduled_for",
+          "submitted_by",
+          "assigned_to",
+          "title",
+          "description",
+          "priority",
+          "status",
+          "incident_type",
+          "expected_date",
+          "created_at"
+        ],
+        "maintenance_events": [
+          "id",
+          "request_id",
+          "action",
+          "actor_id",
+          "note",
+          "recorded_at"
+        ],
+        "maintenance_costs": [
+          "id",
+          "request_id",
+          "description",
+          "amount",
+          "incurred_on",
+          "advanced_by_tenant_id",
+          "recorded_by",
+          "created_at"
+        ],
+        "asset_placements": [
+          "id"
+        ],
+        "assets": [
+          "id",
+          "asset_code"
+        ],
+        "properties": [
+          "id",
+          "property_code"
+        ],
+        "rooms": [
+          "id",
+          "room_code"
+        ],
+        "tenant_profiles": [
+          "id",
+          "full_name"
+        ],
+        "users": [
+          "id",
+          "username"
+        ]
+      },
+      "owned_columns": 38,
+      "foreign_keys": [
+        "maintenance_costs_advanced_by_tenant_id_fkey",
+        "maintenance_costs_recorded_by_fkey",
+        "maintenance_costs_request_id_fkey",
+        "maintenance_events_actor_id_fkey",
+        "maintenance_events_request_id_fkey",
+        "maintenance_requests_asset_placement_id_fkey",
+        "maintenance_requests_assigned_to_fkey",
+        "maintenance_requests_property_id_fkey",
+        "maintenance_requests_room_id_fkey",
+        "maintenance_requests_schedule_id_fkey",
+        "maintenance_requests_submitted_by_fkey",
+        "maintenance_schedules_asset_id_fkey",
+        "maintenance_schedules_created_by_fkey",
+        "maintenance_schedules_property_id_fkey",
+        "maintenance_schedules_room_id_fkey"
+      ],
+      "dbml_sha256": "f04098d478ec199a0d413d7a95b03b8682f777465f970caed8d3ab6183261850"
+    },
+    {
+      "number": 7,
+      "group": "ThongBao",
+      "slug": "07-thong-bao",
+      "title": "Thông báo",
+      "color": "#BE185D",
+      "owned_tables": [
+        "notifications",
+        "notification_recipients"
+      ],
+      "context_tables": [
+        "billing_documents",
+        "consumption_alerts",
+        "contracts",
+        "maintenance_requests",
+        "users"
+      ],
+      "columns_shown": {
+        "notifications": [
+          "id",
+          "notification_type",
+          "title",
+          "body",
+          "billing_document_id",
+          "contract_id",
+          "maintenance_request_id",
+          "consumption_alert_id",
+          "deduplication_key",
+          "created_by",
+          "sent_at"
+        ],
+        "notification_recipients": [
+          "id",
+          "notification_id",
+          "user_id",
+          "read_at"
+        ],
+        "billing_documents": [
+          "id",
+          "document_code"
+        ],
+        "consumption_alerts": [
+          "id",
+          "status"
+        ],
+        "contracts": [
+          "id",
+          "contract_code"
+        ],
+        "maintenance_requests": [
+          "id",
+          "title"
+        ],
+        "users": [
+          "id",
+          "username"
+        ]
+      },
+      "owned_columns": 15,
+      "foreign_keys": [
+        "notification_recipients_notification_id_fkey",
+        "notification_recipients_user_id_fkey",
+        "notifications_billing_document_id_fkey",
+        "notifications_consumption_alert_id_fkey",
+        "notifications_contract_id_fkey",
+        "notifications_created_by_fkey",
+        "notifications_maintenance_request_id_fkey"
+      ],
+      "dbml_sha256": "b932263b4c2efce271ba5a023a2017ba06ebbbb8aeae837bad231df8b3edfa25"
+    },
+    {
+      "number": 8,
+      "group": "Tep",
+      "slug": "08-tep-dinh-kem",
+      "title": "Tệp đính kèm",
+      "color": "#4D7C0F",
+      "owned_tables": [
+        "stored_files",
+        "file_attachments"
+      ],
+      "context_tables": [
+        "assets",
+        "billing_documents",
+        "contract_terms",
+        "contract_violations",
+        "fund_entries",
+        "handover_items",
+        "maintenance_costs",
+        "maintenance_requests",
+        "meter_readings",
+        "rooms",
+        "users"
+      ],
+      "columns_shown": {
+        "stored_files": [
+          "id",
+          "storage_key",
+          "original_name",
+          "content_type",
+          "size_bytes",
+          "sha256",
+          "external_url",
+          "uploaded_by",
+          "uploaded_at"
+        ],
+        "file_attachments": [
+          "id",
+          "file_id",
+          "room_id",
+          "asset_id",
+          "handover_item_id",
+          "meter_reading_id",
+          "maintenance_request_id",
+          "maintenance_cost_id",
+          "contract_term_id",
+          "billing_document_id",
+          "violation_id",
+          "fund_entry_id",
+          "caption",
+          "sort_order",
+          "attached_by",
+          "created_at"
+        ],
+        "assets": [
+          "id",
+          "asset_code"
+        ],
+        "billing_documents": [
+          "id",
+          "document_code"
+        ],
+        "contract_terms": [
+          "id",
+          "status"
+        ],
+        "contract_violations": [
+          "id",
+          "status"
+        ],
+        "fund_entries": [
+          "id",
+          "entry_code"
+        ],
+        "handover_items": [
+          "id",
+          "item_name_snapshot"
+        ],
+        "maintenance_costs": [
+          "id"
+        ],
+        "maintenance_requests": [
+          "id",
+          "title"
+        ],
+        "meter_readings": [
+          "id",
+          "observed_at"
+        ],
+        "rooms": [
+          "id",
+          "room_code"
+        ],
+        "users": [
+          "id",
+          "username"
+        ]
+      },
+      "owned_columns": 25,
+      "foreign_keys": [
+        "file_attachments_asset_id_fkey",
+        "file_attachments_attached_by_fkey",
+        "file_attachments_billing_document_id_fkey",
+        "file_attachments_contract_term_id_fkey",
+        "file_attachments_file_id_fkey",
+        "file_attachments_fund_entry_id_fkey",
+        "file_attachments_handover_item_id_fkey",
+        "file_attachments_maintenance_cost_id_fkey",
+        "file_attachments_maintenance_request_id_fkey",
+        "file_attachments_meter_reading_id_fkey",
+        "file_attachments_room_id_fkey",
+        "file_attachments_violation_id_fkey",
+        "stored_files_uploaded_by_fkey"
+      ],
+      "dbml_sha256": "295d846c3d799b72d788cd6f1739ded3c85f636ed23f669f4d53a3c844115d46"
+    }
+  ]
+}

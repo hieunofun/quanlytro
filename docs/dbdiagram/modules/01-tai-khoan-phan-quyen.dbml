@@ -1,0 +1,158 @@
+// 01 · Tài khoản và phân quyền — một phần của model49 / V13.
+// Bảng chính giữ đủ cột; bảng ngoài nhóm chỉ là THAM CHIẾU RÚT GỌN.
+// Chỉ gồm FK có bảng nguồn thuộc nhóm. Không mở rộng đệ quy từ bảng tham chiếu.
+// Không dùng file từng phần để tạo lại database.
+Project TaiKhoan {
+  database_type: 'PostgreSQL'
+  Note: 'Tài khoản và phân quyền: 6 bảng chính đầy đủ và 2 bảng tham chiếu rút gọn. 9 FK thật có bảng nguồn thuộc nhóm. Bảng xám chỉ hiện PK/cột đích FK và một mã/tên có thật để nhận diện; không phải toàn bộ định nghĩa bảng. Bản chuẩn đầy đủ: docs/quanlytro.dbml.'
+}
+
+Table users [headercolor: #475569] {
+  id bigint [pk, not null, increment]
+  username varchar(50) [not null, unique]
+  password_hash varchar(255) [not null]
+  role varchar(20) [not null]
+  status varchar(20) [not null, default: 'ACTIVE']
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  checks {
+    `((role)::text = ANY ((ARRAY['ADMIN'::character varying, 'STAFF'::character varying, 'TENANT'::character varying])::text[]))` [name: 'users_role_check']
+    `((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'LOCKED'::character varying, 'INACTIVE'::character varying])::text[]))` [name: 'users_status_check']
+    `(btrim((username)::text) <> ''::text)` [name: 'users_username_check']
+  }
+
+  Note: 'Tài khoản đăng nhập'
+}
+
+Table tenant_profiles [headercolor: #475569] {
+  id bigint [pk, not null, increment]
+  user_id bigint [unique]
+  full_name varchar(150) [not null]
+  identity_number varchar(30) [unique]
+  phone varchar(30)
+  email varchar(150)
+  date_of_birth date
+  hometown text
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  checks {
+    `(btrim((full_name)::text) <> ''::text)` [name: 'tenant_profiles_full_name_check']
+    `((identity_number IS NULL) OR (btrim((identity_number)::text) <> ''::text))` [name: 'tenant_profiles_identity_number_check']
+  }
+
+  Note: 'Hồ sơ người, độc lập với vai trò ký/liên hệ/cư trú'
+}
+
+Table employee_assignments [headercolor: #475569] {
+  id bigint [pk, not null, increment]
+  user_id bigint [not null]
+  property_id bigint
+  room_id bigint
+  assigned_at timestamptz [not null, default: `clock_timestamp()`]
+  revoked_at timestamptz
+
+  checks {
+    `(num_nonnulls(property_id, room_id) = 1)` [name: 'employee_assignments_check']
+    `((revoked_at IS NULL) OR (revoked_at >= assigned_at))` [name: 'employee_assignments_check1']
+  }
+
+  Note: 'Phân công đúng khu hoặc đúng phòng, có hiệu lực\n\nCREATE UNIQUE INDEX uq_active_assignment_property ON public.employee_assignments USING btree (user_id, property_id) WHERE ((revoked_at IS NULL) AND (property_id IS NOT NULL))\n\nCREATE UNIQUE INDEX uq_active_assignment_room ON public.employee_assignments USING btree (user_id, room_id) WHERE ((revoked_at IS NULL) AND (room_id IS NOT NULL))'
+}
+
+Table staff_permission_grants [headercolor: #475569] {
+  id bigint [pk, not null, increment]
+  assignment_id bigint [not null]
+  action_code varchar(40) [not null]
+  amount_limit numeric(14,2)
+  expires_at timestamptz
+  granted_by bigint [not null]
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  indexes {
+    (assignment_id, action_code) [name: 'staff_permission_grants_assignment_id_action_code_key', unique, type: btree]
+  }
+
+  checks {
+    `((action_code)::text = ANY ((ARRAY['MANAGE'::character varying, 'BILLING'::character varying, 'RECEIVE'::character varying, 'REFUND'::character varying, 'DEPOSIT_OFFSET'::character varying, 'TRANSFER'::character varying, 'ADJUST'::character varying, 'WAIVE_DEPOSIT'::character varying, 'MAINTENANCE'::character varying])::text[]))` [name: 'staff_permission_grants_action_code_check']
+    `(amount_limit >= (0)::numeric)` [name: 'staff_permission_grants_amount_limit_check']
+  }
+
+  Note: 'Ủy quyền hành động và hạn mức trong phân công'
+}
+
+Table password_reset_tokens [headercolor: #475569] {
+  id bigint [pk, not null, increment]
+  user_id bigint [not null]
+  token_hash varchar(64) [not null, unique]
+  issued_by bigint [not null]
+  expires_at timestamptz [not null]
+  used_at timestamptz
+  attempts smallint [not null, default: 0]
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  checks {
+    `((attempts >= 0) AND (attempts <= 5))` [name: 'password_reset_tokens_attempts_check']
+    `(expires_at > created_at)` [name: 'password_reset_tokens_check']
+  }
+
+  Note: 'Mã khôi phục băm, dùng một lần'
+}
+
+Table audit_events [headercolor: #475569] {
+  id bigint [pk, not null, increment]
+  actor_user_id bigint
+  actor_type varchar(10) [not null, default: 'USER']
+  action varchar(80) [not null]
+  resource_type varchar(80) [not null]
+  resource_id varchar(100)
+  before_data jsonb
+  after_data jsonb
+  reason text
+  recorded_at timestamptz [not null, default: `clock_timestamp()`]
+
+  checks {
+    `((actor_type)::text = ANY ((ARRAY['USER'::character varying, 'SYSTEM'::character varying])::text[]))` [name: 'audit_events_actor_type_check']
+    `(((actor_type)::text = 'USER'::text) = (actor_user_id IS NOT NULL))` [name: 'audit_events_check']
+  }
+
+  Note: 'Lịch sử thao tác; không lưu thông tin xác thực'
+}
+
+// THAM CHIẾU: properties — 2/9 cột thật.
+Table properties [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  property_code varchar(30) [not null, unique]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/9 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: rooms — 2/10 cột thật.
+Table rooms [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  room_code varchar(30) [not null]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/10 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// FK có bảng nguồn trong nhóm
+Ref audit_events_actor_user_id_fkey: audit_events.actor_user_id >? users.id [delete: no action, update: no action]
+Ref employee_assignments_property_id_fkey: employee_assignments.property_id >? properties.id [delete: no action, update: no action]
+Ref employee_assignments_room_id_fkey: employee_assignments.room_id >? rooms.id [delete: no action, update: no action]
+Ref employee_assignments_user_id_fkey: employee_assignments.user_id > users.id [delete: no action, update: no action]
+Ref password_reset_tokens_issued_by_fkey: password_reset_tokens.issued_by > users.id [delete: no action, update: no action]
+Ref password_reset_tokens_user_id_fkey: password_reset_tokens.user_id > users.id [delete: no action, update: no action]
+Ref staff_permission_grants_assignment_id_fkey: staff_permission_grants.assignment_id > employee_assignments.id [delete: no action, update: no action]
+Ref staff_permission_grants_granted_by_fkey: staff_permission_grants.granted_by > users.id [delete: no action, update: no action]
+Ref tenant_profiles_user_id_fkey: users.id ?- tenant_profiles.user_id [delete: no action, update: no action]
+
+TableGroup TaiKhoan [color: #475569] {
+  users
+  tenant_profiles
+  employee_assignments
+  staff_permission_grants
+  password_reset_tokens
+  audit_events
+}
+
+TableGroup ThamChieuRutGon [color: #64748B] {
+  properties
+  rooms
+}

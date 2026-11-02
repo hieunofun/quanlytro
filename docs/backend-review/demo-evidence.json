@@ -1,0 +1,49 @@
+{
+  "validated_on": "2026-11-01",
+  "fictional_data": true,
+  "base_url": "http://127.0.0.1:8093",
+  "prefix": "BE-3513448266",
+  "property_id": 6,
+  "room_id": 6,
+  "contracts": {
+    "a": 6,
+    "b": 7,
+    "c": 8
+  },
+  "invoices": {
+    "b": 2,
+    "c": 3
+  },
+  "funds": {
+    "bAdvance": 13,
+    "cAdvance": 17
+  },
+  "turnover": {
+    "old_tenant_days": 15,
+    "vacant_days": 1,
+    "new_tenant_days": 15,
+    "old_tenant_total": 1770000,
+    "new_tenant_total": 1763000,
+    "old_tenant_refund": 230000,
+    "new_tenant_advance": 37000,
+    "electricity_kwh": {
+      "old": 30,
+      "owner": 2,
+      "new": 28
+    },
+    "cash_net_before_correction_case": 5570000
+  },
+  "correction": {
+    "original_usage": 50,
+    "verified_usage": 40,
+    "rate": 3500,
+    "credit": 35000,
+    "corrected_charge": 140000,
+    "restored_advance": 35000
+  },
+  "cash_in": 7975000,
+  "cash_out": 230000,
+  "cash_net": 7745000,
+  "requests": 67,
+  "all_assertions_passed": true
+}

@@ -1,0 +1,166 @@
+// 02 · Nhà trọ và tài sản — một phần của model49 / V13.
+// Bảng chính giữ đủ cột; bảng ngoài nhóm chỉ là THAM CHIẾU RÚT GỌN.
+// Chỉ gồm FK có bảng nguồn thuộc nhóm. Không mở rộng đệ quy từ bảng tham chiếu.
+// Không dùng file từng phần để tạo lại database.
+Project NhaTro {
+  database_type: 'PostgreSQL'
+  Note: 'Nhà trọ và tài sản: 7 bảng chính đầy đủ và 1 bảng tham chiếu rút gọn. 10 FK thật có bảng nguồn thuộc nhóm. Bảng xám chỉ hiện PK/cột đích FK và một mã/tên có thật để nhận diện; không phải toàn bộ định nghĩa bảng. Bản chuẩn đầy đủ: docs/quanlytro.dbml.'
+}
+
+Table properties [headercolor: #0F766E] {
+  id bigint [pk, not null, increment]
+  property_code varchar(30) [not null, unique]
+  name varchar(150) [not null]
+  address text [not null]
+  status varchar(20) [not null, default: 'ACTIVE']
+  meter_cutoff_day smallint [not null, default: 28]
+  invoice_issue_day smallint [not null, default: 1]
+  collection_timing varchar(20) [not null, default: 'IN_ADVANCE']
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  checks {
+    `((collection_timing)::text = ANY ((ARRAY['IN_ADVANCE'::character varying, 'IN_ARREARS'::character varying])::text[]))` [name: 'properties_collection_timing_check']
+    `((invoice_issue_day >= 1) AND (invoice_issue_day <= 31))` [name: 'properties_invoice_issue_day_check']
+    `((meter_cutoff_day >= 1) AND (meter_cutoff_day <= 31))` [name: 'properties_meter_cutoff_day_check']
+    `((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'INACTIVE'::character varying])::text[]))` [name: 'properties_status_check']
+  }
+
+  Note: 'Khu nhà; một chủ nhà trong phạm vi ứng dụng'
+}
+
+Table rooms [headercolor: #0F766E] {
+  id bigint [pk, not null, increment]
+  property_id bigint [not null]
+  floor_number smallint [not null, default: 1]
+  room_code varchar(30) [not null]
+  max_occupants smallint [not null, default: 2]
+  area_sqm numeric(8,2)
+  description text [not null, default: '']
+  internal_note text [not null, default: '']
+  opened_on date [not null, default: `CURRENT_DATE`]
+  retired_on date
+
+  indexes {
+    (property_id, room_code) [name: 'rooms_property_id_room_code_key', unique, type: btree]
+  }
+
+  checks {
+    `(area_sqm > (0)::numeric)` [name: 'rooms_area_sqm_check']
+    `(retired_on >= opened_on)` [name: 'rooms_check']
+    `(floor_number >= 0)` [name: 'rooms_floor_number_check']
+    `(max_occupants > 0)` [name: 'rooms_max_occupants_check']
+  }
+
+  Note: 'Phòng và sức chứa; giá/trạng thái được lấy từ nguồn theo thời gian'
+}
+
+Table room_price_history [headercolor: #0F766E] {
+  id bigint [pk, not null, increment]
+  room_id bigint [not null]
+  effective_from date [not null]
+  amount numeric(14,2) [not null]
+  recorded_by bigint
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  indexes {
+    (room_id, effective_from) [name: 'room_price_history_room_id_effective_from_key', unique, type: btree]
+  }
+
+  checks {
+    `(amount >= (0)::numeric)` [name: 'room_price_history_amount_check']
+  }
+
+  Note: 'Giá niêm yết; không tự thay giá hợp đồng'
+}
+
+Table room_operating_periods [headercolor: #0F766E] {
+  id bigint [pk, not null, increment]
+  room_id bigint [not null]
+  valid_from timestamptz [not null]
+  valid_to timestamptz
+  status varchar(20) [not null]
+  recorded_by bigint
+  note text
+
+  checks {
+    `((valid_to IS NULL) OR (valid_to > valid_from))` [name: 'room_operating_periods_check']
+    `((status)::text = ANY ((ARRAY['READY'::character varying, 'TURNOVER'::character varying, 'MAINTENANCE'::character varying, 'INACTIVE'::character varying])::text[]))` [name: 'room_operating_periods_status_check']
+  }
+
+  Note: 'Khoảng sẵn sàng, chuẩn bị, bảo trì hoặc ngừng khai thác\n\nCREATE INDEX room_operating_periods_room_id_tstzrange_excl ON public.room_operating_periods USING gist (room_id, tstzrange(valid_from, valid_to, \'[)\'::text))\n\nroom_operating_periods_room_id_tstzrange_excl: EXCLUDE USING gist (room_id WITH =, tstzrange(valid_from, valid_to, \'[)\'::text) WITH &&)'
+}
+
+Table asset_types [headercolor: #0F766E] {
+  id bigint [pk, not null, increment]
+  code varchar(40) [not null, unique]
+  name varchar(150) [not null]
+  unit_name varchar(30) [not null, default: 'Cái']
+
+  Note: 'Danh mục tiện nghi và hạng mục tài sản'
+}
+
+Table assets [headercolor: #0F766E] {
+  id bigint [pk, not null, increment]
+  asset_type_id bigint [not null]
+  asset_code varchar(50) [not null, unique]
+  quantity numeric(12,2) [not null, default: 1]
+  status varchar(20) [not null, default: 'ACTIVE']
+  note text
+
+  checks {
+    `(quantity > (0)::numeric)` [name: 'assets_quantity_check']
+    `((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'RETIRED'::character varying])::text[]))` [name: 'assets_status_check']
+  }
+
+  Note: 'Tài sản có mã hoặc nhóm số lượng'
+}
+
+Table asset_placements [headercolor: #0F766E] {
+  id bigint [pk, not null, increment]
+  asset_id bigint [not null]
+  room_id bigint
+  property_id bigint
+  valid_from timestamptz [not null]
+  valid_to timestamptz
+  recorded_by bigint
+
+  checks {
+    `(num_nonnulls(room_id, property_id) = 1)` [name: 'asset_placements_check']
+    `((valid_to IS NULL) OR (valid_to > valid_from))` [name: 'asset_placements_check1']
+  }
+
+  Note: 'Vị trí tài sản theo thời gian; phòng hoặc khu vực chung\n\nCREATE INDEX asset_placements_asset_id_tstzrange_excl ON public.asset_placements USING gist (asset_id, tstzrange(valid_from, valid_to, \'[)\'::text))\n\nasset_placements_asset_id_tstzrange_excl: EXCLUDE USING gist (asset_id WITH =, tstzrange(valid_from, valid_to, \'[)\'::text) WITH &&)'
+}
+
+// THAM CHIẾU: users — 2/6 cột thật.
+Table users [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  username varchar(50) [not null, unique]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/6 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// FK có bảng nguồn trong nhóm
+Ref asset_placements_asset_id_fkey: asset_placements.asset_id > assets.id [delete: no action, update: no action]
+Ref asset_placements_property_id_fkey: asset_placements.property_id >? properties.id [delete: no action, update: no action]
+Ref asset_placements_recorded_by_fkey: asset_placements.recorded_by >? users.id [delete: no action, update: no action]
+Ref asset_placements_room_id_fkey: asset_placements.room_id >? rooms.id [delete: no action, update: no action]
+Ref assets_asset_type_id_fkey: assets.asset_type_id > asset_types.id [delete: no action, update: no action]
+Ref room_operating_periods_recorded_by_fkey: room_operating_periods.recorded_by >? users.id [delete: no action, update: no action]
+Ref room_operating_periods_room_id_fkey: room_operating_periods.room_id > rooms.id [delete: no action, update: no action]
+Ref room_price_history_recorded_by_fkey: room_price_history.recorded_by >? users.id [delete: no action, update: no action]
+Ref room_price_history_room_id_fkey: room_price_history.room_id > rooms.id [delete: no action, update: no action]
+Ref rooms_property_id_fkey: rooms.property_id > properties.id [delete: no action, update: no action]
+
+TableGroup NhaTro [color: #0F766E] {
+  properties
+  rooms
+  room_price_history
+  room_operating_periods
+  asset_types
+  assets
+  asset_placements
+}
+
+TableGroup ThamChieuRutGon [color: #64748B] {
+  users
+}

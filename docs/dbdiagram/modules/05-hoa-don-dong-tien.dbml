@@ -1,0 +1,357 @@
+// 05 · Hóa đơn và dòng tiền — một phần của model49 / V13.
+// Bảng chính giữ đủ cột; bảng ngoài nhóm chỉ là THAM CHIẾU RÚT GỌN.
+// Chỉ gồm FK có bảng nguồn thuộc nhóm. Không mở rộng đệ quy từ bảng tham chiếu.
+// Không dùng file từng phần để tạo lại database.
+Project TaiChinh {
+  database_type: 'PostgreSQL'
+  Note: 'Hóa đơn và dòng tiền: 7 bảng chính đầy đủ và 13 bảng tham chiếu rút gọn. 35 FK thật có bảng nguồn thuộc nhóm. Bảng xám chỉ hiện PK/cột đích FK và một mã/tên có thật để nhận diện; không phải toàn bộ định nghĩa bảng. Bản chuẩn đầy đủ: docs/quanlytro.dbml.'
+}
+
+Table billing_documents [headercolor: #7C3AED] {
+  id bigint [pk, not null, increment]
+  contract_id bigint
+  reservation_id bigint
+  checkout_id bigint
+  related_document_id bigint
+  document_code varchar(80) [not null, unique]
+  document_type varchar(30) [not null]
+  billing_period date
+  issue_date date [not null]
+  due_date date [not null]
+  status varchar(20) [not null, default: 'DRAFT']
+  reason text [not null, default: '']
+  created_by bigint
+  issued_by bigint
+  issued_at timestamptz
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  checks {
+    `((billing_period IS NULL) OR (EXTRACT(day FROM billing_period) = (1)::numeric))` [name: 'billing_documents_billing_period_check']
+    `(num_nonnulls(contract_id, reservation_id) = 1)` [name: 'billing_documents_check']
+    `(due_date >= issue_date)` [name: 'billing_documents_check1']
+    `(((document_type)::text <> 'MONTHLY'::text) OR ((contract_id IS NOT NULL) AND (billing_period IS NOT NULL)))` [name: 'billing_documents_check2']
+    `(((status)::text = 'ISSUED'::text) = (issued_at IS NOT NULL))` [name: 'billing_documents_check3']
+    `(((document_type)::text <> 'ADJUSTMENT'::text) OR (related_document_id IS NOT NULL))` [name: 'billing_documents_check4']
+    `((document_type)::text = ANY ((ARRAY['MONTHLY'::character varying, 'FINAL_CHARGE'::character varying, 'COMPENSATION'::character varying, 'ADJUSTMENT'::character varying, 'REIMBURSEMENT'::character varying, 'OPENING_CHARGE'::character varying])::text[]))` [name: 'billing_documents_document_type_check']
+    `((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'ISSUED'::character varying])::text[]))` [name: 'billing_documents_status_check']
+  }
+
+  Note: 'Đầu chứng từ tháng/phát sinh/bồi thường/điều chỉnh/phải hoàn\n\nCREATE UNIQUE INDEX uq_monthly_document ON public.billing_documents USING btree (contract_id, billing_period) WHERE ((document_type)::text = \'MONTHLY\'::text)'
+}
+
+Table billing_items [headercolor: #7C3AED] {
+  id bigint [pk, not null, increment]
+  document_id bigint [not null]
+  line_no integer [not null]
+  item_kind varchar(30) [not null]
+  direction varchar(10) [not null, default: 'DEBIT']
+  adjusts_item_id bigint
+  contract_term_id bigint
+  subscription_id bigint
+  segment_id bigint
+  service_price_config_id bigint
+  handover_item_id bigint
+  maintenance_cost_id bigint
+  violation_id bigint
+  item_name_snapshot varchar(150) [not null]
+  unit_name_snapshot varchar(40) [not null]
+  unit_price_snapshot numeric(14,4) [not null]
+  calculation_basis varchar(20) [not null]
+  quantity_snapshot numeric(18,6)
+  calculation_period date
+  service_from date [not null]
+  service_to date [not null]
+  verification_status varchar(20) [not null, default: 'VERIFIED']
+  basis_note text [not null, default: '']
+  source_key varchar(120) [unique]
+
+  indexes {
+    (document_id, line_no) [name: 'billing_items_document_id_line_no_key', unique, type: btree]
+  }
+
+  checks {
+    `((calculation_basis)::text = ANY ((ARRAY['METER'::character varying, 'PRORATED'::character varying, 'FULL_PERIOD'::character varying, 'FIXED'::character varying, 'ESTIMATED'::character varying])::text[]))` [name: 'billing_items_calculation_basis_check']
+    `(service_to > service_from)` [name: 'billing_items_check']
+    `((adjusts_item_id IS NULL) OR (adjusts_item_id <> id))` [name: 'billing_items_check1']
+    `((((calculation_basis)::text = 'METER'::text) AND (segment_id IS NOT NULL) AND (quantity_snapshot IS NULL)) OR (((calculation_basis)::text <> 'METER'::text) AND (quantity_snapshot IS NOT NULL) AND (quantity_snapshot > (0)::numeric)))` [name: 'billing_items_check2']
+    `(((calculation_basis)::text <> 'PRORATED'::text) OR ((calculation_period IS NOT NULL) AND (EXTRACT(day FROM calculation_period) = (1)::numeric)))` [name: 'billing_items_check3']
+    `(((calculation_basis)::text <> 'ESTIMATED'::text) OR (((verification_status)::text = 'ESTIMATED'::text) AND (btrim(basis_note) <> ''::text)))` [name: 'billing_items_check4']
+    `((direction)::text = ANY ((ARRAY['DEBIT'::character varying, 'CREDIT'::character varying])::text[]))` [name: 'billing_items_direction_check']
+    `((item_kind)::text = ANY ((ARRAY['ROOM_RENT'::character varying, 'UTILITY'::character varying, 'SERVICE'::character varying, 'DAMAGE'::character varying, 'DISCOUNT'::character varying, 'REIMBURSEMENT'::character varying, 'OTHER'::character varying])::text[]))` [name: 'billing_items_item_kind_check']
+    `(line_no > 0)` [name: 'billing_items_line_no_check']
+    `(unit_price_snapshot >= (0)::numeric)` [name: 'billing_items_unit_price_snapshot_check']
+    `((verification_status)::text = ANY ((ARRAY['VERIFIED'::character varying, 'ESTIMATED'::character varying, 'DISPUTED'::character varying, 'PENDING'::character varying])::text[]))` [name: 'billing_items_verification_status_check']
+  }
+
+  Note: 'Dòng tiền có nguồn, kỳ riêng và snapshot cần giữ\n\nCREATE UNIQUE INDEX uq_original_measured_charge ON public.billing_items USING btree (segment_id) WHERE ((segment_id IS NOT NULL) AND (adjusts_item_id IS NULL))'
+}
+
+Table cash_accounts [headercolor: #7C3AED] {
+  id bigint [pk, not null, increment]
+  property_id bigint
+  account_code varchar(60) [not null, unique]
+  name varchar(150) [not null]
+  account_type varchar(20) [not null]
+  is_active boolean [not null, default: true]
+
+  checks {
+    `((account_type)::text = ANY ((ARRAY['CASH'::character varying, 'BANK'::character varying])::text[]))` [name: 'cash_accounts_account_type_check']
+  }
+
+  Note: 'Quỹ/tài khoản chủ nhà, không phải quỹ tiền khách'
+}
+
+Table cash_transactions [headercolor: #7C3AED] {
+  id bigint [pk, not null, increment]
+  cash_account_id bigint [not null]
+  payer_or_payee_id bigint
+  transaction_code varchar(80) [not null, unique]
+  direction varchar(5) [not null]
+  amount numeric(14,2) [not null]
+  method varchar(30) [not null]
+  occurred_at timestamptz [not null]
+  recorded_at timestamptz [not null, default: `clock_timestamp()`]
+  status varchar(20) [not null, default: 'PENDING']
+  external_reference varchar(150)
+  counterparty_note text
+  reason text
+  recorded_by bigint [not null]
+  confirmed_by bigint
+  confirmed_at timestamptz
+  payment_document_id bigint
+
+  indexes {
+    occurred_at [name: 'idx_cash_occurred', type: btree]
+  }
+
+  checks {
+    `(amount > (0)::numeric)` [name: 'cash_transactions_amount_check']
+    `(((status)::text <> 'CONFIRMED'::text) OR ((confirmed_by IS NOT NULL) AND (confirmed_at IS NOT NULL)))` [name: 'cash_transactions_check']
+    `((direction)::text = ANY ((ARRAY['IN'::character varying, 'OUT'::character varying])::text[]))` [name: 'cash_transactions_direction_check']
+    `((method)::text = ANY ((ARRAY['CASH'::character varying, 'BANK_TRANSFER_MANUAL'::character varying, 'OTHER'::character varying])::text[]))` [name: 'cash_transactions_method_check']
+    `((status)::text = ANY ((ARRAY['PENDING'::character varying, 'CONFIRMED'::character varying, 'VOID'::character varying])::text[]))` [name: 'cash_transactions_status_check']
+  }
+
+  Note: 'Phiếu thu/chi tiền thật, chưa xác minh không ghi sổ\n\nCREATE INDEX idx_cash_payment_document ON public.cash_transactions USING btree (payment_document_id) WHERE (payment_document_id IS NOT NULL)\n\nCREATE UNIQUE INDEX uq_external_cash ON public.cash_transactions USING btree (cash_account_id, external_reference) WHERE ((external_reference IS NOT NULL) AND ((status)::text = \'CONFIRMED\'::text))'
+}
+
+Table fund_accounts [headercolor: #7C3AED] {
+  id bigint [pk, not null, increment]
+  fund_code varchar(100) [not null, unique]
+  fund_type varchar(20) [not null]
+  reconciliation_status varchar(20) [not null, default: 'VERIFIED']
+  contract_id bigint
+  reservation_id bigint
+  unapplied_receipt_id bigint [unique]
+  beneficiary_tenant_id bigint
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  checks {
+    `((((fund_type)::text = ANY ((ARRAY['DEPOSIT'::character varying, 'ADVANCE'::character varying])::text[])) AND (contract_id IS NOT NULL) AND (reservation_id IS NULL) AND (unapplied_receipt_id IS NULL) AND (beneficiary_tenant_id IS NOT NULL)) OR (((fund_type)::text = 'RESERVATION'::text) AND (reservation_id IS NOT NULL) AND (contract_id IS NULL) AND (unapplied_receipt_id IS NULL)) OR (((fund_type)::text = 'UNAPPLIED'::text) AND (unapplied_receipt_id IS NOT NULL) AND (contract_id IS NULL) AND (reservation_id IS NULL)))` [name: 'fund_accounts_check']
+    `((fund_type)::text = ANY ((ARRAY['DEPOSIT'::character varying, 'ADVANCE'::character varying, 'RESERVATION'::character varying, 'UNAPPLIED'::character varying])::text[]))` [name: 'fund_accounts_fund_type_check']
+    `((reconciliation_status)::text = ANY ((ARRAY['VERIFIED'::character varying, 'PENDING'::character varying])::text[]))` [name: 'fund_accounts_reconciliation_status_check']
+  }
+
+  Note: 'Cọc/trả trước/giữ chỗ/chưa phân bổ, không lưu balance chỉnh tay\n\nCREATE UNIQUE INDEX uq_contract_fund ON public.fund_accounts USING btree (contract_id, fund_type) WHERE (contract_id IS NOT NULL)\n\nCREATE UNIQUE INDEX uq_reservation_fund ON public.fund_accounts USING btree (reservation_id) WHERE (reservation_id IS NOT NULL)'
+}
+
+Table fund_entries [headercolor: #7C3AED] {
+  id bigint [pk, not null, increment]
+  entry_code varchar(120) [not null, unique]
+  entry_type varchar(30) [not null]
+  cash_transaction_id bigint
+  from_fund_id bigint
+  to_fund_id bigint
+  debit_item_id bigint
+  credit_item_id bigint
+  original_entry_id bigint
+  amount numeric(14,2) [not null]
+  reason text [not null, default: '']
+  posted_by bigint [not null]
+  posted_at timestamptz [not null, default: `clock_timestamp()`]
+
+  indexes {
+    debit_item_id [name: 'idx_entry_debit', type: btree]
+    from_fund_id [name: 'idx_entry_from', type: btree]
+    to_fund_id [name: 'idx_entry_to', type: btree]
+  }
+
+  checks {
+    `(amount > (0)::numeric)` [name: 'fund_entries_amount_check']
+    `((from_fund_id IS NULL) OR (to_fund_id IS NULL) OR (from_fund_id <> to_fund_id))` [name: 'fund_entries_check']
+    `((original_entry_id IS NULL) OR (original_entry_id <> id))` [name: 'fund_entries_check1']
+    `((((entry_type)::text = 'RECEIVE'::text) AND (cash_transaction_id IS NOT NULL) AND (to_fund_id IS NOT NULL) AND (num_nonnulls(from_fund_id, debit_item_id, credit_item_id, original_entry_id) = 0)) OR (((entry_type)::text = 'PAYMENT'::text) AND (from_fund_id IS NOT NULL) AND (debit_item_id IS NOT NULL) AND (num_nonnulls(cash_transaction_id, to_fund_id, credit_item_id, original_entry_id) = 0)) OR (((entry_type)::text = 'TRANSFER'::text) AND (from_fund_id IS NOT NULL) AND (to_fund_id IS NOT NULL) AND (num_nonnulls(cash_transaction_id, debit_item_id, credit_item_id, original_entry_id) = 0)) OR (((entry_type)::text = 'REFUND'::text) AND (from_fund_id IS NOT NULL) AND (cash_transaction_id IS NOT NULL) AND (num_nonnulls(to_fund_id, debit_item_id, credit_item_id, original_entry_id) = 0)) OR (((entry_type)::text = 'CREDIT_TO_FUND'::text) AND (credit_item_id IS NOT NULL) AND (to_fund_id IS NOT NULL) AND (num_nonnulls(cash_transaction_id, from_fund_id, debit_item_id, original_entry_id) = 0)) OR (((entry_type)::text = 'ADJUSTMENT_RELEASE'::text) AND (credit_item_id IS NOT NULL) AND (original_entry_id IS NOT NULL) AND (to_fund_id IS NOT NULL) AND (num_nonnulls(cash_transaction_id, from_fund_id, debit_item_id) = 0)) OR (((entry_type)::text = 'REVERSAL'::text) AND (original_entry_id IS NOT NULL) AND (num_nonnulls(cash_transaction_id, from_fund_id, to_fund_id, debit_item_id, credit_item_id) = 0)) OR (((entry_type)::text = 'OPENING_BALANCE'::text) AND (to_fund_id IS NOT NULL) AND (btrim(reason) <> ''::text) AND (num_nonnulls(cash_transaction_id, from_fund_id, debit_item_id, credit_item_id, original_entry_id) = 0)))` [name: 'fund_entries_check2']
+    `((entry_type)::text = ANY ((ARRAY['RECEIVE'::character varying, 'PAYMENT'::character varying, 'TRANSFER'::character varying, 'REFUND'::character varying, 'CREDIT_TO_FUND'::character varying, 'ADJUSTMENT_RELEASE'::character varying, 'REVERSAL'::character varying, 'OPENING_BALANCE'::character varying])::text[]))` [name: 'fund_entries_entry_type_check']
+  }
+
+  Note: 'Sổ tác động quỹ và phân bổ, số tiền luôn dương'
+}
+
+Table fund_holds [headercolor: #7C3AED] {
+  id bigint [pk, not null, increment]
+  fund_account_id bigint [not null]
+  related_billing_item_id bigint
+  amount numeric(14,2) [not null]
+  reason text [not null]
+  review_on date [not null]
+  created_by bigint [not null]
+  released_at timestamptz
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  checks {
+    `(amount > (0)::numeric)` [name: 'fund_holds_amount_check']
+    `(btrim(reason) <> ''::text)` [name: 'fund_holds_reason_check']
+  }
+
+  Note: 'Tạm giữ có căn cứ và mốc rà lại, không là khoản đã cấn'
+}
+
+// THAM CHIẾU: checkout_records — 2/11 cột thật.
+Table checkout_records [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  status varchar(20) [not null, default: 'DRAFT']
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/11 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: consumption_segments — 1/8 cột thật.
+Table consumption_segments [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 1/8 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: contract_service_subscriptions — 1/8 cột thật.
+Table contract_service_subscriptions [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 1/8 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: contract_terms — 2/15 cột thật.
+Table contract_terms [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  status varchar(20) [not null, default: 'DRAFT']
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/15 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: contract_violations — 2/9 cột thật.
+Table contract_violations [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  status varchar(20) [not null, default: 'OPEN']
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/9 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: contracts — 2/11 cột thật.
+Table contracts [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  contract_code varchar(60) [not null, unique]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/11 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: handover_items — 2/8 cột thật.
+Table handover_items [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  item_name_snapshot varchar(150) [not null]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/8 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: maintenance_costs — 1/8 cột thật.
+Table maintenance_costs [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 1/8 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: properties — 2/9 cột thật.
+Table properties [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  property_code varchar(30) [not null, unique]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/9 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: reservations — 2/13 cột thật.
+Table reservations [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  reservation_code varchar(60) [not null, unique]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/13 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: service_price_configs — 1/7 cột thật.
+Table service_price_configs [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 1/7 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: tenant_profiles — 2/9 cột thật.
+Table tenant_profiles [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  full_name varchar(150) [not null]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/9 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// THAM CHIẾU: users — 2/6 cột thật.
+Table users [headercolor: #64748B] {
+  id bigint [pk, not null, increment]
+  username varchar(50) [not null, unique]
+  Note: 'THAM CHIẾU RÚT GỌN · Bảng thuộc nhóm khác. Chỉ hiện 2/6 cột để đọc quan hệ; không hiện các FK xuất phát từ bảng này. Định nghĩa đầy đủ trong docs/quanlytro.dbml.'
+}
+
+// FK có bảng nguồn trong nhóm
+Ref billing_documents_checkout_id_fkey: billing_documents.checkout_id >? checkout_records.id [delete: no action, update: no action]
+Ref billing_documents_contract_id_fkey: billing_documents.contract_id >? contracts.id [delete: no action, update: no action]
+Ref billing_documents_created_by_fkey: billing_documents.created_by >? users.id [delete: no action, update: no action]
+Ref billing_documents_issued_by_fkey: billing_documents.issued_by >? users.id [delete: no action, update: no action]
+Ref billing_documents_related_document_id_fkey: billing_documents.related_document_id >? billing_documents.id [delete: no action, update: no action]
+Ref billing_documents_reservation_id_fkey: billing_documents.reservation_id >? reservations.id [delete: no action, update: no action]
+Ref billing_items_adjusts_item_id_fkey: billing_items.adjusts_item_id >? billing_items.id [delete: no action, update: no action]
+Ref billing_items_contract_term_id_fkey: billing_items.contract_term_id >? contract_terms.id [delete: no action, update: no action]
+Ref billing_items_document_id_fkey: billing_items.document_id > billing_documents.id [delete: no action, update: no action]
+Ref billing_items_handover_item_id_fkey: billing_items.handover_item_id >? handover_items.id [delete: no action, update: no action]
+Ref billing_items_maintenance_cost_id_fkey: billing_items.maintenance_cost_id >? maintenance_costs.id [delete: no action, update: no action]
+Ref billing_items_segment_id_fkey: billing_items.segment_id >? consumption_segments.id [delete: no action, update: no action]
+Ref billing_items_service_price_config_id_fkey: billing_items.service_price_config_id >? service_price_configs.id [delete: no action, update: no action]
+Ref billing_items_subscription_id_fkey: billing_items.subscription_id >? contract_service_subscriptions.id [delete: no action, update: no action]
+Ref billing_items_violation_id_fkey: billing_items.violation_id >? contract_violations.id [delete: no action, update: no action]
+Ref cash_accounts_property_id_fkey: cash_accounts.property_id >? properties.id [delete: no action, update: no action]
+Ref cash_transactions_cash_account_id_fkey: cash_transactions.cash_account_id > cash_accounts.id [delete: no action, update: no action]
+Ref cash_transactions_confirmed_by_fkey: cash_transactions.confirmed_by >? users.id [delete: no action, update: no action]
+Ref cash_transactions_payer_or_payee_id_fkey: cash_transactions.payer_or_payee_id >? tenant_profiles.id [delete: no action, update: no action]
+Ref cash_transactions_payment_document_id_fkey: cash_transactions.payment_document_id >? billing_documents.id [delete: no action, update: no action]
+Ref cash_transactions_recorded_by_fkey: cash_transactions.recorded_by > users.id [delete: no action, update: no action]
+Ref fund_accounts_beneficiary_tenant_id_fkey: fund_accounts.beneficiary_tenant_id >? tenant_profiles.id [delete: no action, update: no action]
+Ref fund_accounts_contract_id_fkey: fund_accounts.contract_id >? contracts.id [delete: no action, update: no action]
+Ref fund_accounts_reservation_id_fkey: fund_accounts.reservation_id >? reservations.id [delete: no action, update: no action]
+Ref fund_accounts_unapplied_receipt_id_fkey: cash_transactions.id ?- fund_accounts.unapplied_receipt_id [delete: no action, update: no action]
+Ref fund_entries_cash_transaction_id_fkey: fund_entries.cash_transaction_id >? cash_transactions.id [delete: no action, update: no action]
+Ref fund_entries_credit_item_id_fkey: fund_entries.credit_item_id >? billing_items.id [delete: no action, update: no action]
+Ref fund_entries_debit_item_id_fkey: fund_entries.debit_item_id >? billing_items.id [delete: no action, update: no action]
+Ref fund_entries_from_fund_id_fkey: fund_entries.from_fund_id >? fund_accounts.id [delete: no action, update: no action]
+Ref fund_entries_original_entry_id_fkey: fund_entries.original_entry_id >? fund_entries.id [delete: no action, update: no action]
+Ref fund_entries_posted_by_fkey: fund_entries.posted_by > users.id [delete: no action, update: no action]
+Ref fund_entries_to_fund_id_fkey: fund_entries.to_fund_id >? fund_accounts.id [delete: no action, update: no action]
+Ref fund_holds_created_by_fkey: fund_holds.created_by > users.id [delete: no action, update: no action]
+Ref fund_holds_fund_account_id_fkey: fund_holds.fund_account_id > fund_accounts.id [delete: no action, update: no action]
+Ref fund_holds_related_billing_item_id_fkey: fund_holds.related_billing_item_id >? billing_items.id [delete: no action, update: no action]
+
+TableGroup TaiChinh [color: #7C3AED] {
+  billing_documents
+  billing_items
+  cash_accounts
+  cash_transactions
+  fund_accounts
+  fund_entries
+  fund_holds
+}
+
+TableGroup ThamChieuRutGon [color: #64748B] {
+  checkout_records
+  consumption_segments
+  contract_service_subscriptions
+  contract_terms
+  contract_violations
+  contracts
+  handover_items
+  maintenance_costs
+  properties
+  reservations
+  service_price_configs
+  tenant_profiles
+  users
+}

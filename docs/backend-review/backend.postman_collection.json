@@ -1,0 +1,201 @@
+{
+  "info": {
+    "name": "Backend nhà trọ — dữ liệu đã kiểm chứng 01-11-2026",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8093"
+    },
+    {
+      "key": "password",
+      "value": "ReviewAdmin49#2026"
+    },
+    {
+      "key": "token",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Đăng nhập",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"{{password}}\"\n}"
+        },
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"token\", pm.response.json().accessToken);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/health"
+      }
+    },
+    {
+      "name": "Hợp đồng A",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/contracts/6"
+      }
+    },
+    {
+      "name": "Quyết toán A",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/contracts/6/settlement"
+      }
+    },
+    {
+      "name": "Hóa đơn B",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/invoices/2"
+      }
+    },
+    {
+      "name": "Tiền dư B",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/fund-accounts/13"
+      }
+    },
+    {
+      "name": "Gửi lại phiếu thu B",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/invoices/2/payments",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"code\": \"BE-3513448266-PAY-B\",\n  \"amount\": 1800000,\n  \"cashAccountId\": 6,\n  \"method\": \"CASH\",\n  \"occurredAt\": \"2026-02-02T10:00:00+07:00\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Gửi lại phiếu hoàn A",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/fund-accounts/9/refund",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cashAccountId\": 6,\n  \"code\": \"BE-3513448266-REFUND-A\",\n  \"amount\": 230000,\n  \"method\": \"BANK_TRANSFER_MANUAL\",\n  \"externalReference\": \"BE-3513448266-BANK-OUT-A\",\n  \"occurredAt\": \"2026-01-16T11:00:00+07:00\",\n  \"paid\": true,\n  \"reason\": \"Đã kiểm tra chứng từ tiền chi thực tế\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Hóa đơn điện C sau điều chỉnh",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/invoices/3"
+      }
+    },
+    {
+      "name": "Điều chỉnh đã lập",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/billing-documents/4"
+      }
+    },
+    {
+      "name": "Tiền phân bổ dư C",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/fund-accounts/17"
+      }
+    }
+  ]
+}

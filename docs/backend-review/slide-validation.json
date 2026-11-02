@@ -1,0 +1,14 @@
+{
+  "validated_on": "2026-11-01",
+  "slides": 15,
+  "html_layout": "passed",
+  "html_javascript": "passed",
+  "pdf_generated": true,
+  "speaker_notes": false,
+  "screenshots": ".runtime/backend-review-slides",
+  "powerpoint_opened": true,
+  "powerpoint_exported_pdf": true,
+  "pdf_pages": 15,
+  "pdf_text_matches_slide_facts": true,
+  "sources_checked": true
+}

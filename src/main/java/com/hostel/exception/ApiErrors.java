@@ -23,11 +23,14 @@ public class ApiErrors {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     ResponseEntity<?> conflict(DataIntegrityViolationException e) {
+        e.printStackTrace();
         return ResponseEntity.status(409)
                 .body(
                         Map.of(
                                 "message",
-                                "Duplicate record, invalid reference, or conflicting contract"));
+                                "Duplicate record, invalid reference, or conflicting contract",
+                                "detail",
+                                e.getMessage() != null ? e.getMessage() : ""));
     }
 
     @ExceptionHandler({

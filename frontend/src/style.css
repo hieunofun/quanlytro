@@ -685,3 +685,225 @@ footer {
     flex-wrap: wrap;
   }
 }
+
+/* ===== TIỆN ÍCH CHO YÊU CẦU BẢO VỆ ĐỒ ÁN V13 ===== */
+
+/* 1. Đột biến điện nước: Tô màu cam/đỏ, đẩy lên trên */
+tr.row-anomaly {
+  background: rgba(249, 115, 22, 0.08) !important;
+  border-left: 4px solid #f97316;
+}
+tr.row-anomaly:hover {
+  background: rgba(249, 115, 22, 0.14) !important;
+}
+.badge-anomaly {
+  background: #ffedd5;
+  color: #c2410c;
+  border: 1px solid #fdba74;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+/* 2. Khối 6 ô chỉ số kỳ thống kê (Thu trước, đúng, sau, chưa thu, điện, nước) */
+.period-metrics-section {
+  margin-top: 18px;
+  margin-bottom: 24px;
+}
+.period-metrics-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.period-metrics-title h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.period-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+}
+.metric-box {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.metric-box:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+.metric-box .metric-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+}
+.metric-box .metric-value {
+  font-size: 19px;
+  font-weight: 700;
+}
+.metric-box .metric-sub {
+  font-size: 11px;
+  color: var(--muted);
+}
+.metric-box.early {
+  border-top: 3px solid #10b981;
+}
+.metric-box.early .metric-value {
+  color: #059669;
+}
+.metric-box.on-time {
+  border-top: 3px solid #3b82f6;
+}
+.metric-box.on-time .metric-value {
+  color: #2563eb;
+}
+.metric-box.late {
+  border-top: 3px solid #f59e0b;
+}
+.metric-box.late .metric-value {
+  color: #d97706;
+}
+.metric-box.unpaid {
+  border-top: 3px solid #ef4444;
+}
+.metric-box.unpaid .metric-value {
+  color: #dc2626;
+}
+.metric-box.electricity {
+  border-top: 3px solid #eab308;
+}
+.metric-box.electricity .metric-value {
+  color: #ca8a04;
+}
+.metric-box.water {
+  border-top: 3px solid #06b6d4;
+}
+.metric-box.water .metric-value {
+  color: #0891b2;
+}
+
+/* 3. Nhóm Tab và Điều khiển Báo cáo / Thời gian */
+.tabs-control {
+  display: inline-flex;
+  background: var(--secondary);
+  padding: 3px;
+  border-radius: 10px;
+  gap: 4px;
+}
+.tabs-control button {
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.tabs-control button.active {
+  background: var(--surface);
+  color: var(--foreground);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  font-weight: 600;
+}
+
+/* 4. Biểu đồ thanh xu hướng (CSS Chart) */
+.trend-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  height: 180px;
+  padding: 16px 8px 8px;
+  border-bottom: 1px solid var(--border-strong);
+  overflow-x: auto;
+}
+.chart-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 64px;
+  height: 100%;
+  justify-content: flex-end;
+}
+.chart-bars-wrap {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  width: 100%;
+  height: 140px;
+  justify-content: center;
+}
+.chart-bar {
+  width: 16px;
+  border-radius: 4px 4px 0 0;
+  min-height: 4px;
+  transition: height 0.3s ease;
+}
+.chart-bar.billed {
+  background: #cbd5e1;
+}
+.chart-bar.collected {
+  background: #3b82f6;
+}
+.chart-label {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* 5. Công nợ khách hàng */
+.badge-overdue {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+}
+.debt-invoice-box {
+  background: var(--surface-hover);
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-top: 8px;
+}
+
+/* 6. Danh mục đồ đạc & Bàn giao */
+.handover-card {
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 14px;
+  background: var(--surface);
+}
+.handover-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.item-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--secondary);
+  border-radius: 6px;
+  font-size: 12px;
+}

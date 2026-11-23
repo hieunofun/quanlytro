@@ -477,6 +477,8 @@ public class Billing49 {
                             item.get("id"),
                             "amount",
                             part,
+                            "postedAt",
+                            occurred,
                             "reason",
                             text(m, "Recorded manual payment", "notes")));
             remaining = remaining.subtract(part);

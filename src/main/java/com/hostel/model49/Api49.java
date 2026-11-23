@@ -234,7 +234,54 @@ public class Api49 {
 
     @GetMapping("/rooms/{id}")
     public Object room(@PathVariable long id) {
-        return access.room(id);
+        var r = new LinkedHashMap<>(access.room(id));
+        r.put("assets", roomAssets(id));
+        return r;
+    }
+
+    @GetMapping("/rooms/{id}/assets")
+    public Object roomAssets(@PathVariable long id) {
+        access.room(id);
+        return db.rows(
+                "select ap.id placement_id, ap.asset_id, a.asset_code, a.quantity, a.status, a.note asset_note,"
+                        + " at.name asset_type_name, at.code asset_type_code, at.unit_name,"
+                        + " ap.valid_from, ap.valid_to"
+                        + " from asset_placements ap"
+                        + " join assets a on a.id=ap.asset_id"
+                        + " join asset_types at on at.id=a.asset_type_id"
+                        + " where ap.room_id=? and (ap.valid_to is null or ap.valid_to > clock_timestamp())"
+                        + " order by at.name, a.asset_code",
+                id);
+    }
+
+    @PostMapping("/rooms/{id}/assets")
+    public Object addRoomAsset(@PathVariable long id, @RequestBody Map<String, Object> m) {
+        access.manager();
+        access.room(id);
+        Long assetId = optionalId(m, "assetId");
+        if (assetId == null) {
+            Long typeId = keyId(m, "assetTypeId");
+            String code = text(m, "AST-" + id + "-" + (System.currentTimeMillis() % 100000), "assetCode");
+            BigDecimal qty = amount(m, "1", "quantity");
+            String note = text(m, "", "note");
+            assetId = db.insert("assets", "asset_type_id,asset_code,quantity,status,note", typeId, code, qty, "ACTIVE", note);
+        }
+        long placementId = db.insert(
+                "asset_placements",
+                "asset_id,room_id,valid_from,recorded_by",
+                assetId, id, now(), access.user());
+        events.audit("PLACE_ASSET", "asset_placements", placementId, null, m, "Asset placed in room " + id);
+        return roomAssets(id);
+    }
+
+    @PostMapping("/rooms/{id}/assets/{placementId}/remove")
+    public Object removeRoomAsset(@PathVariable long id, @PathVariable long placementId, @RequestBody(required = false) Map<String, Object> m) {
+        access.manager();
+        access.room(id);
+        var old = db.one("select * from asset_placements where id=? and room_id=? and valid_to is null", placementId, id);
+        db.jdbc.update("update asset_placements set valid_to=clock_timestamp() where id=?", placementId);
+        events.audit("REMOVE_ASSET", "asset_placements", placementId, old, m, "Asset removed from room " + id);
+        return roomAssets(id);
     }
 
     @PutMapping("/rooms/{id}")
@@ -413,6 +460,138 @@ public class Api49 {
     @PostMapping("/contracts/{id}/possessions")
     public Object possess(@PathVariable long id, @RequestBody Map<String, Object> m) {
         return leases.possess(id, m);
+    }
+
+    @PostMapping("/contracts/{id}/handovers")
+    public Object createHandover(@PathVariable long id, @RequestBody Map<String, Object> m) {
+        access.manager();
+        var c = access.contract(id);
+        long room = com.hostel.service.Database.id(c, "room_id");
+        access.action(room, "MANAGE", BigDecimal.ZERO);
+        db.one("select id from contracts where id=? for update", id);
+
+        String type = text(m, "MOVE_IN", "handoverType");
+        require(Set.of("MOVE_IN", "MOVE_OUT", "RESPONSIBILITY").contains(type), "Invalid handover type");
+
+        String code = text(m, "HO-" + type + "-" + id + "-" + (System.currentTimeMillis() % 10000), "handoverCode");
+        OffsetDateTime occurred = time(value(m, "occurredAt"));
+        Long possessionId = optionalId(m, "possessionId");
+        Long receivedBy = optionalId(m, "receivedByTenantId");
+        if (receivedBy == null && c.get("primary_tenant_id") != null) {
+            receivedBy = ((Number) c.get("primary_tenant_id")).longValue();
+        }
+
+        long handoverId = db.insert(
+                "handovers",
+                "contract_id,possession_id,handover_code,handover_type,occurred_at,status,given_by,received_by_tenant_id,note",
+                id, possessionId, code, type, occurred, "DRAFT", access.user(), receivedBy, text(m, "", "note"));
+
+        boolean autoItems = bool(m, true, "autoPopulateItems");
+        if (autoItems) {
+            var placements = db.rows(
+                    "select ap.id placement_id, a.asset_code, a.quantity, at.name type_name, at.unit_name "
+                            + "from asset_placements ap "
+                            + "join assets a on a.id=ap.asset_id "
+                            + "join asset_types at on at.id=a.asset_type_id "
+                            + "where ap.room_id=? and (ap.valid_to is null or ap.valid_to > clock_timestamp()) "
+                            + "order by at.name, a.asset_code",
+                    room);
+            int lineNo = 1;
+            for (var p : placements) {
+                String itemName = p.get("type_name") + " (" + p.get("asset_code") + ")";
+                String condition = "MOVE_OUT".equals(type) ? "Bình thường / Đã đối chiếu" : "Hoạt động tốt / Mới 100%";
+                db.insert(
+                        "handover_items",
+                        "handover_id,asset_placement_id,line_no,item_name_snapshot,quantity,condition_note,note",
+                        handoverId, p.get("placement_id"), lineNo++, itemName, p.get("quantity"), condition, "");
+            }
+        }
+
+        events.audit("CREATE_HANDOVER", "handovers", handoverId, null, m, "Created handover " + code + " for contract " + id);
+        return leases.detail(id);
+    }
+
+    @PostMapping("/handovers/{id}/items")
+    public Object addHandoverItem(@PathVariable long id, @RequestBody Map<String, Object> m) {
+        access.manager();
+        var h = db.one("select * from handovers where id=? for update", id);
+        require(!"CONFIRMED".equals(h.get("status")), "Cannot modify confirmed handover");
+        access.contract(com.hostel.service.Database.id(h, "contract_id"));
+
+        int nextLine = db.jdbc.queryForObject(
+                "select coalesce(max(line_no), 0) + 1 from handover_items where handover_id=?",
+                Integer.class,
+                id);
+        long itemId = db.insert(
+                "handover_items",
+                "handover_id,asset_placement_id,line_no,item_name_snapshot,quantity,condition_note,note",
+                id,
+                optionalId(m, "assetPlacementId"),
+                nextLine,
+                required(m, "itemName"),
+                amount(m, "1", "quantity"),
+                text(m, "Hoạt động tốt", "conditionNote"),
+                text(m, "", "note"));
+        return db.one("select * from handover_items where id=?", itemId);
+    }
+
+    @PostMapping("/handovers/{id}/confirm")
+    public Object confirmHandover(@PathVariable long id, @RequestBody(required = false) Map<String, Object> m) {
+        access.manager();
+        var h = db.one("select * from handovers where id=? for update", id);
+        require(!"CONFIRMED".equals(h.get("status")), "Handover already confirmed");
+        long contractId = com.hostel.service.Database.id(h, "contract_id");
+        access.contract(contractId);
+
+        db.jdbc.update(
+                "update handovers set status='CONFIRMED',confirmed_by=?,confirmed_at=clock_timestamp(),note=coalesce(?,note) where id=?",
+                access.user(), m != null ? text(m, null, "note") : null, id);
+        events.audit("CONFIRM_HANDOVER", "handovers", id, h, m, "Confirmed handover " + h.get("handover_code"));
+        return leases.detail(contractId);
+    }
+
+    @PostMapping("/handovers/{id}/damage-compensation")
+    public Object damageCompensation(@PathVariable long id, @RequestBody Map<String, Object> m) {
+        access.manager();
+        var h = db.one("select * from handovers where id=?", id);
+        long contractId = com.hostel.service.Database.id(h, "contract_id");
+        var c = access.contract(contractId);
+        long roomId = com.hostel.service.Database.id(c, "room_id");
+        access.action(roomId, "ADJUST", BigDecimal.ZERO);
+
+        long handoverItemId = keyId(m, "handoverItemId");
+        var hi = db.one("select * from handover_items where id=? and handover_id=?", handoverItemId, id);
+
+        BigDecimal amount = amount(m, "0", "amount");
+        require(amount.compareTo(BigDecimal.ZERO) > 0, "Compensation amount must be positive");
+
+        LocalDate issueDate = day(m, LocalDate.now(), "issueDate");
+        LocalDate dueDate = day(m, issueDate.plusDays(3), "dueDate");
+        String code = text(m, "COMP-" + id + "-" + (System.currentTimeMillis() % 10000), "documentCode");
+
+        long docId = finance.createDocument(Map.of(
+                "contractId", contractId,
+                "documentCode", code,
+                "documentType", "INVOICE",
+                "direction", "DEBIT",
+                "issueDate", issueDate,
+                "dueDate", dueDate,
+                "billingPeriod", issueDate.withDayOfMonth(1)
+        ));
+
+        finance.line(docId, Map.of(
+                "itemKind", "COMPENSATION",
+                "direction", "DEBIT",
+                "itemNameSnapshot", "Bồi thường hư hỏng: " + hi.get("item_name_snapshot"),
+                "quantitySnapshot", BigDecimal.ONE,
+                "unitPriceSnapshot", amount,
+                "unitNameSnapshot", "Lần",
+                "calculationBasis", "FIXED",
+                "handoverItemId", handoverItemId,
+                "basisNote", text(m, "Khấu trừ hư hại kiểm tra bàn giao", "note")
+        ));
+
+        return finance.issue(docId);
     }
 
     @PostMapping("/contracts/{id}/move-out-notices")
@@ -751,21 +930,33 @@ public class Api49 {
                         + " billing_period,r.room_code,s.service_end::date reading_date,case"
                         + " si.service_code when 'ELEC' then 'ELECTRICITY' else si.service_code end"
                         + " meter_type,exists(select 1 from consumption_alerts a where"
-                        + " a.segment_id=s.id and a.status='PENDING') has_anomaly from v_segments s"
-                        + " join rooms r on r.id=s.room_id join service_items si on"
-                        + " si.id=s.service_item_id where "
+                        + " a.segment_id=s.id and a.status='PENDING') has_anomaly,"
+                        + " a.id alert_id, a.status alert_status, a.percentage_increase, a.baseline_average"
+                        + " from v_segments s"
+                        + " join rooms r on r.id=s.room_id"
+                        + " join service_items si on si.id=s.service_item_id"
+                        + " left join consumption_alerts a on a.segment_id=s.id"
+                        + " where "
                         + access.roomScope("s.room_id")
-                        + " order by s.id desc");
+                        + " order by (case when a.status='PENDING' then 0 else 1 end) asc, s.service_end desc, r.room_code asc, s.id desc");
     }
 
     @GetMapping("/alerts")
     public Object alerts() {
         access.manager();
         return db.rows(
-                "select a.*,s.contract_id,s.room_id,s.consumption from consumption_alerts a join"
-                        + " v_segments s on s.id=a.segment_id where "
+                "select a.*,s.contract_id,s.room_id,s.consumption,r.room_code,"
+                        + " case si.service_code when 'ELEC' then 'ELECTRICITY' else si.service_code end meter_type,"
+                        + " si.name service_name, to_char(coalesce(d.billing_period, s.service_end-interval '1 day'), 'YYYY-MM') billing_period,"
+                        + " s.start_reading, s.end_reading, s.service_start, s.service_end"
+                        + " from consumption_alerts a"
+                        + " join v_segments s on s.id=a.segment_id"
+                        + " join rooms r on r.id=s.room_id"
+                        + " join service_items si on si.id=s.service_item_id"
+                        + " left join billing_documents d on d.id=s.billing_document_id"
+                        + " where "
                         + access.roomScope("s.room_id")
-                        + " order by a.id desc");
+                        + " order by (case when a.status='PENDING' then 0 else 1 end) asc, a.id desc");
     }
 
     @PutMapping("/alerts/{id}")
@@ -944,22 +1135,96 @@ public class Api49 {
                                 "select * from contract_terms where contract_id=? and version_no=?",
                                 id,
                                 version);
+        var c = db.one(
+                "select c.*, r.room_code, r.floor_number, r.area_sqm, r.property_id, p.name property_name, p.address property_address "
+                        + "from contracts c join rooms r on r.id=c.room_id join properties p on p.id=r.property_id where c.id=?",
+                id);
+        var tenant = db.one("select * from tenant_profiles where id=?", c.get("primary_tenant_id"));
+        var residents = db.rows(
+                "select cr.*, tp.full_name, tp.identity_number, tp.phone from contract_residencies cr join tenant_profiles tp on tp.id=cr.tenant_id "
+                        + "where cr.contract_id=? and (cr.effective_to is null or cr.effective_to > current_date)",
+                id);
+        var assets = db.rows(
+                "select ap.id, at.name asset_name, a.asset_code, a.quantity, at.unit_name "
+                        + "from asset_placements ap join assets a on a.id=ap.asset_id join asset_types at on at.id=a.asset_type_id "
+                        + "where ap.room_id=? and (ap.valid_to is null or ap.valid_to > clock_timestamp()) order by at.name, a.asset_code",
+                c.get("room_id"));
+
+        var lines = new ArrayList<String>();
+        lines.add("CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM");
+        lines.add("Độc lập - Tự do - Hạnh phúc");
+        lines.add("---------------o0o---------------");
+        lines.add("");
+        lines.add("HỢP ĐỒNG THUÊ NHÀ TRỌ");
+        lines.add("Mã hợp đồng: " + c.get("contract_code") + "  ·  Phiên bản điều khoản: Số " + t.get("version_no"));
+        lines.add("Ngày lập / ký: " + (t.get("signed_at") != null ? t.get("signed_at").toString().substring(0, 10) : LocalDate.now().toString()));
+        lines.add("");
+        lines.add("I. BÊN CHO THUÊ (BÊN A):");
+        lines.add("Tòa nhà: " + c.get("property_name"));
+        lines.add("Địa chỉ: " + c.get("property_address"));
+        lines.add("Đại diện: Ban Quản lý Nhà trọ");
+        lines.add("");
+        lines.add("II. BÊN THUÊ (BÊN B):");
+        lines.add("Họ và tên người thuê chính: " + tenant.get("full_name"));
+        lines.add("Số CMND / CCCD: " + (tenant.get("identity_number") != null ? tenant.get("identity_number") : "—"));
+        lines.add("Số điện thoại liên hệ: " + (tenant.get("phone") != null ? tenant.get("phone") : "—"));
+        lines.add("Email: " + (tenant.get("email") != null ? tenant.get("email") : "—"));
+        lines.add("Quê quán / Thường trú: " + (tenant.get("hometown") != null ? tenant.get("hometown") : "Theo hồ sơ khách thuê"));
+        lines.add("");
+        lines.add("Hai bên cùng thỏa thuận và thống nhất ký kết hợp đồng thuê phòng với các điều khoản sau:");
+        lines.add("");
+        lines.add("ĐIỀU 1: ĐỐI TƯỢNG HỢP ĐỒNG & MỤC ĐÍCH THUÊ");
+        lines.add("- Bên A đồng ý cho Bên B thuê phòng số: " + c.get("room_code") + " tại Tầng " + c.get("floor_number") + " của tòa nhà " + c.get("property_name") + ".");
+        lines.add("- Diện tích sử dụng: " + c.get("area_sqm") + " m2.");
+        lines.add("- Mục đích thuê: Dùng để ở và sinh hoạt hợp pháp, chấp hành nghiêm chỉnh nội quy và quy định pháp luật.");
+        lines.add("");
+        lines.add("ĐIỀU 2: THỜI HẠN THUÊ");
+        lines.add("- Thời hạn thuê phòng: Từ ngày " + t.get("effective_from") + " đến hết ngày " + t.get("lease_end") + ".");
+        lines.add("- Khi hết hạn hợp đồng, nếu Bên B có nhu cầu tiếp tục thuê và chấp hành tốt các quy định thì hai bên sẽ ký phụ lục gia hạn hợp đồng.");
+        lines.add("");
+        lines.add("ĐIỀU 3: GIÁ THUÊ, TIỀN CỌC VÀ PHƯƠNG THỨC THANH TOÁN");
+        lines.add("- Giá thuê phòng: " + String.format("%,.0f", new BigDecimal(t.get("rental_price").toString())) + " VNĐ/tháng.");
+        lines.add("- Tiền đặt cọc bảo đảm: " + String.format("%,.0f", new BigDecimal(t.get("deposit_required").toString())) + " VNĐ.");
+        lines.add("- Ngày thanh toán định kỳ hàng tháng: Ngày " + t.get("payment_day") + " hàng tháng. Hình thức: " + ("IN_ADVANCE".equals(t.get("collection_timing")) ? "Thu đầu kỳ (Trả trước)" : "Thu cuối kỳ (Trả sau)") + ".");
+        lines.add("- Tiền điện, nước, dịch vụ phát sinh được lập hóa đơn và đối soát theo chỉ số công tơ định kỳ hàng tháng.");
+        lines.add("");
+        lines.add("ĐIỀU 4: TRANG THIẾT BỊ VÀ TÀI SẢN BÀN GIAO TRONG PHÒNG");
+        if (assets.isEmpty()) {
+            lines.add("- Bàn giao trang thiết bị phòng cơ bản theo biên bản bàn giao nhận phòng (MOVE_IN).");
+        } else {
+            lines.add("- Danh mục trang thiết bị kèm phòng theo hợp đồng:");
+            int idx = 1;
+            for (var a : assets) {
+                lines.add("  " + (idx++) + ". " + a.get("asset_name") + " (" + a.get("asset_code") + ") - Số lượng: " + a.get("quantity") + " " + a.get("unit_name") + " - Hiện trạng: Đang hoạt động tốt");
+            }
+        }
+        lines.add("");
+        lines.add("ĐIỀU 5: THÀNH VIÊN CÙNG LƯU TRÚ");
+        if (residents.isEmpty()) {
+            lines.add("- Người thuê chính: " + tenant.get("full_name") + ".");
+        } else {
+            lines.add("- Danh sách thành viên đăng ký thường trú cùng phòng:");
+            int ridx = 1;
+            for (var r : residents) {
+                lines.add("  " + (ridx++) + ". " + r.get("full_name") + " - CCCD: " + (r.get("identity_number") != null ? r.get("identity_number") : "—") + " - SĐT: " + (r.get("phone") != null ? r.get("phone") : "—"));
+            }
+        }
+        lines.add("");
+        lines.add("ĐIỀU 6: QUYỀN VÀ NGHĨA VỤ CỦA HAI BÊN");
+        lines.add("- Bên A: Đảm bảo quyền sử dụng phòng cho Bên B, cung cấp đầy đủ điện nước, bảo dưỡng hệ thống cơ sở vật chất chung.");
+        lines.add("- Bên B: Sử dụng phòng đúng mục đích, thanh toán tiền thuê và dịch vụ đúng thời hạn; giữ gìn vệ sinh và an ninh trật tự chung; giữ gìn đồ đạc tài sản. Khi kết thúc hợp đồng phải bàn giao lại đầy đủ tài sản nguyên vẹn; nếu có hư hỏng phải chịu trách nhiệm bồi thường theo biên bản bàn giao (MOVE_OUT).");
+        lines.add("");
+        lines.add("ĐIỀU 7: ĐIỀU KHOẢN BỔ SUNG & CAM KẾT CHUNG");
+        lines.add(t.get("terms") != null && !t.get("terms").toString().isBlank() ? t.get("terms").toString() : "- Các thỏa thuận khác thực hiện theo quy chế quản lý nhà trọ và quy định hiện hành của pháp luật.");
+        lines.add("");
+        lines.add("Hợp đồng được lập thành 02 bản có giá trị pháp lý như nhau, mỗi bên giữ 01 bản.");
+        lines.add("");
+        lines.add("ĐẠI DIỆN BÊN CHO THUÊ (BÊN A)              ĐẠI DIỆN BÊN THUÊ (BÊN B)");
+        lines.add("(Ký, ghi rõ họ tên)                       (Ký, ghi rõ họ tên)");
+
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
-                .header("Content-Disposition", "attachment; filename=contract-" + id + ".pdf")
-                .body(
-                        pdf.render(
-                                "BẢN ĐIỀU KIỆN HỢP ĐỒNG " + id + " / " + t.get("version_no"),
-                                List.of(
-                                        "Hiệu lực: "
-                                                + t.get("effective_from")
-                                                + " đến "
-                                                + t.get("lease_end"),
-                                        "Giá thuê: " + t.get("rental_price"),
-                                        "Cọc cam kết: "
-                                                + t.get("deposit_required")
-                                                + " (khác tiền thực nhận)",
-                                        "Ngày ký do người dùng ghi nhận: " + t.get("signed_at"),
-                                        "Điều khoản: " + t.get("terms"))));
+                .header("Content-Disposition", "attachment; filename=contract-" + c.get("contract_code") + ".pdf")
+                .body(pdf.render("HỢP ĐỒNG THUÊ PHÒNG TRỌ " + c.get("contract_code"), lines));
     }
 }

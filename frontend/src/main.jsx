@@ -21,6 +21,10 @@ import {
   RefreshCw,
   Menu,
   ShieldCheck,
+  BarChart3,
+  CreditCard,
+  ArrowUpDown,
+  SlidersHorizontal,
 } from "lucide-react";
 import "@fontsource/inter/400.css";
 import "@fontsource/inter/500.css";
@@ -29,7 +33,13 @@ import "@fontsource/inter/700.css";
 import { api, download, upload, imageBlob, getSession, saveSession } from "./api";
 import "./tokens.css";
 import "./style.css";
-import {Contract49Panel,Workflow49Panel} from './Model49Panels';
+import {
+  Contract49Panel,
+  Workflow49Panel,
+  DebtsPanel,
+  ReportsPanel,
+  RoomAssetsPanel,
+} from "./Model49Panels";
 const money = (n) =>
   new Intl.NumberFormat("vi-VN", {
     style: "currency",
@@ -110,6 +120,8 @@ const Badge = ({ value }) => (
 );
 const routes = {
   dashboard: ["Tổng quan", LayoutDashboard],
+  reports: ["Báo cáo", BarChart3],
+  debts: ["Công nợ khách", CreditCard],
   properties: ["Khu nhà", Building2],
   rooms: ["Phòng", DoorOpen],
   tenants: ["Người thuê", Users],
@@ -161,7 +173,18 @@ const columns = {
     ["old_index", "Chỉ số cũ"],
     ["new_index", "Chỉ số mới"],
     ["consumption", "Tiêu thụ"],
-    ["has_anomaly", "Cảnh báo", (v) => (v ? "Cần kiểm tra" : "Bình thường")],
+    [
+      "has_anomaly",
+      "Cảnh báo / Đột biến",
+      (v, r) =>
+        v || r?.alert_status === "PENDING" ? (
+          <span className="badge badge-anomaly">
+            <AlertTriangle size={12} /> Cần kiểm tra (+{r?.percentage_increase || 50}%)
+          </span>
+        ) : (
+          <span className="badge">Bình thường</span>
+        ),
+    ],
   ],
   "maintenance-requests": [
     ["title", "Nội dung"],
@@ -193,7 +216,10 @@ function App() {
     [mobile, setMobile] = useState(false),
     [dash, setDash] = useState(null),
     [alerts, setAlerts] = useState([]),
-    [month, setMonth] = useState(period());
+    [month, setMonth] = useState(period()),
+    [dashViewType, setDashViewType] = useState("month"),
+    [dashQuarter, setDashQuarter] = useState("2026-Q1"),
+    [meterSort, setMeterSort] = useState("anomaly");
   const tenant = session?.user.role === "TENANT",
     admin = session?.user.role === "ADMIN";
   useEffect(() => {
@@ -227,15 +253,17 @@ function App() {
     setError("");
     try {
       if (route === "dashboard") {
+        const qParam =
+          dashViewType === "quarter" ? `&quarter=${dashQuarter}` : `&period=${month}`;
         const [d, a] = await Promise.all([
-          api("/dashboard?period=" + month),
+          api(`/dashboard?viewType=${dashViewType}${qParam}`),
           api("/alerts"),
         ]);
         if (!current()) return;
         setDash(d);
         setAlerts(a);
-      } else if (route === "operations") {
-        if(current())setRows([]);
+      } else if (route === "operations" || route === "reports" || route === "debts") {
+        if (current()) setRows([]);
       } else if (route === "settings") {
         const [p, s, prices, th, u, a] = await Promise.all([
           api("/properties"),
@@ -268,7 +296,7 @@ function App() {
     } finally {
       if (current()) setLoading(false);
     }
-  }, [session, route, month, admin]);
+  }, [session, route, month, dashViewType, dashQuarter, admin]);
   useEffect(() => {
     load();
   }, [load]);
@@ -620,6 +648,7 @@ function App() {
               showForm={showForm}
               run={run}
               mutate={mutate}
+              navigate={navigate}
             />
           ) : route === "dashboard" ? (
             <Dashboard
@@ -627,9 +656,17 @@ function App() {
               alerts={alerts}
               month={month}
               setMonth={setMonth}
+              viewType={dashViewType}
+              setViewType={setDashViewType}
+              quarter={dashQuarter}
+              setQuarter={setDashQuarter}
               navigate={navigate}
               run={run}
             />
+          ) : route === "reports" ? (
+            <ReportsPanel run={run} />
+          ) : route === "debts" ? (
+            <DebtsPanel showForm={showForm} run={run} navigate={navigate} />
           ) : route === "operations" ? (
             <Workflow49Panel showForm={showForm} run={run}/>
           ) : route === "settings" ? (
@@ -693,6 +730,33 @@ function App() {
                   <RefreshCw size={16} />
                 </button>
               </div>
+              {route === "meter-readings" && (
+                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
+                  <span className="muted" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    <SlidersHorizontal size={15} /> Sắp xếp:
+                  </span>
+                  <div className="tabs-control">
+                    <button
+                      className={meterSort === "anomaly" ? "active" : ""}
+                      onClick={() => setMeterSort("anomaly")}
+                    >
+                      Bất thường lên đầu (Mặc định)
+                    </button>
+                    <button
+                      className={meterSort === "period" ? "active" : ""}
+                      onClick={() => setMeterSort("period")}
+                    >
+                      Theo Kỳ (Mới nhất)
+                    </button>
+                    <button
+                      className={meterSort === "room" ? "active" : ""}
+                      onClick={() => setMeterSort("room")}
+                    >
+                      Theo Phòng (A-Z)
+                    </button>
+                  </div>
+                </div>
+              )}
               {route === "meter-readings" &&
                 alerts.filter((a) => a.status === "PENDING").length > 0 && (
                   <div className="card alert-list">
@@ -703,7 +767,7 @@ function App() {
                         <div key={a.id} className="alert-row">
                           <AlertTriangle size={18} />
                           <span>
-                            Phòng {a.room_code} · {labels[a.meter_type]} kỳ{" "}
+                            Phòng {a.room_code} · {labels[a.meter_type] || a.meter_type} kỳ{" "}
                             {a.billing_period}: tăng {a.percentage_increase}% so
                             với trung bình {a.baseline_average}
                           </span>
@@ -722,6 +786,8 @@ function App() {
                                 ],
                                 "/alerts/" + a.id,
                                 "PUT",
+                                {},
+                                load
                               )
                             }
                           >
@@ -734,7 +800,43 @@ function App() {
               <Table
                 columns={columns[route]}
                 rows={
-                  Array.isArray(rows)
+                  route === "meter-readings" && Array.isArray(rows)
+                    ? [...rows]
+                        .filter((r) =>
+                          Object.values(r).some((v) =>
+                            String(v ?? "")
+                              .toLowerCase()
+                              .includes(search.toLowerCase()),
+                          ),
+                        )
+                        .sort((a, b) => {
+                          if (meterSort === "anomaly") {
+                            const aAnom = a.has_anomaly || a.alert_status === "PENDING" ? 0 : 1;
+                            const bAnom = b.has_anomaly || b.alert_status === "PENDING" ? 0 : 1;
+                            if (aAnom !== bAnom) return aAnom - bAnom;
+                            const pCmp = String(b.billing_period || b.reading_date || "").localeCompare(
+                              String(a.billing_period || a.reading_date || "")
+                            );
+                            if (pCmp !== 0) return pCmp;
+                            return String(a.room_code || "").localeCompare(String(b.room_code || ""));
+                          }
+                          if (meterSort === "period") {
+                            const pCmp = String(b.billing_period || b.reading_date || "").localeCompare(
+                              String(a.billing_period || a.reading_date || "")
+                            );
+                            if (pCmp !== 0) return pCmp;
+                            return String(a.room_code || "").localeCompare(String(b.room_code || ""));
+                          }
+                          if (meterSort === "room") {
+                            const rCmp = String(a.room_code || "").localeCompare(String(b.room_code || ""));
+                            if (rCmp !== 0) return rCmp;
+                            return String(b.billing_period || b.reading_date || "").localeCompare(
+                              String(a.billing_period || a.reading_date || "")
+                            );
+                          }
+                          return 0;
+                        })
+                    : Array.isArray(rows)
                     ? rows.filter((r) =>
                         Object.values(r).some((v) =>
                           String(v ?? "")
@@ -797,11 +899,18 @@ function Table({ columns = [], rows, onOpen }) {
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.id}>
+              <tr
+                key={r.id}
+                className={
+                  r.has_anomaly || r.alert_status === "PENDING"
+                    ? "row-anomaly"
+                    : ""
+                }
+              >
                 {columns.map(([k, , format]) => (
                   <td key={k}>
                     {format ? (
-                      format(r[k])
+                      format(r[k], r)
                     ) : [
                         "status",
                         "payment_status",
@@ -827,19 +936,80 @@ function Table({ columns = [], rows, onOpen }) {
     </div>
   );
 }
-function Dashboard({ data, alerts, month, setMonth, navigate, run }) {
+function Dashboard({
+  data,
+  alerts,
+  month,
+  setMonth,
+  viewType,
+  setViewType,
+  quarter,
+  setQuarter,
+  navigate,
+  run,
+}) {
   if (!data) return null;
   return (
     <>
-      <div className="toolbar">
-        <label>
-          Kỳ thống kê{" "}
-          <input
-            type="month"
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
-          />
-        </label>
+      <div className="toolbar" style={{ flexWrap: "wrap", gap: 12 }}>
+        <div className="tabs-control">
+          <button
+            className={viewType === "month" ? "active" : ""}
+            onClick={() => setViewType("month")}
+          >
+            Theo Tháng
+          </button>
+          <button
+            className={viewType === "quarter" ? "active" : ""}
+            onClick={() => setViewType("quarter")}
+          >
+            Theo Quý
+          </button>
+        </div>
+
+        {viewType === "month" ? (
+          <label>
+            Kỳ thống kê{" "}
+            {data.available_periods?.length ? (
+              <select value={month} onChange={(e) => setMonth(e.target.value)}>
+                {data.available_periods.map((p) => (
+                  <option key={p} value={p}>
+                    Tháng {p}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="month"
+                value={month}
+                onChange={(e) => setMonth(e.target.value)}
+              />
+            )}
+          </label>
+        ) : (
+          <label>
+            Quý thống kê{" "}
+            <select
+              value={quarter}
+              onChange={(e) => setQuarter(e.target.value)}
+            >
+              <option value="2026-Q1">Quý 1 / 2026</option>
+              <option value="2025-Q4">Quý 4 / 2025</option>
+              <option value="2025-Q3">Quý 3 / 2025</option>
+              <option value="2025-Q2">Quý 2 / 2025</option>
+              <option value="2025-Q1">Quý 1 / 2025</option>
+            </select>
+          </label>
+        )}
+
+        <button onClick={() => navigate("debts")}>
+          <CreditCard size={16} />
+          Xem công nợ khách
+        </button>
+        <button onClick={() => navigate("reports")}>
+          <BarChart3 size={16} />
+          Báo cáo xu hướng
+        </button>
         <button
           onClick={() =>
             run(() => download("/reports/debts.csv", "cong-no.csv"))
@@ -870,13 +1040,84 @@ function Dashboard({ data, alerts, month, setMonth, navigate, run }) {
           </div>
         ))}
       </div>
-      <p className="muted">Tiền thu tính theo ngày nhận trong tháng {month}; cấn trừ cọc là giao dịch nội bộ. Tiền đã bù vào hóa đơn kỳ này: {money(data.credited)}.</p>
+
+      {/* 6 Ô CHỈ SỐ KỲ GẦN NHẤT THEO GÓP Ý CỦA THẦY */}
+      <div className="period-metrics-section">
+        <div className="period-metrics-title">
+          <h3>
+            Ô chỉ số kỳ được chọn ({data.period || month}): Phân loại thu nợ & Điện nước
+          </h3>
+          <span className="muted" style={{ fontSize: 13 }}>
+            Lập HĐ: <strong>{money(data.billed)}</strong> = Thu trước ({money(data.paid_early)}) + Đúng hạn ({money(data.paid_on_time)}) + Sau hạn ({money(data.paid_late)}) + Chưa thu ({money(data.unpaid)})
+          </span>
+        </div>
+        <div className="period-metric-grid">
+          <div className="metric-box early">
+            <div className="metric-header">
+              <span>Thu trước hạn</span>
+              <Check size={16} color="#059669" />
+            </div>
+            <div className="metric-value">{money(data.paid_early)}</div>
+            <div className="metric-sub">Thanh toán trước ngày hạn</div>
+          </div>
+
+          <div className="metric-box on-time">
+            <div className="metric-header">
+              <span>Thu đúng hạn</span>
+              <Check size={16} color="#2563eb" />
+            </div>
+            <div className="metric-value">{money(data.paid_on_time)}</div>
+            <div className="metric-sub">Thanh toán chuẩn ngày hạn</div>
+          </div>
+
+          <div className="metric-box late">
+            <div className="metric-header">
+              <span>Thu sau hạn</span>
+              <AlertTriangle size={16} color="#d97706" />
+            </div>
+            <div className="metric-value">{money(data.paid_late)}</div>
+            <div className="metric-sub">Khoản đã thu nhưng trễ hạn</div>
+          </div>
+
+          <div className="metric-box unpaid">
+            <div className="metric-header">
+              <span>Chưa thu (Còn nợ)</span>
+              <AlertTriangle size={16} color="#dc2626" />
+            </div>
+            <div className="metric-value">{money(data.unpaid)}</div>
+            <div className="metric-sub">Dư nợ đang mở trong kỳ</div>
+          </div>
+
+          <div className="metric-box electricity">
+            <div className="metric-header">
+              <span>Tiền điện</span>
+              <Gauge size={16} color="#ca8a04" />
+            </div>
+            <div className="metric-value">{money(data.electricity)}</div>
+            <div className="metric-sub">Hóa đơn công tơ điện</div>
+          </div>
+
+          <div className="metric-box water">
+            <div className="metric-header">
+              <span>Tiền nước</span>
+              <Gauge size={16} color="#0891b2" />
+            </div>
+            <div className="metric-value">{money(data.water)}</div>
+            <div className="metric-sub">Đồng hồ khối nước</div>
+          </div>
+        </div>
+      </div>
+
+      <p className="muted">
+        Tiền thu tính theo ngày nhận trong kỳ {data.period}; cấn trừ cọc là giao dịch nội bộ.
+        Dòng tiền mặt vào quỹ: <strong>{money(data.cash_collected)}</strong> · Hoàn quỹ: <strong>{money(data.refunded)}</strong>.
+      </p>
       <div className="dashboard-grid">
         <section className="card">
           <h2>Công nợ và việc cần xử lý</h2>
           <div className="metric">
-            <span>Công nợ kỳ {month}</span>
-            <strong>{money(data.outstanding)}</strong>
+            <span>Công nợ kỳ {data.period || month}</span>
+            <strong style={{ color: "#dc2626" }}>{money(data.outstanding)}</strong>
           </div>
           <div className="metric">
             <span>Phòng đang thuê / bảo trì</span>
@@ -888,20 +1129,40 @@ function Dashboard({ data, alerts, month, setMonth, navigate, run }) {
             <span>Sự cố chưa hoàn thành</span>
             <strong>{data.open_maintenance}</strong>
           </div>
-          <button onClick={() => navigate("invoices")}>Xem hóa đơn</button>
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <button className="primary" onClick={() => navigate("debts")}>
+              Quản lý dư nợ
+            </button>
+            <button onClick={() => navigate("invoices")}>Xem hóa đơn</button>
+          </div>
         </section>
         <section className="card">
-          <h2>Cảnh báo tiêu thụ</h2>
+          <h2>Cảnh báo tiêu thụ (Điện nước bất thường)</h2>
           {alerts.filter((a) => a.status === "PENDING").length ? (
             alerts
               .filter((a) => a.status === "PENDING")
               .slice(0, 4)
               .map((a) => (
                 <div className="metric" key={a.id}>
-                  <span>
-                    Phòng {a.room_code} · {labels[a.meter_type]}
-                  </span>
-                  <Badge value="PENDING" />
+                  <div>
+                    <span className="badge badge-anomaly">
+                      <AlertTriangle size={12} /> Cảnh báo
+                    </span>
+                    <strong style={{ marginLeft: 8 }}>
+                      Phòng {a.room_code}
+                    </strong>
+                    <small style={{ display: "block", color: "var(--muted)" }}>
+                      {labels[a.meter_type] || a.meter_type} kỳ {a.billing_period}
+                    </small>
+                  </div>
+                  <div>
+                    <span style={{ color: "#ea580c", fontWeight: 600 }}>
+                      +{a.percentage_increase}%
+                    </span>
+                    <small style={{ display: "block", color: "var(--muted)" }}>
+                      TB: {a.baseline_average}
+                    </small>
+                  </div>
                 </div>
               ))
           ) : (
@@ -930,7 +1191,7 @@ function Dashboard({ data, alerts, month, setMonth, navigate, run }) {
     </>
   );
 }
-function Detail({ route, data: d, tenant, back, showForm, run, mutate }) {
+function Detail({ route, data: d, tenant, back, showForm, run, mutate, navigate }) {
   const [repairImages,setRepairImages]=useState((d.image_urls||"").split("\n").filter(Boolean));
   const [lookups, setLookups] = useState({
     accounts: [],
@@ -1129,7 +1390,45 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate }) {
             ))}
         </dl>
       </section>
-      {route==='contracts'&&<Contract49Panel contract={d} tenant={tenant} showForm={showForm} run={run}/>}
+      {route === "contracts" && (
+        <Contract49Panel
+          contract={d}
+          tenant={tenant}
+          showForm={showForm}
+          run={run}
+          reload={async () => {
+            const fresh = await api("/contracts/" + d.id);
+            mutate("/contracts/" + d.id, undefined, undefined, undefined, fresh);
+          }}
+        />
+      )}
+      {route === "rooms" && (
+        <RoomAssetsPanel
+          roomId={d.id}
+          showForm={showForm}
+          run={run}
+          reload={async () => {
+            const fresh = await api("/rooms/" + d.id);
+            mutate("/rooms/" + d.id, undefined, undefined, undefined, fresh);
+          }}
+        />
+      )}
+      {route === "tenants" && (
+        <section className="card">
+          <h2>Tình trạng công nợ & Hợp đồng</h2>
+          <p className="muted">
+            Khách thuê: <strong>{d.full_name}</strong> (SĐT: {d.phone || "—"}, CCCD: {d.identity_number || "—"})
+          </p>
+          <div className="actions">
+            <button onClick={() => navigate("debts")}>
+              <CreditCard size={16} /> Kiểm tra số dư nợ trong danh sách công nợ
+            </button>
+            <button onClick={() => navigate("contracts")}>
+              <FileText size={16} /> Danh sách hợp đồng
+            </button>
+          </div>
+        </section>
+      )}
       {route === "contracts" && d.checkout && (
         <section className="card" aria-label="Quyết toán trả phòng">
           <h2>Quyết toán trả phòng</h2>

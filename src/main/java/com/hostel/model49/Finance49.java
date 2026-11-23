@@ -575,6 +575,10 @@ public class Finance49 {
                     "Idempotency key has different allocation data");
             return old;
         }
+        java.time.OffsetDateTime postedAt =
+                value(m, "postedAt", "occurredAt") != null
+                        ? time(value(m, "postedAt", "occurredAt"))
+                        : now();
         long id =
                 insertEntry(
                         code,
@@ -586,6 +590,7 @@ public class Finance49 {
                         credit,
                         original,
                         a,
+                        postedAt,
                         text(m, "", "reason"));
         events.audit(
                 "POST_ENTRY",
@@ -608,11 +613,26 @@ public class Finance49 {
             Long original,
             BigDecimal amount,
             String reason) {
+        return insertEntry(code, kind, cash, from, to, debit, credit, original, amount, now(), reason);
+    }
+
+    private long insertEntry(
+            String code,
+            String kind,
+            Long cash,
+            Long from,
+            Long to,
+            Long debit,
+            Long credit,
+            Long original,
+            BigDecimal amount,
+            java.time.OffsetDateTime postedAt,
+            String reason) {
         return db.insert(
                 "fund_entries",
                 ("entry_code,entry_type,cash_transaction_id,from_fund_id,"
                         + "to_fund_id,debit_item_id,credit_item_id,original_entry_id,amount,"
-                        + "reason,posted_by"),
+                        + "reason,posted_by,posted_at"),
                 code,
                 kind,
                 cash,
@@ -623,7 +643,8 @@ public class Finance49 {
                 original,
                 amount,
                 reason,
-                access.user());
+                access.user(),
+                postedAt != null ? postedAt : now());
     }
 
     public Map<String, Object> correctMeterLine(long source, Map<String, Object> m) {

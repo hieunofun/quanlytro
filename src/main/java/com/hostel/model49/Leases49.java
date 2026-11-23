@@ -59,11 +59,53 @@ public class Leases49 {
                         "select p.*,t.full_name from contract_parties p join tenant_profiles t on"
                                 + " t.id=p.tenant_id where p.contract_id=?",
                         id));
-        c.put(
-                "versions",
+        var handovers =
+                db.rows(
+                        "select h.*,p.taken_at,p.returned_at,t.full_name as received_by_name,u.username as confirmed_by_name "
+                                + "from handovers h "
+                                + "left join room_possessions p on p.id=h.possession_id "
+                                + "left join tenant_profiles t on t.id=h.received_by_tenant_id "
+                                + "left join users u on u.id=h.confirmed_by "
+                                + "where h.contract_id=? order by h.occurred_at desc, h.id desc",
+                        id);
+        for (var h : handovers) {
+            long hid = ((Number) h.get("id")).longValue();
+            var items =
+                    db.rows(
+                            "select hi.*,ap.asset_id,a.asset_code "
+                                    + "from handover_items hi "
+                                    + "left join asset_placements ap on ap.id=hi.asset_placement_id "
+                                    + "left join assets a on a.id=ap.asset_id "
+                                    + "where hi.handover_id=? order by hi.line_no",
+                            hid);
+            for (var item : items) {
+                long itemId = ((Number) item.get("id")).longValue();
+                var files =
+                        db.rows(
+                                "select a.id,coalesce(f.external_url,'/api/uploads/'||f.storage_key) url,f.original_name "
+                                        + "from file_attachments a join stored_files f on f.id=a.file_id "
+                                        + "where a.handover_item_id=? order by a.id",
+                                itemId);
+                item.put("images", files);
+            }
+            h.put("items", items);
+        }
+        c.put("handovers", handovers);
+        var versions =
                 db.rows(
                         "select * from contract_terms where contract_id=? order by version_no",
-                        id));
+                        id);
+        for (var v : versions) {
+            long vid = ((Number) v.get("id")).longValue();
+            var files =
+                    db.rows(
+                            "select a.id,coalesce(f.external_url,'/api/uploads/'||f.storage_key) url,f.original_name "
+                                    + "from file_attachments a join stored_files f on f.id=a.file_id "
+                                    + "where a.contract_term_id=? order by a.id",
+                            vid);
+            v.put("files", files);
+        }
+        c.put("versions", versions);
         c.put(
                 "possessions",
                 db.rows(

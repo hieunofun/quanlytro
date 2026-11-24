@@ -27,7 +27,7 @@ async function nav(page, name) {
   await settle(page, 500);
 }
 
-// Inject crisp print contrast CSS & hide left sidebar on detail screens so UI cards/tables are 45% larger and crystal clear!
+// Inject crisp print contrast CSS & hide left sidebar on detail screens so UI cards/tables NEVER clip horizontally!
 async function setContentOnlyMode(page, hideSidebar = true) {
   await page.evaluate((hide) => {
     let st = document.getElementById('__print_boost');
@@ -39,7 +39,10 @@ async function setContentOnlyMode(page, hideSidebar = true) {
     st.textContent = hide
       ? `.sidebar, aside, .topbar, header.topbar, footer { display: none !important; }
          .app, .layout, .shell, .workspace { display: block !important; grid-template-columns: 1fr !important; padding-left: 0 !important; margin-left: 0 !important; }
-         main, .main, .content, .page, [class*="content"], [class*="main"] { margin-left: 0 !important; width: 100% !important; max-width: 100% !important; padding: 14px 18px !important; }
+         main, .main, .content, .page, [class*="content"], [class*="main"] { margin-left: 0 !important; width: 100% !important; max-width: 100% !important; padding: 12px 16px !important; }
+         .table-wrap, [style*="overflow-x"], [style*="overflow: auto"] { overflow: visible !important; max-width: 100% !important; }
+         table { width: 100% !important; table-layout: auto !important; }
+         th, td { padding: 7px 6px !important; font-size: 12px !important; white-space: normal !important; word-break: break-word !important; }
          body { background: #FFFFFF !important; }`
       : `body { background: #F8FAFC !important; } footer { display: none !important; }`;
     window.scrollTo(0, 0);
@@ -47,16 +50,16 @@ async function setContentOnlyMode(page, hideSidebar = true) {
       el.scrollLeft = 0;
     });
   }, hideSidebar);
-  await page.waitForTimeout(150);
+  await page.waitForTimeout(200);
 }
 
 async function run() {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   try {
-    // Use deviceScaleFactor: 2 on ~980-1000px width -> ~1960-2000px PNG (<= 2048px Google Docs limit -> ZERO blur!)
+    // Wide logical viewport (1560px) × 1.28 scale = 1996px (<= 2040px Google Docs limit -> ZERO downscaling & ZERO table clipping!)
     const ctx = await browser.newContext({
-      viewport: { width: 1420, height: 860 },
-      deviceScaleFactor: 1.42, // 1420 * 1.42 = 2016px (<= 2048px Google Docs limit -> ZERO downscaling & ZERO table clipping!)
+      viewport: { width: 1560, height: 900 },
+      deviceScaleFactor: 1.28,
     });
     const page = await ctx.newPage();
 
@@ -80,8 +83,8 @@ async function run() {
     });
     fs.writeFileSync(path.join(OUT_DIR, '_tmp-contract-v2.pdf'), Buffer.from(await pdfRes.arrayBuffer()));
 
-    // 1. Dashboard Month 2026-01 (KEEP sidebar here so 1 screenshot shows full navigation, at 1000x920 -> 2000x1840 <= 2048px!)
-    await page.setViewportSize({ width: 1000, height: 930 });
+    // 1. Dashboard Month 2026-01 (KEEP sidebar here so 1 screenshot shows full navigation)
+    await page.setViewportSize({ width: 1120, height: 930 });
     const monthInput = page.locator('input[type="month"]');
     if (await monthInput.count()) {
       await monthInput.first().fill('2026-01');
@@ -92,16 +95,16 @@ async function run() {
     await page.screenshot({ path: path.join(OUT_DIR, 'ui-dashboard-month.png'), fullPage: false });
     console.log('Saved sharp ui-dashboard-month.png');
 
-    // 2. Reports (content-only at 1440x920 -> ALL columns incl. Tiền vào quỹ / Hoàn quỹ fit with zero clipping!)
-    await page.setViewportSize({ width: 1440, height: 920 });
+    // 2. Reports (content-only at 1580px -> ALL 12 columns incl. Tiền vào quỹ & Hoàn quỹ fit with ZERO clipping!)
+    await page.setViewportSize({ width: 1580, height: 920 });
     await setContentOnlyMode(page, false);
     await nav(page, 'Báo cáo');
     await setContentOnlyMode(page, true);
     await page.screenshot({ path: path.join(OUT_DIR, 'ui-reports.png'), fullPage: true });
     console.log('Saved sharp ui-reports.png');
 
-    // 3. Tenant Debts (content-only at 1380x820 -> expand P102)
-    await page.setViewportSize({ width: 1380, height: 820 });
+    // 3. Tenant Debts (content-only at 1480px -> expand P102, ZERO right-edge clipping!)
+    await page.setViewportSize({ width: 1480, height: 840 });
     await setContentOnlyMode(page, false);
     await nav(page, 'Công nợ khách');
     const bichRow = page.getByRole('row').filter({ hasText: 'P102' }).first();
@@ -113,16 +116,16 @@ async function run() {
     await page.screenshot({ path: path.join(OUT_DIR, 'ui-debts.png'), fullPage: true });
     console.log('Saved sharp ui-debts.png');
 
-    // 4. Meter Readings & Alerts (content-only at 1280x740)
-    await page.setViewportSize({ width: 1280, height: 740 });
+    // 4. Meter Readings & Alerts (content-only at 1360x740)
+    await page.setViewportSize({ width: 1360, height: 740 });
     await setContentOnlyMode(page, false);
     await nav(page, 'Điện nước');
     await setContentOnlyMode(page, true);
     await page.screenshot({ path: path.join(OUT_DIR, 'ui-meter-alerts.png'), fullPage: false });
     console.log('Saved sharp ui-meter-alerts.png');
 
-    // 5. Invoice 2026-01 detail (content-only at 1380x880)
-    await page.setViewportSize({ width: 1380, height: 880 });
+    // 5. Invoice 2026-01 detail (content-only at 1500px -> full Thành tiền column ZERO clipping!)
+    await page.setViewportSize({ width: 1500, height: 880 });
     await setContentOnlyMode(page, false);
     await nav(page, 'Hóa đơn');
     const janRow = page.getByRole('row').filter({ hasText: '2026-01' }).first();
@@ -134,8 +137,8 @@ async function run() {
     await page.screenshot({ path: path.join(OUT_DIR, 'ui-invoice-detail.png'), fullPage: true });
     console.log('Saved sharp ui-invoice-detail.png');
 
-    // 6. Room P101 Assets (content-only at 1320x780)
-    await page.setViewportSize({ width: 1320, height: 780 });
+    // 6. Room P101 Assets
+    await page.setViewportSize({ width: 1380, height: 780 });
     await setContentOnlyMode(page, false);
     await nav(page, 'Phòng');
     const p101Row = page.getByRole('row').filter({ hasText: 'P101' }).first();
@@ -147,8 +150,8 @@ async function run() {
     await page.screenshot({ path: path.join(OUT_DIR, 'ui-room-assets.png'), fullPage: true });
     console.log('Saved sharp ui-room-assets.png');
 
-    // 7. Contract P101 detail (content-only at 1380x880)
-    await page.setViewportSize({ width: 1380, height: 880 });
+    // 7. Contract P101 detail
+    await page.setViewportSize({ width: 1460, height: 880 });
     await setContentOnlyMode(page, false);
     await nav(page, 'Hợp đồng');
     const c101Row = page.getByRole('row').filter({ hasText: 'P101' }).first();
@@ -160,22 +163,35 @@ async function run() {
     await page.screenshot({ path: path.join(OUT_DIR, 'ui-contract-p101.png'), fullPage: false });
     console.log('Saved sharp ui-contract-p101.png');
 
-    // 8. Contract P201 Handover comparison + Checkout settlement (content-only at 1380x900, scroll cleanly to HO-OUT-3 card)
-    await page.setViewportSize({ width: 1380, height: 900 });
+    // 8. Contract P201 Handover HO-OUT-3 card specifically (shows BOTH Giường ngủ & Điều hòa Daikin + damage photo + compensation!)
+    await page.setViewportSize({ width: 1480, height: 960 });
     await setContentOnlyMode(page, false);
     await nav(page, 'Hợp đồng');
     const c201Row = page.getByRole('row').filter({ hasText: 'P201' }).first();
     if (await c201Row.count()) {
       await c201Row.getByRole('button', { name: 'Xem', exact: true }).click();
-      await settle(page, 600);
+      await settle(page, 800);
     }
     await setContentOnlyMode(page, true);
-    const hoHeading = page.getByRole('heading', { name: /Biên bản bàn giao/i }).first();
-    if (await hoHeading.count()) {
-      await hoHeading.scrollIntoViewIfNeeded();
-      await page.waitForTimeout(200);
+    // Wait for protected damage photo blob img inside handover panel to load!
+    await page.waitForTimeout(800);
+    // Locate the exact <section class="card"> for Handover comparison (HO-OUT-3 + all rows + damage photo)
+    const hoCard = page.locator('section.card').filter({
+      has: page.getByRole('heading', { name: /Biên bản bàn giao/i }),
+    }).first();
+    if (await hoCard.count()) {
+      await hoCard.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(900);
+      await hoCard.evaluate(async (el) => {
+        const imgs = Array.from(el.querySelectorAll('img'));
+        await Promise.all(imgs.map((img) => (
+          img.complete ? Promise.resolve() : new Promise((r) => { img.onload = r; img.onerror = r; setTimeout(r, 3500); })
+        )));
+      });
+      await hoCard.screenshot({ path: path.join(OUT_DIR, 'ui-contract-p201-handover.png') });
+    } else {
+      await page.screenshot({ path: path.join(OUT_DIR, 'ui-contract-p201-handover.png'), fullPage: true });
     }
-    await page.screenshot({ path: path.join(OUT_DIR, 'ui-contract-p201-handover.png'), fullPage: false });
     console.log('Saved sharp ui-contract-p201-handover.png');
 
     await ctx.close();

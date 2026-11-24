@@ -10,6 +10,7 @@ public class HandoverItems49Entity {
  @Column(name="id",nullable=false) private Long id;
  @Column(name="handover_id",nullable=false) private Long handoverId;
  @Column(name="asset_placement_id",nullable=true) private Long assetPlacementId;
+ @Column(name="original_item_id") private Long originalItemId;
  @Column(name="line_no",nullable=false) private Integer lineNo;
  @Column(name="item_name_snapshot",nullable=false,length=150) private String itemNameSnapshot;
  @Column(name="quantity",nullable=false,precision=12,scale=2) private java.math.BigDecimal quantity;

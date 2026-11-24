@@ -1,5 +1,6 @@
 package com.hostel.model49;
 
+import com.hostel.service.ContractPdf;
 import com.hostel.service.Database;
 import com.hostel.service.PdfService;
 import com.hostel.dto.Requests;
@@ -266,10 +267,12 @@ public class Api49 {
             String note = text(m, "", "note");
             assetId = db.insert("assets", "asset_type_id,asset_code,quantity,status,note", typeId, code, qty, "ACTIVE", note);
         }
+        OffsetDateTime placedAt = value(m, "validFrom") == null ? now() : time(value(m, "validFrom"));
+        require(!placedAt.isAfter(now()), "Thời điểm bố trí phải là thời điểm đã xảy ra");
         long placementId = db.insert(
                 "asset_placements",
                 "asset_id,room_id,valid_from,recorded_by",
-                assetId, id, now(), access.user());
+                assetId, id, placedAt, access.user());
         events.audit("PLACE_ASSET", "asset_placements", placementId, null, m, "Asset placed in room " + id);
         return roomAssets(id);
     }
@@ -392,7 +395,7 @@ public class Api49 {
             var x = new HashMap<String, Object>();
             x.put("propertyId", keyId(m, "propertyId"));
             x.put("serviceItemId", s.get("id"));
-            x.put("effectiveFrom", LocalDate.now());
+            x.put("effectiveFrom", day(m, now().toLocalDate(), "effectiveFrom"));
             x.put("thresholdPercentage", amount(m, "50", "percentage"));
             x.put("historyMonths", Integer.parseInt(text(m, "3", "months")));
             results.add(catalog.save("thresholds", null, x));
@@ -473,9 +476,18 @@ public class Api49 {
         String type = text(m, "MOVE_IN", "handoverType");
         require(Set.of("MOVE_IN", "MOVE_OUT", "RESPONSIBILITY").contains(type), "Invalid handover type");
 
-        String code = text(m, "HO-" + type + "-" + id + "-" + (System.currentTimeMillis() % 10000), "handoverCode");
+        String code = text(m, "HO-" + type + "-" + UUID.randomUUID(), "handoverCode");
         OffsetDateTime occurred = time(value(m, "occurredAt"));
-        Long possessionId = optionalId(m, "possessionId");
+        require(!occurred.isAfter(now()), "Thời điểm bàn giao phải là thời điểm đã xảy ra");
+        Long possessionId = db.jdbc.queryForObject("""
+                select (select id from room_possessions
+                        where contract_id=? and taken_at<=?
+                          and (returned_at is null or returned_at>=?)
+                        order by taken_at desc,id desc limit 1)
+                """, Long.class, id, occurred, occurred);
+        Long requestedPossession = optionalId(m, "possessionId");
+        require(requestedPossession == null || requestedPossession.equals(possessionId),
+                "Lượt nhận phòng không phù hợp với thời điểm bàn giao");
         Long receivedBy = optionalId(m, "receivedByTenantId");
         if (receivedBy == null && c.get("primary_tenant_id") != null) {
             receivedBy = ((Number) c.get("primary_tenant_id")).longValue();
@@ -486,24 +498,28 @@ public class Api49 {
                 "contract_id,possession_id,handover_code,handover_type,occurred_at,status,given_by,received_by_tenant_id,note",
                 id, possessionId, code, type, occurred, "DRAFT", access.user(), receivedBy, text(m, "", "note"));
 
-        boolean autoItems = bool(m, true, "autoPopulateItems");
-        if (autoItems) {
-            var placements = db.rows(
-                    "select ap.id placement_id, a.asset_code, a.quantity, at.name type_name, at.unit_name "
-                            + "from asset_placements ap "
-                            + "join assets a on a.id=ap.asset_id "
-                            + "join asset_types at on at.id=a.asset_type_id "
-                            + "where ap.room_id=? and (ap.valid_to is null or ap.valid_to > clock_timestamp()) "
-                            + "order by at.name, a.asset_code",
-                    room);
-            int lineNo = 1;
-            for (var p : placements) {
-                String itemName = p.get("type_name") + " (" + p.get("asset_code") + ")";
-                String condition = "MOVE_OUT".equals(type) ? "Bình thường / Đã đối chiếu" : "Hoạt động tốt / Mới 100%";
-                db.insert(
-                        "handover_items",
-                        "handover_id,asset_placement_id,line_no,item_name_snapshot,quantity,condition_note,note",
-                        handoverId, p.get("placement_id"), lineNo++, itemName, p.get("quantity"), condition, "");
+        if (bool(m, true, "autoPopulateItems")) {
+            if ("MOVE_OUT".equals(type)) {
+                db.jdbc.update("""
+                        insert into handover_items (handover_id,asset_placement_id,line_no,
+                            item_name_snapshot,quantity,condition_note,original_item_id)
+                        select ?,i.asset_placement_id,i.line_no,i.item_name_snapshot,i.quantity,'',i.id
+                        from handover_items i where i.handover_id=(
+                            select h.id from handovers h where h.contract_id=? and h.occurred_at<=?
+                            and h.handover_type='MOVE_IN' and h.status='CONFIRMED'
+                            and (h.possession_id is null or h.possession_id=?)
+                            order by h.occurred_at desc,h.id desc limit 1)
+                        """, handoverId, id, occurred, possessionId);
+            } else {
+                db.jdbc.update("""
+                        insert into handover_items (handover_id,asset_placement_id,line_no,
+                            item_name_snapshot,quantity,condition_note)
+                        select ?,ap.id,row_number() over(order by at.name,a.asset_code),
+                               left(at.name||' ('||a.asset_code||')',150),a.quantity,''
+                        from asset_placements ap join assets a on a.id=ap.asset_id
+                        join asset_types at on at.id=a.asset_type_id
+                        where ap.room_id=? and ap.valid_from<=? and (ap.valid_to is null or ap.valid_to>?)
+                        """, handoverId, room, occurred, occurred);
             }
         }
 
@@ -516,7 +532,8 @@ public class Api49 {
         access.manager();
         var h = db.one("select * from handovers where id=? for update", id);
         require(!"CONFIRMED".equals(h.get("status")), "Cannot modify confirmed handover");
-        access.contract(com.hostel.service.Database.id(h, "contract_id"));
+        var contract = access.contract(com.hostel.service.Database.id(h, "contract_id"));
+        access.action(com.hostel.service.Database.id(contract, "room_id"), "MANAGE", BigDecimal.ZERO);
 
         int nextLine = db.jdbc.queryForObject(
                 "select coalesce(max(line_no), 0) + 1 from handover_items where handover_id=?",
@@ -535,13 +552,34 @@ public class Api49 {
         return db.one("select * from handover_items where id=?", itemId);
     }
 
+    @PutMapping("/handovers/{id}/items/{itemId}")
+    public Object updateHandoverItem(@PathVariable long id, @PathVariable long itemId,
+            @RequestBody Map<String, Object> m) {
+        access.manager();
+        var h = db.one("select * from handovers where id=? for update", id);
+        require(!"CONFIRMED".equals(h.get("status")), "Biên bản đã xác nhận");
+        var c = access.contract(com.hostel.service.Database.id(h, "contract_id"));
+        access.action(com.hostel.service.Database.id(c, "room_id"), "MANAGE", BigDecimal.ZERO);
+        var item = db.one("select * from handover_items where handover_id=? and id=?", id, itemId);
+        BigDecimal quantity = amount(m, item.get("quantity").toString(), "quantity");
+        require(quantity.signum() >= 0 && quantity.stripTrailingZeros().scale() <= 2,
+                "Số lượng phải từ 0 và có tối đa hai chữ số thập phân");
+        db.jdbc.update("update handover_items set quantity=?,condition_note=?,note=? where id=?",
+                quantity, required(m, "conditionNote"), text(m, "", "note"), itemId);
+        events.audit("UPDATE_HANDOVER_ITEM", "handover_items", itemId, item, m, "Updated item inspection");
+        return db.one("select * from handover_items where id=?", itemId);
+    }
+
     @PostMapping("/handovers/{id}/confirm")
     public Object confirmHandover(@PathVariable long id, @RequestBody(required = false) Map<String, Object> m) {
         access.manager();
         var h = db.one("select * from handovers where id=? for update", id);
         require(!"CONFIRMED".equals(h.get("status")), "Handover already confirmed");
         long contractId = com.hostel.service.Database.id(h, "contract_id");
-        access.contract(contractId);
+        var contract = access.contract(contractId);
+        access.action(com.hostel.service.Database.id(contract, "room_id"), "MANAGE", BigDecimal.ZERO);
+        require(db.rows("select id from handover_items where handover_id=? and btrim(condition_note)=''", id).isEmpty(),
+                "Ghi nhận hiện trạng của từng đồ vật trước khi xác nhận");
 
         db.jdbc.update(
                 "update handovers set status='CONFIRMED',confirmed_by=?,confirmed_at=clock_timestamp(),note=coalesce(?,note) where id=?",
@@ -557,39 +595,62 @@ public class Api49 {
         long contractId = com.hostel.service.Database.id(h, "contract_id");
         var c = access.contract(contractId);
         long roomId = com.hostel.service.Database.id(c, "room_id");
-        access.action(roomId, "ADJUST", BigDecimal.ZERO);
+        BigDecimal amount = cashAmount(m, "amount");
+        access.action(roomId, "ADJUST", amount);
+        db.one("select id from contracts where id=? for update", contractId);
+        require("CONFIRMED".equals(h.get("status")) && "MOVE_OUT".equals(h.get("handover_type")),
+                "Chỉ lập bồi thường từ biên bản trả phòng đã xác nhận");
 
         long handoverItemId = keyId(m, "handoverItemId");
-        var hi = db.one("select * from handover_items where id=? and handover_id=?", handoverItemId, id);
-
-        BigDecimal amount = amount(m, "0", "amount");
-        require(amount.compareTo(BigDecimal.ZERO) > 0, "Compensation amount must be positive");
-
-        LocalDate issueDate = day(m, LocalDate.now(), "issueDate");
+        var item = db.one("select * from handover_items where id=? and handover_id=?", handoverItemId, id);
+        LocalDate issueDate = day(m, now().toLocalDate(), "issueDate");
         LocalDate dueDate = day(m, issueDate.plusDays(3), "dueDate");
-        String code = text(m, "COMP-" + id + "-" + (System.currentTimeMillis() % 10000), "documentCode");
-
-        long docId = finance.createDocument(Map.of(
+        String reason = required(m, "note", "reason");
+        String code = text(m, "COMP-HO-" + handoverItemId, "documentCode");
+        var previous = db.rows("""
+                select d.id,d.document_code,d.issue_date,d.due_date,d.reason,i.unit_price_snapshot
+                from billing_documents d join billing_items i on i.document_id=d.id
+                where i.handover_item_id=? and i.item_kind='DAMAGE' and d.document_type='COMPENSATION'
+                """, handoverItemId);
+        if (!previous.isEmpty()) {
+            var existing = previous.getFirst();
+            require(code.equals(existing.get("document_code"))
+                            && issueDate.equals(date(existing.get("issue_date")))
+                            && dueDate.equals(date(existing.get("due_date")))
+                            && reason.equals(existing.get("reason"))
+                            && amount.compareTo(money(existing, "unit_price_snapshot")) == 0,
+                    "Đồ vật đã có chứng từ bồi thường");
+            return finance.document(com.hostel.service.Database.id(existing, "id"));
+        }
+        var checkout = db.rows("select id,status,return_handover_id from checkout_records where contract_id=?"
+                + " order by id desc limit 1", contractId);
+        if (!checkout.isEmpty()) {
+            require("DRAFT".equals(checkout.getFirst().get("status")), "Quyết toán đã được duyệt");
+        }
+        var document = new HashMap<String, Object>(Map.of(
                 "contractId", contractId,
                 "documentCode", code,
-                "documentType", "INVOICE",
-                "direction", "DEBIT",
+                "documentType", "COMPENSATION",
                 "issueDate", issueDate,
                 "dueDate", dueDate,
-                "billingPeriod", issueDate.withDayOfMonth(1)
-        ));
+                "billingPeriod", issueDate.withDayOfMonth(1),
+                "reason", reason));
+        if (!checkout.isEmpty() && Objects.equals(checkout.getFirst().get("return_handover_id"), id)) {
+            document.put("checkoutId", checkout.getFirst().get("id"));
+        }
+        long docId = finance.createDocument(document);
 
+        String itemName = "Bồi thường: " + item.get("item_name_snapshot");
         finance.line(docId, Map.of(
-                "itemKind", "COMPENSATION",
-                "direction", "DEBIT",
-                "itemNameSnapshot", "Bồi thường hư hỏng: " + hi.get("item_name_snapshot"),
-                "quantitySnapshot", BigDecimal.ONE,
-                "unitPriceSnapshot", amount,
-                "unitNameSnapshot", "Lần",
-                "calculationBasis", "FIXED",
+                "itemKind", "DAMAGE",
+                "itemName", itemName.substring(0, itemName.offsetByCodePoints(
+                        0, Math.min(150, itemName.codePointCount(0, itemName.length())))),
+                "quantity", BigDecimal.ONE,
+                "unitPrice", amount,
+                "unitName", "Lần",
                 "handoverItemId", handoverItemId,
-                "basisNote", text(m, "Khấu trừ hư hại kiểm tra bàn giao", "note")
-        ));
+                "sourceKey", "HANDOVER-DAMAGE-" + handoverItemId,
+                "basisNote", reason));
 
         return finance.issue(docId);
     }
@@ -926,7 +987,7 @@ public class Api49 {
     public Object measurements() {
         access.manager();
         return db.rows(
-                "select s.*,date_trunc('month',s.service_end-interval '1 second')::date"
+                "select s.*,date_trunc('month',(s.service_end-interval '1 second') at time zone 'Asia/Ho_Chi_Minh')::date"
                         + " billing_period,r.room_code,s.service_end::date reading_date,case"
                         + " si.service_code when 'ELEC' then 'ELECTRICITY' else si.service_code end"
                         + " meter_type,exists(select 1 from consumption_alerts a where"
@@ -951,7 +1012,7 @@ public class Api49 {
         return db.rows(
                 "select a.*,s.contract_id,s.room_id,s.consumption,r.room_code,"
                         + " case si.service_code when 'ELEC' then 'ELECTRICITY' else si.service_code end meter_type,"
-                        + " si.name service_name, to_char(s.service_end-interval '1 day', 'YYYY-MM') billing_period,"
+                        + " si.name service_name, to_char((s.service_end-interval '1 second') at time zone 'Asia/Ho_Chi_Minh', 'YYYY-MM') billing_period,"
                         + " s.old_index start_reading, s.new_index end_reading, s.service_start, s.service_end,"
                         + " case when a.baseline_daily_average > 0 and (extract(epoch from (s.service_end - s.service_start))/86400) > 0"
                         + " then round((((s.consumption / greatest(0.1, extract(epoch from (s.service_end - s.service_start))/86400)) - a.baseline_daily_average) / a.baseline_daily_average * 100)::numeric, 1)"
@@ -1129,119 +1190,74 @@ public class Api49 {
 
     @GetMapping("/contracts/{id}/pdf")
     public ResponseEntity<byte[]> contractPdf(
-            @PathVariable long id, @RequestParam(required = false) Integer version)
-            throws java.io.IOException {
-        access.contract(id);
-        var termsList =
-                version == null
-                        ? db.rows(
-                                "select * from contract_terms where contract_id=? order by"
-                                        + " version_no desc limit 1",
-                                id)
-                        : db.rows(
-                                "select * from contract_terms where contract_id=? and version_no=?",
-                                id,
-                                version);
-        var t = termsList.isEmpty() ? new HashMap<String, Object>() : new HashMap<>(termsList.getFirst());
-        var c = db.one(
-                "select c.*, r.room_code, r.floor_number, r.area_sqm, r.property_id, p.name property_name, p.address property_address "
-                        + "from v_contract_current c join rooms r on r.id=c.room_id join properties p on p.id=r.property_id where c.id=?",
-                id);
-        Object tenantId = c.get("primary_tenant_id");
-        var tenantRows = tenantId != null ? db.rows("select * from tenant_profiles where id=?", tenantId) : List.<Map<String, Object>>of();
-        var tenant = tenantRows.isEmpty() ? Map.<String, Object>of("full_name", "Khách thuê", "identity_number", "—", "phone", "—", "email", "—") : tenantRows.getFirst();
-        var residents = db.rows(
-                "select cr.*, tp.full_name, tp.identity_number, tp.phone from contract_residencies cr join tenant_profiles tp on tp.id=cr.tenant_id "
-                        + "where cr.contract_id=? and (cr.effective_to is null or cr.effective_to > current_date)",
-                id);
-        var assets = db.rows(
-                "select ap.id, at.name asset_name, a.asset_code, a.quantity, at.unit_name "
-                        + "from asset_placements ap join assets a on a.id=ap.asset_id join asset_types at on at.id=a.asset_type_id "
-                        + "where ap.room_id=? and (ap.valid_to is null or ap.valid_to > clock_timestamp()) order by at.name, a.asset_code",
-                c.get("room_id"));
-
-        var lines = new ArrayList<String>();
-        lines.add("CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM");
-        lines.add("Độc lập - Tự do - Hạnh phúc");
-        lines.add("---------------o0o---------------");
-        lines.add("");
-        lines.add("HỢP ĐỒNG THUÊ NHÀ TRỌ");
-        lines.add("Mã hợp đồng: " + c.get("contract_code") + "  ·  Phiên bản điều khoản: Số " + (t.get("version_no") != null ? t.get("version_no") : "1"));
-        lines.add("Ngày lập / ký: " + (t.get("signed_at") != null ? t.get("signed_at").toString().substring(0, 10) : LocalDate.now().toString()));
-        lines.add("");
-        lines.add("I. BÊN CHO THUÊ (BÊN A):");
-        lines.add("Tòa nhà: " + c.get("property_name"));
-        lines.add("Địa chỉ: " + c.get("property_address"));
-        lines.add("Đại diện: Ban Quản lý Nhà trọ");
-        lines.add("");
-        lines.add("II. BÊN THUÊ (BÊN B):");
-        lines.add("Họ và tên người thuê chính: " + tenant.get("full_name"));
-        lines.add("Số CMND / CCCD: " + (tenant.get("identity_number") != null ? tenant.get("identity_number") : "—"));
-        lines.add("Số điện thoại liên hệ: " + (tenant.get("phone") != null ? tenant.get("phone") : "—"));
-        lines.add("Email: " + (tenant.get("email") != null ? tenant.get("email") : "—"));
-        lines.add("Quê quán / Thường trú: " + (tenant.get("hometown") != null ? tenant.get("hometown") : "Theo hồ sơ khách thuê"));
-        lines.add("");
-        lines.add("Hai bên cùng thỏa thuận và thống nhất ký kết hợp đồng thuê phòng với các điều khoản sau:");
-        lines.add("");
-        lines.add("ĐIỀU 1: ĐỐI TƯỢNG HỢP ĐỒNG & MỤC ĐÍCH THUÊ");
-        lines.add("- Bên A đồng ý cho Bên B thuê phòng số: " + c.get("room_code") + " tại Tầng " + c.get("floor_number") + " của tòa nhà " + c.get("property_name") + ".");
-        lines.add("- Diện tích sử dụng: " + c.get("area_sqm") + " m2.");
-        lines.add("- Mục đích thuê: Dùng để ở và sinh hoạt hợp pháp, chấp hành nghiêm chỉnh nội quy và quy định pháp luật.");
-        lines.add("");
-        lines.add("ĐIỀU 2: THỜI HẠN THUÊ");
-        Object effFrom = t.get("effective_from") != null ? t.get("effective_from") : c.get("start_date");
-        Object effTo = t.get("lease_end") != null ? t.get("lease_end") : c.get("end_date");
-        lines.add("- Thời hạn thuê phòng: Từ ngày " + effFrom + " đến hết ngày " + effTo + ".");
-        lines.add("- Khi hết hạn hợp đồng, nếu Bên B có nhu cầu tiếp tục thuê và chấp hành tốt các quy định thì hai bên sẽ ký phụ lục gia hạn hợp đồng.");
-        lines.add("");
-        lines.add("ĐIỀU 3: GIÁ THUÊ, TIỀN CỌC VÀ PHƯƠNG THỨC THANH TOÁN");
-        Object rentVal = t.get("rental_price") != null ? t.get("rental_price") : (c.get("rental_price") != null ? c.get("rental_price") : 0);
-        Object depVal = t.get("deposit_required") != null ? t.get("deposit_required") : (c.get("deposit_amount") != null ? c.get("deposit_amount") : 0);
-        Object payDay = t.get("payment_day") != null ? t.get("payment_day") : (c.get("payment_cycle_day") != null ? c.get("payment_cycle_day") : 5);
-        Object timing = t.get("collection_timing") != null ? t.get("collection_timing") : (c.get("collection_timing") != null ? c.get("collection_timing") : "IN_ADVANCE");
-        lines.add("- Giá thuê phòng: " + String.format("%,.0f", new BigDecimal(rentVal.toString())) + " VNĐ/tháng.");
-        lines.add("- Tiền đặt cọc bảo đảm: " + String.format("%,.0f", new BigDecimal(depVal.toString())) + " VNĐ.");
-        lines.add("- Ngày thanh toán định kỳ hàng tháng: Ngày " + payDay + " hàng tháng. Hình thức: " + ("IN_ADVANCE".equals(timing) ? "Thu đầu kỳ (Trả trước)" : "Thu cuối kỳ (Trả sau)") + ".");
-        lines.add("- Tiền điện, nước, dịch vụ phát sinh được lập hóa đơn và đối soát theo chỉ số công tơ định kỳ hàng tháng.");
-        lines.add("");
-        lines.add("ĐIỀU 4: TRANG THIẾT BỊ VÀ TÀI SẢN BÀN GIAO TRONG PHÒNG");
-        if (assets.isEmpty()) {
-            lines.add("- Bàn giao trang thiết bị phòng cơ bản theo biên bản bàn giao nhận phòng (MOVE_IN).");
-        } else {
-            lines.add("- Danh mục trang thiết bị kèm phòng theo hợp đồng:");
-            int idx = 1;
-            for (var a : assets) {
-                lines.add("  " + (idx++) + ". " + a.get("asset_name") + " (" + a.get("asset_code") + ") - Số lượng: " + a.get("quantity") + " " + a.get("unit_name") + " - Hiện trạng: Đang hoạt động tốt");
-            }
+            @PathVariable long id, @RequestParam(required = false) Integer version) throws java.io.IOException {
+        var contract = access.contract(id);
+        var terms = version == null
+                ? db.one("select * from contract_terms where contract_id=? order by version_no desc limit 1", id)
+                : db.one("select * from contract_terms where contract_id=? and version_no=?", id, version);
+        var room = db.one("""
+                select r.room_code,r.floor_number,r.area_sqm,p.name,p.address
+                from rooms r join properties p on p.id=r.property_id where r.id=?
+                """, contract.get("room_id"));
+        var tenant = db.one("select * from tenant_profiles where id=?", contract.get("primary_tenant_id"));
+        var dateFormat = java.time.format.DateTimeFormatter.ofPattern("dd/MM/uuuu");
+        var number = java.text.NumberFormat.getNumberInstance(Locale.forLanguageTag("vi-VN"));
+        number.setMaximumFractionDigits(2);
+        LocalDate start = date(terms.get("effective_from"));
+        LocalDate end = date(terms.get("lease_end"));
+        var residents = db.rows("""
+                select t.full_name from contract_residencies r join tenant_profiles t on t.id=r.tenant_id
+                where r.contract_id=? and r.effective_from<=? and (r.effective_to is null or r.effective_to>?)
+                order by r.effective_from,r.id
+                """, id, start, start).stream().map(row -> row.get("full_name").toString()).toList();
+        var handovers = db.rows("""
+                select id,handover_code,occurred_at from handovers
+                where contract_id=? and handover_type='MOVE_IN' and status='CONFIRMED'
+                and occurred_at<? order by occurred_at,id limit 1
+                """, id, end.atStartOfDay(ZoneId.of("Asia/Ho_Chi_Minh")).toOffsetDateTime());
+        String handover = "";
+        List<ContractPdf.Item> items = List.of();
+        if (!handovers.isEmpty()) {
+            var record = handovers.getFirst();
+            handover = record.get("handover_code") + " · " + time(record.get("occurred_at")).format(dateFormat);
+            items = db.rows("""
+                    select item_name_snapshot,quantity,condition_note from handover_items
+                    where handover_id=? order by line_no
+                    """, record.get("id")).stream().map(row -> new ContractPdf.Item(
+                            row.get("item_name_snapshot").toString(), number.format(row.get("quantity")),
+                            row.get("condition_note").toString())).toList();
         }
-        lines.add("");
-        lines.add("ĐIỀU 5: THÀNH VIÊN CÙNG LƯU TRÚ");
-        if (residents.isEmpty()) {
-            lines.add("- Người thuê chính: " + tenant.get("full_name") + ".");
-        } else {
-            lines.add("- Danh sách thành viên đăng ký thường trú cùng phòng:");
-            int ridx = 1;
-            for (var r : residents) {
-                lines.add("  " + (ridx++) + ". " + r.get("full_name") + " - CCCD: " + (r.get("identity_number") != null ? r.get("identity_number") : "—") + " - SĐT: " + (r.get("phone") != null ? r.get("phone") : "—"));
-            }
-        }
-        lines.add("");
-        lines.add("ĐIỀU 6: QUYỀN VÀ NGHĨA VỤ CỦA HAI BÊN");
-        lines.add("- Bên A: Đảm bảo quyền sử dụng phòng cho Bên B, cung cấp đầy đủ điện nước, bảo dưỡng hệ thống cơ sở vật chất chung.");
-        lines.add("- Bên B: Sử dụng phòng đúng mục đích, thanh toán tiền thuê và dịch vụ đúng thời hạn; giữ gìn vệ sinh và an ninh trật tự chung; giữ gìn đồ đạc tài sản. Khi kết thúc hợp đồng phải bàn giao lại đầy đủ tài sản nguyên vẹn; nếu có hư hỏng phải chịu trách nhiệm bồi thường theo biên bản bàn giao (MOVE_OUT).");
-        lines.add("");
-        lines.add("ĐIỀU 7: ĐIỀU KHOẢN BỔ SUNG & CAM KẾT CHUNG");
-        Object termsText = t.get("terms") != null ? t.get("terms") : c.get("terms");
-        lines.add(termsText != null && !termsText.toString().isBlank() ? termsText.toString() : "- Các thỏa thuận khác thực hiện theo quy chế quản lý nhà trọ và quy định hiện hành của pháp luật.");
-        lines.add("");
-        lines.add("Hợp đồng được lập thành 02 bản có giá trị pháp lý như nhau, mỗi bên giữ 01 bản.");
-        lines.add("");
-        lines.add("ĐẠI DIỆN BÊN CHO THUÊ (BÊN A)              ĐẠI DIỆN BÊN THUÊ (BÊN B)");
-        lines.add("(Ký, ghi rõ họ tên)                       (Ký, ghi rõ họ tên)");
-
+        String blank = "……………………";
+        String code = contract.get("contract_code").toString();
+        int versionNumber = ((Number) terms.get("version_no")).intValue();
+        var lease = new ContractPdf.Lease(
+                code, versionNumber,
+                terms.get("signed_at") == null ? "" : time(terms.get("signed_at")).format(dateFormat),
+                new ContractPdf.Party(
+                        pdfField(terms, "lessor_name", blank), pdfField(terms, "lessor_identity", blank),
+                        pdfField(terms, "lessor_phone", blank), pdfField(terms, "lessor_address", blank)),
+                new ContractPdf.Party(
+                        pdfField(tenant, "full_name", blank), pdfField(tenant, "identity_number", blank),
+                        pdfField(tenant, "phone", blank), pdfField(terms, "tenant_address", blank)),
+                room.get("room_code") + " · Tầng " + room.get("floor_number"),
+                room.get("name").toString(), pdfField(room, "address", blank),
+                room.get("area_sqm") == null ? blank : number.format(room.get("area_sqm")) + " m²",
+                start.format(dateFormat), end.format(dateFormat),
+                number.format(terms.get("rental_price")) + " đ",
+                number.format(terms.get("deposit_required")) + " đ",
+                "Ngày " + terms.get("payment_day") + " hằng tháng · "
+                        + ("IN_ADVANCE".equals(terms.get("collection_timing")) ? "Thu đầu kỳ" : "Thu cuối kỳ"),
+                pdfField(terms, "terms", ""), handover, items, residents);
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
-                .header("Content-Disposition", "attachment; filename=contract-" + c.get("contract_code") + ".pdf")
-                .body(pdf.render("HỢP ĐỒNG THUÊ PHÒNG TRỌ " + c.get("contract_code"), lines));
+                .headers(headers -> headers.setContentDisposition(ContentDisposition.attachment()
+                        .filename("hop-dong-" + code + "-v" + versionNumber + ".pdf",
+                                java.nio.charset.StandardCharsets.UTF_8).build()))
+                .body(ContractPdf.render(lease));
+    }
+
+    private static String pdfField(Map<String, Object> row, String key, String fallback) {
+        String value = Objects.toString(row.get(key), "").strip();
+        return value.isBlank() ? fallback : value;
     }
 }

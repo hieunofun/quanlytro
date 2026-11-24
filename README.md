@@ -1,13 +1,13 @@
 # Hệ thống quản lý nhà trọ
 
-Backend Java 21 / Spring Boot, PostgreSQL và frontend React. Phiên bản hiện hành: **V13, mô hình 49 bảng**; profile `dev` và `prod` kích hoạt `model49`.
+Backend Java 21 / Spring Boot, PostgreSQL và frontend React. Phiên bản hiện hành: **V14, mô hình 49 bảng**; profile `dev` và `prod` kích hoạt `model49`.
 
 ## Tài liệu hiện hành
 
 - [Kiểm chứng backend ngày 01/11, slide và bộ API minh chứng](docs/KIEM-CHUNG-BACKEND-2026-11-01.md).
 
 - [Thay đổi backend, nghiệp vụ, nguồn tham khảo và giới hạn V13](docs/TRIEN-KHAI-BACKEND-V13.md).
-- [API V13](docs/API49.md), [CSDL](docs/DATABASE.md), [từ điển dữ liệu](docs/TU-DIEN-DU-LIEU-49-BANG.md).
+- [API V14](docs/API49.md), [CSDL](docs/DATABASE.md), [từ điển dữ liệu](docs/TU-DIEN-DU-LIEU-49-BANG.md).
 - [8 sơ đồ CSDL theo nghiệp vụ](docs/dbdiagram/modules/index.html), [tải 8 PDF](docs/dbdiagram/modules/8-so-do-nghiep-vu.zip), [DBML đầy đủ](docs/quanlytro.dbml).
 - [Sơ đồ tổng để tra cứu](docs/dbdiagram/index.html), [PDF tổng](docs/dbdiagram/quanlytro-database.pdf).
 - [Kết quả Java/HTTP/migration](docs/implementation-validation49.json), [kết quả SQL](docs/database-validation.json).
@@ -49,7 +49,19 @@ python scripts/verify-model49.py --port 55450 --pg-bin .runtime/tools/postgresql
 powershell -ExecutionPolicy Bypass -File scripts/run-model49-review.ps1
 ```
 
-Mặc định http://127.0.0.1:8091, database review `hostel_review49` trên cổng 55449. Script nhận `-JavaHome`, `-PostgresBin`, `-DatabasePort`, `-Port` và `-Restart`. Đây là database xem thử; thông tin tài khoản khởi tạo xem trong script. `seed-demo.ps1` và `verify-demo.ps1` là công cụ V10, không dùng để nạp V13.
+Mặc định http://127.0.0.1:8091, database review `hostel_review49` trên cổng 55449. Script nhận `-JavaHome`, `-PostgresBin`, `-DatabasePort`, `-DatabaseName`, `-Port` và `-Restart`. Đây là database xem thử; thông tin tài khoản khởi tạo xem trong script. `seed-demo.ps1` và `verify-demo.ps1` là công cụ V10, không dùng để nạp V13.
+
+### Nạp dữ liệu bảo vệ
+
+Khởi động bản review trên database riêng cho buổi bảo vệ rồi chạy seed bằng Node.js:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/run-model49-review.ps1 -Port 8094 -DatabaseName hostel_defense
+$env:BASE_URL = 'http://127.0.0.1:8094/api'
+node scripts/seed-defense.mjs
+```
+
+Script kiểm chứng sáu chỉ số kỳ mới nhất, báo cáo quý, công nợ, hai cảnh báo điện nước, phụ lục PDF và quyết toán có biên bản trả phòng. Đặt `ADMIN_PASSWORD` nếu tài khoản review dùng mật khẩu khác mặc định. V14 bổ sung liên kết giữa các dòng bàn giao và thông tin hai bên theo phiên bản hợp đồng.
 
 ## Docker
 

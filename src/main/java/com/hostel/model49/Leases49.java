@@ -72,8 +72,13 @@ public class Leases49 {
             long hid = ((Number) h.get("id")).longValue();
             var items =
                     db.rows(
-                            "select hi.*,ap.asset_id,a.asset_code "
+                            "select hi.*,ap.asset_id,a.asset_code,original.quantity received_quantity,"
+                                    + " original.condition_note received_condition,original.handover_id received_handover_id,"
+                                    + " (select d.id from billing_items b join billing_documents d on d.id=b.document_id"
+                                    + " where b.handover_item_id=hi.id and b.item_kind='DAMAGE' and d.document_type='COMPENSATION'"
+                                    + " and d.status='ISSUED' order by d.id desc limit 1) compensation_id "
                                     + "from handover_items hi "
+                                    + "left join handover_items original on original.id=hi.original_item_id "
                                     + "left join asset_placements ap on ap.id=hi.asset_placement_id "
                                     + "left join assets a on a.id=ap.asset_id "
                                     + "where hi.handover_id=? order by hi.line_no",
@@ -245,7 +250,8 @@ public class Leases49 {
         db.insert(
                 "contract_terms",
                 ("contract_id,version_no,effective_from,lease_end,rental_price,"
-                        + "deposit_required,payment_day,collection_timing,terms"),
+                        + "deposit_required,payment_day,collection_timing,terms,"
+                        + "lessor_name,lessor_identity,lessor_phone,lessor_address,tenant_address"),
                 id,
                 1,
                 start,
@@ -254,7 +260,9 @@ public class Leases49 {
                 amount(m, "0", "deposit"),
                 Integer.parseInt(text(m, "5", "paymentDay")),
                 text(m, "IN_ADVANCE", "collectionTiming"),
-                text(m, "", "terms"));
+                text(m, "", "terms"),
+                text(m, "", "lessorName"), text(m, "", "lessorIdentity"),
+                text(m, "", "lessorPhone"), text(m, "", "lessorAddress"), text(m, "", "tenantAddress"));
         if (bool(m, false, "primaryResides")) {
             db.insert(
                     "contract_residencies",
@@ -338,19 +346,24 @@ public class Leases49 {
                 "contract_terms",
                 ("contract_id,version_no,effective_from,lease_end,rental_price,"
                         + "deposit_required,payment_day,collection_timing,terms,signed_at,"
-                        + "approved_by,status"),
+                        + "approved_by,status,lessor_name,lessor_identity,lessor_phone,lessor_address,tenant_address"),
                 id,
                 version,
                 from,
                 end,
                 amount(m, previous.get("rental_price").toString(), "rentalPrice"),
                 amount(m, previous.get("deposit_required").toString(), "deposit"),
-                previous.get("payment_day"),
-                previous.get("collection_timing"),
+                Integer.parseInt(text(m, previous.get("payment_day").toString(), "paymentDay")),
+                text(m, previous.get("collection_timing").toString(), "collectionTiming"),
                 text(m, previous.get("terms").toString(), "terms"),
                 time(value(m, "signedAt")),
                 access.user(),
-                "APPROVED");
+                "APPROVED",
+                text(m, previous.get("lessor_name").toString(), "lessorName"),
+                text(m, previous.get("lessor_identity").toString(), "lessorIdentity"),
+                text(m, previous.get("lessor_phone").toString(), "lessorPhone"),
+                text(m, previous.get("lessor_address").toString(), "lessorAddress"),
+                text(m, previous.get("tenant_address").toString(), "tenantAddress"));
         events.audit(
                 "RENEW",
                 "contracts",
@@ -528,19 +541,29 @@ public class Leases49 {
         }
         c = access.contract(id);
         require("ACTIVE".equals(c.get("status")), "Only an active tenancy may be checked out");
-        require(
-                !db.rows(
-                                "select id from room_possessions where contract_id=? and"
-                                        + " returned_at is null",
-                                id)
-                        .isEmpty(),
-                "Record/verify the physical handover before reporting a physical return");
+        var possessions = db.rows("select id,taken_at from room_possessions where contract_id=?"
+                + " and returned_at is null order by id desc", id);
+        require(!possessions.isEmpty(), "Record/verify the physical handover before reporting a physical return");
+        var possession = possessions.getFirst();
         LocalDate end = day(m, null, "date", "billingEnd");
         require(
                 end != null && end.isAfter(date(c.get("start_date"))),
                 "Valid agreed billing end is required");
         OffsetDateTime returned = time(value(m, "returnedAt", "date"));
         require(!returned.isAfter(now()), "Actual return cannot occur in the future");
+        Long returnHandoverId = optionalId(m, "returnHandoverId");
+        var handovers = db.rows("""
+                select id from handovers where contract_id=? and handover_type='MOVE_OUT'
+                and status='CONFIRMED' and (possession_id=? or possession_id is null)
+                and occurred_at>=? and occurred_at<=? order by occurred_at desc,id desc
+                """, id, possession.get("id"), possession.get("taken_at"), returned);
+        if (returnHandoverId != null) {
+            long requested = returnHandoverId;
+            require(handovers.stream().anyMatch(h -> id(h, "id") == requested),
+                    "Chọn biên bản trả phòng đã xác nhận đúng hợp đồng và thời điểm giao trả");
+        } else if (!handovers.isEmpty()) {
+            returnHandoverId = id(handovers.getFirst(), "id");
+        }
         db.jdbc.update(
                 "update room_possessions set returned_at=? where contract_id=? and returned_at is"
                         + " null",
@@ -557,8 +580,9 @@ public class Leases49 {
         long x =
                 db.insert(
                         "checkout_records",
-                        "contract_id,billing_end,notes",
+                        "contract_id,return_handover_id,billing_end,notes",
                         id,
+                        returnHandoverId,
                         end,
                         text(m, "", "notes", "reason"));
         db.jdbc.update(

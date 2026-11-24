@@ -16,11 +16,13 @@ public class Reports49 {
     private final Database db;
     private final Access49 access;
     private final PdfService pdf;
+    private final Catalog49 catalog;
 
-    public Reports49(Database db, Access49 access, PdfService pdf) {
+    public Reports49(Database db, Access49 access, PdfService pdf, Catalog49 catalog) {
         this.db = db;
         this.access = access;
         this.pdf = pdf;
+        this.catalog = catalog;
     }
 
     private String cashScope() {
@@ -33,12 +35,41 @@ public class Reports49 {
                         + ")";
     }
 
+    private static final String PAYMENT_AMOUNTS = """
+            coalesce(sum(a.amount) filter (where receipt.day < d.due_date), 0) as paid_early,
+            coalesce(sum(a.amount) filter (where receipt.day = d.due_date), 0) as paid_on_time,
+            coalesce(sum(a.amount) filter (where receipt.day > d.due_date), 0) as paid_late
+            """;
+
+    private static final String PAYMENT_APPLICATIONS = """
+             join v_item_applications a on a.item_id=i.id
+             join fund_entries entry on entry.id=a.entry_id
+             left join fund_entries original on original.id=entry.original_entry_id
+             left join fund_entries source on source.id=original.original_entry_id
+             join fund_entries payment on payment.id=coalesce(source.id,original.id,entry.id)
+             left join cash_transactions tx on tx.payment_document_id=d.id and tx.status='CONFIRMED'
+                  and payment.entry_code=tx.transaction_code||'-PAY-'||i.id
+             cross join lateral (
+                 select (coalesce(tx.occurred_at,payment.posted_at) at time zone 'Asia/Ho_Chi_Minh')::date as day
+             ) receipt
+            """;
+
+    private List<String> billingPeriods() {
+        return db.rows(
+                        "select distinct to_char(coalesce(d.billing_period,d.issue_date),'YYYY-MM') p"
+                                + " from billing_documents d join contracts c on c.id=d.contract_id"
+                                + " where d.status='ISSUED' and "
+                                + access.contractScope("c", true) + " order by p desc")
+                .stream().map(row -> row.get("p").toString()).toList();
+    }
+
     @GetMapping("/dashboard")
     public Object dashboard(
             @RequestParam(required = false) String period,
             @RequestParam(required = false) String quarter,
             @RequestParam(required = false) String viewType) {
         access.manager();
+        var periods = billingPeriods();
         LocalDate start, end;
         String currentLabel, mode;
 
@@ -60,8 +91,10 @@ public class Reports49 {
             mode = "quarter".equalsIgnoreCase(viewType) ? "quarter" : "month";
             LocalDate p =
                     period == null || period.isBlank()
-                            ? YearMonth.now(ZoneId.of("Asia/Ho_Chi_Minh")).atDay(1)
-                            : YearMonth.parse(period.substring(0, 7)).atDay(1);
+                            ? (periods.isEmpty()
+                                    ? YearMonth.now(ZoneId.of("Asia/Ho_Chi_Minh"))
+                                    : YearMonth.parse(periods.getFirst())).atDay(1)
+                            : (period.length() == 7 ? YearMonth.parse(period) : YearMonth.from(LocalDate.parse(period))).atDay(1);
             if ("quarter".equals(mode)) {
                 int q = (p.getMonthValue() - 1) / 3 + 1;
                 start = LocalDate.of(p.getYear(), (q - 1) * 3 + 1, 1);
@@ -101,12 +134,10 @@ public class Reports49 {
 
         result.putAll(
                 db.one(
-                        "select coalesce(sum(case when (e.posted_at at time zone 'Asia/Ho_Chi_Minh')::date < d.due_date then e.amount else 0 end),0) paid_early,"
-                                + "coalesce(sum(case when (e.posted_at at time zone 'Asia/Ho_Chi_Minh')::date = d.due_date then e.amount else 0 end),0) paid_on_time,"
-                                + "coalesce(sum(case when (e.posted_at at time zone 'Asia/Ho_Chi_Minh')::date > d.due_date then e.amount else 0 end),0) paid_late "
-                                + "from billing_documents d join contracts c on c.id=d.contract_id "
-                                + "join billing_items i on i.document_id=d.id "
-                                + "join fund_entries e on e.debit_item_id=i.id and e.entry_type='PAYMENT' "
+                        "select " + PAYMENT_AMOUNTS
+                                + "from billing_documents d join contracts c on c.id=d.contract_id"
+                                + " join billing_items i on i.document_id=d.id"
+                                + PAYMENT_APPLICATIONS
                                 + "where d.status='ISSUED' and i.direction='DEBIT' and i.adjusts_item_id is null "
                                 + "and coalesce(d.billing_period,date_trunc('month',d.issue_date)::date)>=? "
                                 + "and coalesce(d.billing_period,date_trunc('month',d.issue_date)::date)<? "
@@ -181,15 +212,7 @@ public class Reports49 {
         result.put("startDate", start.toString());
         result.put("endDate", end.toString());
 
-        var periods =
-                db.rows(
-                        "select distinct to_char(coalesce(d.billing_period, d.issue_date), 'YYYY-MM') as p "
-                                + "from billing_documents d join contracts c on c.id=d.contract_id "
-                                + "where d.status='ISSUED' and "
-                                + access.contractScope("c", true)
-                                + " order by p desc");
-        result.put("available_periods", periods.stream().map(m -> m.get("p")).toList());
-
+        result.put("available_periods", periods);
         return result;
     }
 
@@ -210,80 +233,75 @@ public class Reports49 {
                         + " having sum(i.balance_due)>0 order by d.due_date");
     }
 
-    @GetMapping("/reports/tenant-debts")
-    public Object tenantDebts() {
-        access.manager();
-        var tenants =
-                db.rows(
-                        "select t.id as tenant_id,t.full_name,t.phone,t.identity_number,"
-                                + "string_agg(distinct r.room_code, ', ' order by r.room_code) as room_codes,"
-                                + "string_agg(distinct c.contract_code, ', ' order by c.contract_code) as contract_codes,"
-                                + "sum(i.charge_amount) as total_billed,"
-                                + "sum(i.paid_amount) as total_paid,"
-                                + "sum(i.balance_due) as total_debt,"
-                                + "count(distinct d.id) as unpaid_invoice_count,"
-                                + "min(d.due_date) as earliest_due_date,"
-                                + "max(greatest(0, current_date - d.due_date)) as max_overdue_days "
-                                + "from v_item_balances i "
-                                + "join billing_documents d on d.id=i.document_id "
-                                + "join v_contract_current c on c.id=i.contract_id "
-                                + "join rooms r on r.id=c.room_id "
-                                + "join tenant_profiles t on t.id=c.primary_tenant_id "
-                                + "where i.document_status='ISSUED' and "
-                                + access.contractScope("c", true)
-                                + " group by t.id,t.full_name,t.phone,t.identity_number "
-                                + "having sum(i.balance_due)>0 "
-                                + "order by max(greatest(0, current_date - d.due_date)) desc, sum(i.balance_due) desc");
+    private List<Map<String, Object>> openTenantInvoices(Long tenantId) {
+        return db.rows("""
+                select d.id,d.document_code as invoice_code,d.billing_period,d.due_date,d.issue_date,
+                       r.room_code,c.contract_code,t.id as tenant_id,t.full_name,t.phone,t.identity_number,
+                       d.total_amount,d.paid_amount,d.balance_due,
+                       greatest(0, (now() at time zone 'Asia/Ho_Chi_Minh')::date-d.due_date) as overdue_days
+                from v_document_balances d
+                join v_contract_current c on c.id=d.contract_id
+                join rooms r on r.id=c.room_id
+                join tenant_profiles t on t.id=c.primary_tenant_id
+                where d.status='ISSUED' and d.balance_due>0 and
+                """ + access.contractScope("c", true)
+                + " and (?::bigint is null or t.id=?) order by d.due_date,d.id", tenantId, tenantId);
+    }
 
-        for (var t : tenants) {
-            long tenantId = ((Number) t.get("tenant_id")).longValue();
-            var invoices =
-                    db.rows(
-                            "select d.id,d.document_code as invoice_code,d.billing_period,d.due_date,d.issue_date,"
-                                    + "r.room_code,c.contract_code,"
-                                    + "sum(i.charge_amount) as total_amount,"
-                                    + "sum(i.paid_amount) as paid_amount,"
-                                    + "sum(i.balance_due) as balance_due,"
-                                    + "greatest(0, current_date - d.due_date) as overdue_days "
-                                    + "from v_item_balances i "
-                                    + "join billing_documents d on d.id=i.document_id "
-                                    + "join v_contract_current c on c.id=i.contract_id "
-                                    + "join rooms r on r.id=c.room_id "
-                                    + "where i.document_status='ISSUED' and c.primary_tenant_id=? and "
-                                    + access.contractScope("c", true)
-                                    + " group by d.id,d.document_code,d.billing_period,d.due_date,d.issue_date,r.room_code,c.contract_code "
-                                    + "having sum(i.balance_due)>0 "
-                                    + "order by d.due_date asc",
-                            tenantId);
-            t.put("invoices", invoices);
+    @GetMapping("/reports/tenant-debts")
+    public List<Map<String, Object>> tenantDebts() {
+        access.manager();
+        var groups = new LinkedHashMap<Long, List<Map<String, Object>>>();
+        for (var invoice : openTenantInvoices(null)) {
+            long tenant = ((Number) invoice.get("tenant_id")).longValue();
+            groups.computeIfAbsent(tenant, ignored -> new ArrayList<>()).add(invoice);
         }
-        return tenants;
+        return groups.values().stream().map(invoices -> tenantBalance(invoices.getFirst(), invoices))
+                .sorted(Comparator.<Map<String, Object>>comparingInt(t -> (int) t.get("max_overdue_days"))
+                        .thenComparing(t -> (BigDecimal) t.get("total_debt")).reversed())
+                .toList();
     }
 
     @GetMapping("/reports/tenant-debts/{id}")
-    public Object tenantDebtDetail(@PathVariable long id) {
+    public Map<String, Object> tenantDebtDetail(@PathVariable long id) {
         access.manager();
-        var rows = (List<Map<String, Object>>) tenantDebts();
-        for (var row : rows) {
-            if (((Number) row.get("tenant_id")).longValue() == id) {
-                return row;
-            }
+        var tenant = catalog.get("tenants", id);
+        tenant.put("tenant_id", id);
+        return tenantBalance(tenant, openTenantInvoices(id));
+    }
+
+    private Map<String, Object> tenantBalance(
+            Map<String, Object> tenant, List<Map<String, Object>> invoices) {
+        var result = new LinkedHashMap<String, Object>();
+        for (String field : List.of("tenant_id", "full_name", "phone", "identity_number")) {
+            result.put(field, tenant.get(field));
         }
-        var tenant = db.one("select id as tenant_id,full_name,phone,identity_number from tenant_profiles where id=?", id);
-        tenant.put("room_codes", "—");
-        tenant.put("contract_codes", "—");
-        tenant.put("total_billed", BigDecimal.ZERO);
-        tenant.put("total_paid", BigDecimal.ZERO);
-        tenant.put("total_debt", BigDecimal.ZERO);
-        tenant.put("unpaid_invoice_count", 0);
-        tenant.put("earliest_due_date", null);
-        tenant.put("max_overdue_days", 0);
-        tenant.put("invoices", List.of());
-        return tenant;
+        var rooms = new TreeSet<String>();
+        var contracts = new TreeSet<String>();
+        BigDecimal billed = BigDecimal.ZERO, paid = BigDecimal.ZERO, debt = BigDecimal.ZERO;
+        int overdue = 0;
+        for (var invoice : invoices) {
+            rooms.add(invoice.get("room_code").toString());
+            contracts.add(invoice.get("contract_code").toString());
+            billed = billed.add((BigDecimal) invoice.get("total_amount"));
+            paid = paid.add((BigDecimal) invoice.get("paid_amount"));
+            debt = debt.add((BigDecimal) invoice.get("balance_due"));
+            overdue = Math.max(overdue, ((Number) invoice.get("overdue_days")).intValue());
+        }
+        result.put("room_codes", String.join(", ", rooms));
+        result.put("contract_codes", String.join(", ", contracts));
+        result.put("total_billed", billed);
+        result.put("total_paid", paid);
+        result.put("total_debt", debt);
+        result.put("unpaid_invoice_count", invoices.size());
+        result.put("earliest_due_date", invoices.isEmpty() ? null : invoices.getFirst().get("due_date"));
+        result.put("max_overdue_days", overdue);
+        result.put("invoices", invoices);
+        return result;
     }
 
     @GetMapping("/reports/revenue")
-    public Object revenue() {
+    public List<Map<String, Object>> revenue() {
         access.manager();
         var rows =
                 db.rows(
@@ -304,13 +322,11 @@ public class Reports49 {
                                 + " group by period"
                                 + "), timing as ("
                                 + "select to_char(coalesce(d.billing_period, d.issue_date), 'YYYY-MM') as period,"
-                                + "sum(case when (e.posted_at at time zone 'Asia/Ho_Chi_Minh')::date < d.due_date then e.amount else 0 end) as paid_early,"
-                                + "sum(case when (e.posted_at at time zone 'Asia/Ho_Chi_Minh')::date = d.due_date then e.amount else 0 end) as paid_on_time,"
-                                + "sum(case when (e.posted_at at time zone 'Asia/Ho_Chi_Minh')::date > d.due_date then e.amount else 0 end) as paid_late "
-                                + "from billing_documents d "
-                                + "join contracts c on c.id=d.contract_id "
-                                + "join billing_items i on i.document_id=d.id "
-                                + "join fund_entries e on e.debit_item_id=i.id and e.entry_type='PAYMENT' "
+                                + PAYMENT_AMOUNTS
+                                + "from billing_documents d"
+                                + " join contracts c on c.id=d.contract_id"
+                                + " join billing_items i on i.document_id=d.id"
+                                + PAYMENT_APPLICATIONS
                                 + "where d.status='ISSUED' and i.direction='DEBIT' and i.adjusts_item_id is null and "
                                 + access.contractScope("c", true)
                                 + " group by period"
@@ -346,9 +362,8 @@ public class Reports49 {
     }
 
     @GetMapping("/reports/revenue-quarterly")
-    public Object quarterly() {
-        @SuppressWarnings("unchecked")
-        var rows = (List<Map<String, Object>>) revenue();
+    public Collection<Map<String, Object>> quarterly() {
+        var rows = revenue();
         var groups = new LinkedHashMap<String, Map<String, Object>>();
         for (var row : rows) {
             String pStr = row.get("billing_period").toString();
@@ -417,9 +432,8 @@ public class Reports49 {
     }
 
     @GetMapping("/reports/revenue-yearly")
-    public Object yearly() {
-        @SuppressWarnings("unchecked")
-        var rows = (List<Map<String, Object>>) revenue();
+    public Collection<Map<String, Object>> yearly() {
+        var rows = revenue();
         var groups = new LinkedHashMap<String, Map<String, Object>>();
         for (var row : rows) {
             String pStr = row.get("billing_period").toString();
@@ -560,6 +574,38 @@ public class Reports49 {
                     .append("\r\n");
         }
         return out.toString();
+    }
+
+    @GetMapping("/reports/revenue/pdf")
+    public ResponseEntity<byte[]> revenuePdf(@RequestParam(defaultValue = "month") String group)
+            throws java.io.IOException {
+        var rows = switch (group) {
+            case "month" -> revenue();
+            case "quarter" -> quarterly();
+            case "year" -> yearly();
+            default -> throw new IllegalArgumentException("Invalid report grouping");
+        };
+        String periodLabel = switch (group) {
+            case "quarter" -> "quý";
+            case "year" -> "năm";
+            default -> "tháng";
+        };
+        var lines = new ArrayList<String>();
+        var number = java.text.NumberFormat.getNumberInstance(Locale.forLanguageTag("vi-VN"));
+        for (var row : rows) {
+            lines.add("Kỳ " + row.get("billing_period") + "  ·  " + row.get("invoice_count") + " chứng từ");
+            lines.add("Lập hóa đơn: " + number.format(row.get("billed"))
+                    + " đ   |   Đã thu: " + number.format(row.get("collected"))
+                    + " đ   |   Còn nợ: " + number.format(row.get("outstanding")) + " đ");
+            lines.add("Điện: " + number.format(row.get("electricity"))
+                    + " đ   |   Nước: " + number.format(row.get("water")) + " đ");
+            lines.add("");
+        }
+        if (lines.isEmpty()) lines.add("Chưa có số liệu cho báo cáo.");
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header("Content-Disposition", "attachment; filename=revenue-" + group + ".pdf")
+                .body(pdf.render("BÁO CÁO DOANH THU THEO " + periodLabel.toUpperCase(Locale.forLanguageTag("vi-VN")), lines));
     }
 
     @GetMapping("/reports/pdf")

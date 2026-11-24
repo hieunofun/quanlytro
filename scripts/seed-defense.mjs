@@ -1,9 +1,10 @@
 // ==============================================================================
 // Script: seed-defense.mjs
-// Dữ liệu mô phỏng V13 hoàn chỉnh phục vụ bảo vệ đồ án trước Hội đồng
+// Dữ liệu mô phỏng V14 hoàn chỉnh phục vụ bảo vệ đồ án trước Hội đồng
 // ==============================================================================
 
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 
 const BASE_URL = process.env.BASE_URL || 'http://127.0.0.1:8093/api';
 let token = '';
@@ -29,7 +30,17 @@ async function call(name, path, body = null, method = null) {
   return text ? JSON.parse(text) : null;
 }
 
-console.log('Seeding V13 Defense Demo to:', BASE_URL);
+async function attachOnce(kind, id, filename, bytes, contentType) {
+  const path = `/files/${kind}/${id}`;
+  const current = await call('Kiểm tra tệp minh chứng', path);
+  if (current.some((file) => file.original_name === filename)) return;
+  const data = new FormData();
+  data.append('file', new Blob([bytes], { type: contentType }), filename);
+  const result = await fetch(BASE_URL + path, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: data });
+  assert.ok(result.ok, `Đính kèm ${filename} thất bại: ${await result.text()}`);
+}
+
+console.log('Seeding V14 Defense Demo to:', BASE_URL);
 
 // 1. Đăng nhập Admin
 const login = await call('Login Admin', '/auth/login', {
@@ -53,23 +64,19 @@ if (!property) {
   console.log('✓ Dùng khu nhà SkyHome hiện hữu:', property.id);
 }
 
-// Cấu hình chốt số & chính sách cảnh báo 50% sau 3 tháng
-try {
-  await call('Cấu hình ngày chốt & phát hành HĐ', `/properties/${property.id}/billing-policy`, {
-    meterCutoffDay: 31,
-    invoiceIssueDay: 1,
-  }, 'PUT');
-} catch (e) {
-  console.log('Bỏ qua cập nhật chính sách ngày chốt:', e.message);
-}
+await call('Cấu hình ngày chốt và phát hành', `/properties/${property.id}/billing-policy`, {
+  meterCutoffDay: 31,
+  invoiceIssueDay: 1,
+}, 'PUT');
 
 const accounts = await call('Lấy tài khoản quỹ', '/cash-accounts');
 const cashAccount = accounts.find((a) => a.property_id === property.id) || accounts[0];
 
 // Thiết lập giá dịch vụ
 const defaultServices = await call('Danh mục dịch vụ', '/catalog/services');
-const elecService = defaultServices.find((s) => (s.service_code || s.code) === 'ELEC') || defaultServices[0];
-const waterService = defaultServices.find((s) => (s.service_code || s.code) === 'WATER') || defaultServices[1];
+const elecService = defaultServices.find((s) => s.service_code === 'ELEC');
+const waterService = defaultServices.find((s) => s.service_code === 'WATER');
+assert.ok(elecService && waterService, 'Thiếu danh mục dịch vụ điện nước');
 
 const existingPrices = await call('Biểu giá hiện có', '/catalog/prices');
 async function ensurePrice(serviceItemId, unitPrice) {
@@ -77,16 +84,12 @@ async function ensurePrice(serviceItemId, unitPrice) {
     (p) => p.property_id === property.id && p.service_item_id === serviceItemId && p.effective_from === '2025-01-01'
   );
   if (!match) {
-    try {
-      await call(`Cập nhật biểu giá ${unitPrice}`, '/catalog/prices', {
-        propertyId: property.id,
-        serviceItemId,
-        effectiveFrom: '2025-01-01',
-        unitPrice,
-      });
-    } catch (e) {
-      console.log('Bỏ qua tạo biểu giá:', e.message);
-    }
+    await call(`Cập nhật biểu giá ${unitPrice}`, '/catalog/prices', {
+      propertyId: property.id,
+      serviceItemId,
+      effectiveFrom: '2025-01-01',
+      unitPrice,
+    });
   }
 }
 for (const s of defaultServices) {
@@ -100,14 +103,18 @@ for (const s of defaultServices) {
   await ensurePrice(s.id, defaultPrice);
 }
 
-try {
-  await call('Chính sách cảnh báo điện nước 50% sau 3 tháng', '/thresholds', {
-    propertyId: property.id,
-    percentage: 50,
-    months: 3,
-  });
-} catch (e) {
-  console.log('Bỏ qua cập nhật threshold:', e.message);
+const policies = await call('Danh sách ngưỡng cảnh báo', '/catalog/thresholds');
+for (const service of [elecService, waterService]) {
+  if (!policies.some(p => p.property_id === property.id && p.service_item_id === service.id && p.effective_from === '2025-10-01')) {
+    await call('Cấu hình ngưỡng so với ba tháng trước', '/catalog/thresholds', {
+      propertyId: property.id,
+      serviceItemId: service.id,
+      effectiveFrom: '2025-10-01',
+      thresholdPercentage: 50,
+      historyMonths: 3,
+      minimumDays: 7,
+    });
+  }
 }
 
 // 2. Tạo Loại tài sản & Danh mục đồ đạc
@@ -127,7 +134,6 @@ const atAC = await ensureAssetType('AC_INVERTER', 'Điều hòa Inverter Daikin'
 const atFridge = await ensureAssetType('FRIDGE_2D', 'Tủ lạnh Toshiba 180L', 'Chiếc');
 const atBed = await ensureAssetType('WOOD_BED', 'Giường ngủ gỗ Sồi 1.8m', 'Chiếc');
 const atWardrobe = await ensureAssetType('WARDROBE_3D', 'Tủ quần áo 3 cánh', 'Chiếc');
-const atHeater = await ensureAssetType('WATER_HEATER', 'Bình nước nóng Ariston', 'Bình');
 
 // 3. Tạo các Phòng trọ
 const rooms = await call('Danh sách phòng', '/rooms');
@@ -149,38 +155,31 @@ async function ensureRoom(code, floor, price, area, occupants) {
 const r101 = await ensureRoom('P101', 1, 3500000, 30, 2);
 const r102 = await ensureRoom('P102', 1, 3200000, 28, 2);
 const r201 = await ensureRoom('P201', 2, 4000000, 35, 3);
-const r202 = await ensureRoom('P202', 2, 2800000, 25, 2); // Phòng trống
+await ensureRoom('P202', 2, 2800000, 25, 2);
 console.log('✓ Phòng trọ đã sẵn sàng: P101, P102, P201, P202');
 
-// Bố trí đồ đạc cho P101
-const p101Assets = await call(`Kiểm tra đồ P101`, `/rooms/${r101.id}/assets`);
-if (!p101Assets || p101Assets.length === 0) {
-  await call(`Gán Điều hòa vào P101`, `/rooms/${r101.id}/assets`, {
-    assetTypeId: atAC.id,
-    assetCode: 'AST-101-AC',
-    quantity: 1,
-    note: 'Daikin 9000 BTU, mới 100%',
-  });
-  await call(`Gán Tủ lạnh vào P101`, `/rooms/${r101.id}/assets`, {
-    assetTypeId: atFridge.id,
-    assetCode: 'AST-101-FRIDGE',
-    quantity: 1,
-    note: 'Toshiba 180L, chạy êm',
-  });
-  await call(`Gán Giường vào P101`, `/rooms/${r101.id}/assets`, {
-    assetTypeId: atBed.id,
-    assetCode: 'AST-101-BED',
-    quantity: 1,
-    note: 'Giường gỗ sồi kèm đệm cao su',
-  });
-  await call(`Gán Tủ áo vào P101`, `/rooms/${r101.id}/assets`, {
-    assetTypeId: atWardrobe.id,
-    assetCode: 'AST-101-WARDROBE',
-    quantity: 1,
-    note: 'Tủ 3 cánh MDF chống ẩm',
-  });
+async function ensureRoomAssets(room, definitions) {
+  const placed = await call(`Đồ đạc phòng ${room.room_code}`, `/rooms/${room.id}/assets`);
+  for (const [type, code, quantity, note] of definitions) {
+    if (!placed.some(asset => asset.asset_code === code)) {
+      await call(`Bố trí ${code}`, `/rooms/${room.id}/assets`, {
+        assetTypeId: type.id, assetCode: code, quantity, note,
+        validFrom: '2025-08-01T08:00:00+07:00',
+      });
+    }
+  }
 }
-console.log('✓ Đồ đạc nội thất P101 đã bố trí đầy đủ');
+await ensureRoomAssets(r101, [
+  [atAC, 'AST-101-AC', 1, 'Daikin 9000 BTU'],
+  [atFridge, 'AST-101-FRIDGE', 1, 'Toshiba 180 L'],
+  [atBed, 'AST-101-BED', 1, 'Kèm đệm cao su'],
+  [atWardrobe, 'AST-101-WARDROBE', 1, 'Gỗ MDF chống ẩm'],
+]);
+await ensureRoomAssets(r201, [
+  [atAC, 'AST-201-AC', 1, 'Kèm điều khiển'],
+  [atBed, 'AST-201-BED', 1, 'Kèm đệm'],
+]);
+console.log('✓ Đã bố trí tài sản phòng P101 và P201');
 
 // Công tơ điện nước
 const metersList = await call('Danh sách công tơ', '/catalog/meters');
@@ -221,6 +220,11 @@ async function ensureContract(code, roomId, fullName, phone, cccd, rent, dep, st
       deposit: dep,
       paymentDay: payDay,
       collectionTiming: timing,
+      primaryResides: true,
+      lessorName: 'Nguyễn Minh Hà',
+      lessorPhone: '0900000000',
+      lessorAddress: '123 Nguyễn Trãi, Thanh Xuân, Hà Nội',
+      tenantAddress: 'Địa chỉ liên hệ ghi trong hồ sơ demo',
       terms: 'Người thuê thanh toán đúng hạn trước ngày ' + payDay + ' hàng tháng. Giữ gìn an ninh trật tự, vệ sinh chung và bảo quản trang thiết bị phòng.',
     });
     // Ký duyệt
@@ -244,22 +248,29 @@ async function ensureContract(code, roomId, fullName, phone, cccd, rent, dep, st
       takenAt: `${start}T10:00:00+07:00`,
       reason: 'Đã nhận đủ cọc và bàn giao chìa khóa',
     });
-    // Tạo biên bản bàn giao nhận phòng (MOVE_IN) tự động nạp đồ
-    await call(`Biên bản nhận phòng ${code}`, `/contracts/${c.id}/handovers`, {
+  }
+  let detail = await call(`Chi tiết HĐ ${c.id}`, `/contracts/${c.id}`);
+  let handover = detail.handovers.find(h => h.handover_type === 'MOVE_IN');
+  if (!handover) {
+    detail = await call(`Biên bản nhận phòng ${code}`, `/contracts/${c.id}/handovers`, {
       handoverType: 'MOVE_IN',
       handoverCode: `HO-IN-${code}`,
       occurredAt: `${start}T10:00:00+07:00`,
       autoPopulateItems: true,
-      note: 'Bàn giao phòng và trang thiết bị đầy đủ theo thỏa thuận',
+      note: 'Bàn giao phòng, chìa khóa và trang thiết bị',
     });
-    // Xác nhận biên bản
-    const freshDetail = await call(`Chi tiết HĐ ${c.id}`, `/contracts/${c.id}`);
-    const ho = freshDetail.handovers?.find((h) => h.handover_type === 'MOVE_IN');
-    if (ho && ho.status === 'DRAFT') {
-      await call(`Xác nhận biên bản bàn giao ${ho.id}`, `/handovers/${ho.id}/confirm`, {
-        note: 'Hai bên đã ký nhận hiện trạng đầy đủ',
-      });
+    handover = detail.handovers.find(h => h.handover_type === 'MOVE_IN');
+  }
+  if (handover.status === 'DRAFT') {
+    for (const item of handover.items) {
+      await call('Ghi hiện trạng khi nhận', `/handovers/${handover.id}/items/${item.id}`, {
+        quantity: item.quantity,
+        conditionNote: 'Hoạt động tốt, đầy đủ phụ kiện',
+      }, 'PUT');
     }
+    await call('Xác nhận biên bản nhận phòng', `/handovers/${handover.id}/confirm`, {
+      note: 'Đã đối chiếu hiện trạng cùng người thuê',
+    });
   }
   return call(`Lấy chi tiết ${c.id}`, `/contracts/${c.id}`);
 }
@@ -282,19 +293,17 @@ console.log('✓ Hợp đồng P101 (Trần Văn An) đã tạo & xác nhận b�
 
 // Gia hạn thêm phụ lục hợp đồng bản 2 cho P101
 if (c101.versions?.length === 1) {
-  try {
-    await call('Gia hạn HĐ P101 (Phụ lục số 2)', `/contracts/${c101.id}/renew`, {
-      effectiveFrom: '2026-06-01',
-      endDate: '2027-06-01',
-      rentalPrice: 3600000,
-      deposit: 3500000,
-      signedAt: '2026-01-10T14:00:00+07:00',
-      reason: 'Ký gia hạn thêm 1 năm theo nguyện vọng của khách thuê',
-    });
-    console.log('✓ Đã ký phụ lục gia hạn HĐ P101 (Phiên bản số 2)');
-  } catch (e) {
-    console.log('Bỏ qua phụ lục gia hạn:', e.message);
-  }
+  await call('Ký phụ lục hợp đồng P101', `/contracts/${c101.id}/renew`, {
+    effectiveFrom: '2026-06-01',
+    endDate: '2027-06-01',
+    rentalPrice: 3600000,
+    deposit: 3500000,
+    paymentDay: 8,
+    collectionTiming: 'IN_ARREARS',
+    terms: 'Từ ngày hiệu lực phụ lục, tiền thuê được thanh toán vào ngày 8. Các nội dung bàn giao tiếp tục theo biên bản nhận phòng.',
+    signedAt: '2026-01-10T14:00:00+07:00',
+    reason: 'Gia hạn thêm một năm theo thỏa thuận',
+  });
 }
 
 // Khách 2: Lê Thị Bích (P102) - Khách CÓ DƯ NỢ & QUÁ HẠN
@@ -314,13 +323,13 @@ const c102 = await ensureContract(
 console.log('✓ Hợp đồng P102 (Lê Thị Bích) đã sẵn sàng');
 
 // 5. Ghi nhận chỉ số Điện & Nước 4 tháng (T10, T11, T12/2025 & T01/2026)
-// P101: 3 tháng đầu TB ~82 kWh -> Tháng 01/2026 đột biến lên 195 kWh (>130% tăng, vượt ngưỡng 50%)!
+// P102 tăng điện và nước trong tháng 01/2026 sau ba tháng ổn định.
 const readings = [
   // Tháng 10/2025
-  { m: mElec101, c: c101, start: '2025-10-01T00:00:00+07:00', end: '2025-10-31T23:59:59+07:00', oldI: 100, newI: 180 }, // 80 kWh
-  { m: mWater101, c: c101, start: '2025-10-01T00:00:00+07:00', end: '2025-10-31T23:59:59+07:00', oldI: 50, newI: 60 },  // 10 m3
-  { m: mElec102, c: c102, start: '2025-10-01T00:00:00+07:00', end: '2025-10-31T23:59:59+07:00', oldI: 200, newI: 270 }, // 70 kWh
-  { m: mWater102, c: c102, start: '2025-10-01T00:00:00+07:00', end: '2025-10-31T23:59:59+07:00', oldI: 80, newI: 89 },  // 9 m3
+  { m: mElec101, c: c101, start: '2025-10-01T10:00:00+07:00', end: '2025-10-31T23:59:59+07:00', oldI: 100, newI: 180 }, // 80 kWh
+  { m: mWater101, c: c101, start: '2025-10-01T10:00:00+07:00', end: '2025-10-31T23:59:59+07:00', oldI: 50, newI: 60 },  // 10 m3
+  { m: mElec102, c: c102, start: '2025-10-01T10:00:00+07:00', end: '2025-10-31T23:59:59+07:00', oldI: 200, newI: 270 }, // 70 kWh
+  { m: mWater102, c: c102, start: '2025-10-01T10:00:00+07:00', end: '2025-10-31T23:59:59+07:00', oldI: 80, newI: 89 },  // 9 m3
 
   // Tháng 11/2025
   { m: mElec101, c: c101, start: '2025-11-01T00:00:00+07:00', end: '2025-11-30T23:59:59+07:00', oldI: 180, newI: 265 }, // 85 kWh
@@ -334,11 +343,11 @@ const readings = [
   { m: mElec102, c: c102, start: '2025-12-01T00:00:00+07:00', end: '2025-12-31T23:59:59+07:00', oldI: 345, newI: 423 }, // 78 kWh
   { m: mWater102, c: c102, start: '2025-12-01T00:00:00+07:00', end: '2025-12-31T23:59:59+07:00', oldI: 99, newI: 109 }, // 10 m3
 
-  // Tháng 01/2026: ĐỘT BIẾN ĐIỆN TẠI P101 (195 kWh so với TB 82.3 kWh -> +137%)
-  { m: mElec101, c: c101, start: '2026-01-01T00:00:00+07:00', end: '2026-01-31T23:59:59+07:00', oldI: 347, newI: 542 }, // 195 kWh
+  // Tháng 01/2026: P102 tăng điện và nước vượt ngưỡng.
+  { m: mElec101, c: c101, start: '2026-01-01T00:00:00+07:00', end: '2026-01-31T23:59:59+07:00', oldI: 347, newI: 436 }, // 89 kWh
   { m: mWater101, c: c101, start: '2026-01-01T00:00:00+07:00', end: '2026-01-31T23:59:59+07:00', oldI: 81, newI: 93 },  // 12 m3
-  { m: mElec102, c: c102, start: '2026-01-01T00:00:00+07:00', end: '2026-01-31T23:59:59+07:00', oldI: 423, newI: 501 }, // 78 kWh
-  { m: mWater102, c: c102, start: '2026-01-01T00:00:00+07:00', end: '2026-01-31T23:59:59+07:00', oldI: 109, newI: 120 }, // 11 m3
+  { m: mElec102, c: c102, start: '2026-01-01T00:00:00+07:00', end: '2026-01-31T23:59:59+07:00', oldI: 423, newI: 651 }, // 228 kWh
+  { m: mWater102, c: c102, start: '2026-01-01T00:00:00+07:00', end: '2026-01-31T23:59:59+07:00', oldI: 109, newI: 142 }, // 33 m3
 ];
 
 const existingSegments = (await call('Đọc chỉ số điện nước', '/meter-readings')) || [];
@@ -350,108 +359,63 @@ for (const rd of readings) {
       (Number(s.new_index) === rd.newI || Number(s.end_reading) === rd.newI)
   );
   if (!match) {
-    try {
-      await call(`Ghi chỉ số ${rd.m.meter_code} (${rd.oldI}->${rd.newI})`, '/meter-readings', {
-        meterId: rd.m.id,
-        contractId: rd.c.id,
-        startAt: rd.start,
-        endAt: rd.end,
-        oldIndex: rd.oldI,
-        newIndex: rd.newI,
-      });
-    } catch (e) {
-      console.log(`Bỏ qua chỉ số ${rd.m.meter_code}:`, e.message);
-    }
+    await call(`Ghi chỉ số ${rd.m.meter_code} (${rd.oldI}->${rd.newI})`, '/meter-readings', {
+      meterId: rd.m.id,
+      contractId: rd.c.id,
+      startAt: rd.start,
+      endAt: rd.end,
+      oldIndex: rd.oldI,
+      newIndex: rd.newI,
+    });
   }
 }
-console.log('✓ Đã ghi nhận lịch sử 4 tháng điện nước và kích hoạt cảnh báo đột biến');
+console.log('✓ Đã ghi lịch sử điện nước bốn tháng');
 
 // 6. Lập Hóa đơn định kỳ & Phân bổ thanh toán (Trước hạn, Đúng hạn, Sau hạn, Còn nợ)
 const existingInvoices = (await call('Danh sách hóa đơn', '/invoices')) || [];
 
-async function ensureMonthlyInvoice(contract, period, issueDate, dueDate, payCase) {
-  let inv = existingInvoices.find((i) => i.contract_id === contract.id && i.billing_period === `${period}-01`);
-  if (!inv) {
-    try {
-      inv = await call(`Lập HĐ ${contract.contract_code} kỳ ${period}`, '/invoices', {
-        contractId: contract.id,
-        period,
-        issueDate,
-        dueDate,
-      });
-    } catch (e) {
-      console.log(`Lập HĐ ${period} thủ công:`, e.message);
-      return null;
-    }
-    // Phát hành
-    if (inv && inv.status === 'DRAFT') {
-      inv = await call(`Phát hành HĐ ${inv.invoice_code}`, `/invoices/${inv.id}/issue`, {});
-    }
-
-    if (!inv) return null;
-    const total = Number(inv.total_amount || 0);
-
-    if (payCase === 'EARLY') {
-      // Nộp trước hạn 2 ngày
-      const payDate = `${period}-03T10:00:00+07:00`;
-      await call(`Thanh toán TRƯỚC HẠN ${inv.invoice_code}`, `/invoices/${inv.id}/payments`, {
-        code: `PAY-EARLY-${inv.id}`,
-        amount: total,
-        cashAccountId: cashAccount.id,
-        occurredAt: payDate,
-        method: 'BANK_TRANSFER_MANUAL',
-        notes: 'Khách nộp sớm trước ngày đến hạn',
-      });
-    } else if (payCase === 'ON_TIME') {
-      // Nộp chuẩn ngày đến hạn (mùng 5)
-      const payDate = `${dueDate}T14:00:00+07:00`;
-      await call(`Thanh toán ĐÚNG HẠN ${inv.invoice_code}`, `/invoices/${inv.id}/payments`, {
-        code: `PAY-ONTIME-${inv.id}`,
-        amount: total,
-        cashAccountId: cashAccount.id,
-        occurredAt: payDate,
-        method: 'CASH',
-        notes: 'Nộp tiền mặt đúng ngày đến hạn',
-      });
-    } else if (payCase === 'LATE') {
-      // Nộp muộn sau ngày hạn 3 ngày
-      const payDate = `${period}-08T15:00:00+07:00`;
-      await call(`Thanh toán SAU HẠN ${inv.invoice_code}`, `/invoices/${inv.id}/payments`, {
-        code: `PAY-LATE-${inv.id}`,
-        amount: total,
-        cashAccountId: cashAccount.id,
-        occurredAt: payDate,
-        method: 'BANK_TRANSFER_MANUAL',
-        notes: 'Khách báo bận nên nộp trễ hạn 3 ngày',
-      });
-    } else if (payCase === 'PARTIAL') {
-      // Trả một phần, còn nợ một phần quá hạn
-      const payDate = `${dueDate}T10:00:00+07:00`;
-      await call(`Thanh toán MỘT PHẦN ${inv.invoice_code}`, `/invoices/${inv.id}/payments`, {
-        code: `PAY-PART-${inv.id}`,
-        amount: 2000000,
-        cashAccountId: cashAccount.id,
-        occurredAt: payDate,
-        method: 'CASH',
-        notes: 'Nộp tạm 2 triệu, xin nợ lại phần còn lại',
-      });
-    }
+async function ensureMonthlyInvoice(contract, period, payCase) {
+  const dueDate = period + '-05';
+  let invoice = existingInvoices.find(i => i.contract_id === contract.id && i.billing_period === period + '-01');
+  if (!invoice) {
+    invoice = await call(`Lập HĐ ${contract.contract_code} kỳ ${period}`, '/invoices', {
+      contractId: contract.id, period, issueDate: period + '-01', dueDate,
+    });
   }
-  return inv;
+  if (invoice.status === 'DRAFT') {
+    invoice = await call('Phát hành hóa đơn', `/invoices/${invoice.id}/issue`, {});
+  }
+  const total = Number(invoice.total_amount);
+  const part = Math.floor(total / 4);
+  const payments = {
+    EARLY: [['EARLY', '03', total]],
+    ON_TIME: [['ONTIME', '05', total]],
+    LATE: [['LATE', '08', total]],
+    PARTIAL: [['PART', '05', 2000000]],
+    SPLIT: [['EARLY', '03', part], ['ONTIME', '05', part], ['LATE', '08', part]],
+    UNPAID: [],
+  };
+  for (const [label, date, amount] of payments[payCase]) {
+    await call(`Thanh toán ${label} ${invoice.invoice_code}`, `/invoices/${invoice.id}/payments`, {
+      code: `PAY-${label}-${invoice.id}`,
+      amount,
+      cashAccountId: cashAccount.id,
+      occurredAt: `${period}-${date}T10:00:00+07:00`,
+      method: label === 'EARLY' || label === 'LATE' ? 'BANK_TRANSFER_MANUAL' : 'CASH',
+    });
+  }
+  return invoice;
 }
 
-// Tạo chuỗi hóa đơn cho P101 (Trần Văn An)
-await ensureMonthlyInvoice(c101, '2025-10', '2025-10-01', '2025-10-05', 'EARLY');
-await ensureMonthlyInvoice(c101, '2025-11', '2025-11-01', '2025-11-05', 'ON_TIME');
-await ensureMonthlyInvoice(c101, '2025-12', '2025-12-01', '2025-12-05', 'LATE');
-await ensureMonthlyInvoice(c101, '2026-01', '2026-01-01', '2026-01-05', 'UNPAID');
-
-// Tạo chuỗi hóa đơn cho P102 (Lê Thị Bích) -> Sinh nợ quá hạn
-await ensureMonthlyInvoice(c102, '2025-10', '2025-10-01', '2025-10-05', 'ON_TIME');
-await ensureMonthlyInvoice(c102, '2025-11', '2025-11-01', '2025-11-05', 'ON_TIME');
-await ensureMonthlyInvoice(c102, '2025-12', '2025-12-01', '2025-12-05', 'PARTIAL'); // Nợ 1 phần, quá hạn
-await ensureMonthlyInvoice(c102, '2026-01', '2026-01-01', '2026-01-05', 'UNPAID');  // Chưa trả đồng nào, quá hạn
-console.log('✓ Đã phát hành hóa đơn 4 tháng với đầy đủ các ca: Trước hạn, Đúng hạn, Sau hạn, Chưa thu & Quá hạn');
+await ensureMonthlyInvoice(c101, '2025-10', 'EARLY');
+await ensureMonthlyInvoice(c101, '2025-11', 'ON_TIME');
+await ensureMonthlyInvoice(c101, '2025-12', 'LATE');
+await ensureMonthlyInvoice(c101, '2026-01', 'SPLIT');
+await ensureMonthlyInvoice(c102, '2025-10', 'ON_TIME');
+await ensureMonthlyInvoice(c102, '2025-11', 'ON_TIME');
+await ensureMonthlyInvoice(c102, '2025-12', 'PARTIAL');
+// Tháng 01 của P102 chờ kiểm tra cảnh báo trước khi phát hành.
+console.log('✓ Hóa đơn demo có thu trước hạn, đúng hạn, sau hạn và nợ một phần');
 
 // 7. Hợp đồng trả phòng & Phát sinh bồi thường đồ đạc hư hỏng
 const cPast = await ensureContract(
@@ -468,91 +432,93 @@ const cPast = await ensureContract(
   'IN_ADVANCE'
 );
 
-const pastDetail = await call(`Kiểm tra HĐ cũ ${cPast.id}`, `/contracts/${cPast.id}`);
-let hoOut = pastDetail.handovers?.find((h) => h.handover_type === 'MOVE_OUT');
-if (!hoOut) {
-  const updatedContract = await call(`Tạo biên bản trả phòng P201`, `/contracts/${cPast.id}/handovers`, {
+const evidenceImage = await readFile(new URL('../frontend/tests/fixtures/photo.png', import.meta.url));
+let pastDetail = await call('Chi tiết hợp đồng đã trả phòng', `/contracts/${cPast.id}`);
+let returnHandover = pastDetail.handovers.find(h => h.handover_type === 'MOVE_OUT');
+const returnedAt = '2025-11-01T15:00:00+07:00';
+if (!returnHandover) {
+  pastDetail = await call('Tạo biên bản trả phòng P201', `/contracts/${cPast.id}/handovers`, {
     handoverType: 'MOVE_OUT',
     handoverCode: `HO-OUT-${cPast.id}`,
-    occurredAt: '2025-11-01T15:00:00+07:00',
-    autoPopulateItems: false,
-    note: 'Kiểm kê bàn giao trả phòng khi kết thúc hợp đồng',
+    occurredAt: returnedAt,
+    autoPopulateItems: true,
+    note: 'Đối chiếu trang thiết bị đã nhận',
   });
-  hoOut = updatedContract.handovers?.find((h) => h.handover_type === 'MOVE_OUT');
+  returnHandover = pastDetail.handovers.find(h => h.handover_type === 'MOVE_OUT');
 }
-if (hoOut && hoOut.status === 'DRAFT') {
-  const hi1 = await call('Ghi nhận Điều hòa hỏng', `/handovers/${hoOut.id}/items`, {
-    itemName: 'Điều hòa Daikin 9000 BTU',
-    quantity: 1,
-    conditionNote: 'Hư cánh vẫy gió tự động và mất điều khiển từ xa',
-    note: 'Cần sửa chữa thay thế linh kiện',
+const aircon = returnHandover.items.find(item => item.asset_code === 'AST-201-AC');
+assert.ok(aircon?.original_item_id, 'Thiếu vật dụng gốc để đối chiếu khi trả');
+if (returnHandover.status === 'DRAFT') {
+  for (const item of returnHandover.items) {
+    await call('Ghi hiện trạng lúc trả', `/handovers/${returnHandover.id}/items/${item.id}`, {
+      quantity: item.quantity,
+      conditionNote: item.id === aircon.id ? 'Hư cánh vẫy, thiếu điều khiển' : 'Đủ số lượng, trầy xước nhẹ',
+    }, 'PUT');
+  }
+  await call('Xác nhận biên bản trả phòng', `/handovers/${returnHandover.id}/confirm`, {
+    note: 'Đã đối chiếu với biên bản nhận phòng',
   });
-  await call('Ghi nhận Giường ngủ', `/handovers/${hoOut.id}/items`, {
-    itemName: 'Giường gỗ sồi 1.8m',
-    quantity: 1,
-    conditionNote: 'Bình thường, trầy xước nhẹ',
-  });
-  // Xác nhận biên bản trả phòng
-  await call(`Xác nhận biên bản trả phòng ${hoOut.id}`, `/handovers/${hoOut.id}/confirm`, {
-    note: 'Khách thuê đã đồng ý với biên bản kiểm kê',
-  });
-  // Lập hóa đơn bồi thường thiệt hại (DAMAGE)
-  await call('Phát sinh chứng từ bồi thường hư hỏng', `/handovers/${hoOut.id}/damage-compensation`, {
-    handoverItemId: hi1.id,
-    amount: 350000,
-    issueDate: '2025-11-01',
-    dueDate: '2025-11-03',
-    note: 'Chi phí mua điều khiển mới và sửa cánh vẫy điều hòa',
-  });
-  console.log('✓ Đã lập biên bản trả phòng và phát sinh hóa đơn bồi thường DAMAGE gắn mã đồ vật');
 }
-
-// 8. KIỂM TRA & XÁC THỰC CÁC CHỈ SỐ THEO YÊU CẦU CỦA THẦY
-console.log('\n========================================');
-console.log('XÁC THỰC KẾT QUẢ ĐỒ ÁN THEO GÓP Ý CỦA THẦY');
-console.log('========================================');
-
-// 1. Dashboard Tháng 12/2025
-const dashDec = await call('Dashboard Tháng 12/2025', '/dashboard?period=2025-12');
-console.log('\n[1] Dashboard Tháng 12/2025:');
-console.log('- Tổng lập HĐ (billed):', dashDec.billed);
-console.log('- Thu trước hạn (paid_early):', dashDec.paid_early);
-console.log('- Thu đúng hạn (paid_on_time):', dashDec.paid_on_time);
-console.log('- Thu sau hạn (paid_late):', dashDec.paid_late);
-console.log('- Chưa thu (unpaid):', dashDec.unpaid);
-console.log('- Tiền điện (electricity):', dashDec.electricity);
-console.log('- Tiền nước (water):', dashDec.water);
-
-// 2. Dashboard Quý 4/2025
-const dashQ4 = await call('Dashboard Quý 4/2025', '/dashboard?viewType=quarter&quarter=2025-Q4');
-console.log('\n[2] Dashboard Quý 4/2025 (Theo Quý):');
-console.log('- Kỳ nhãn:', dashQ4.period);
-console.log('- Tổng lập HĐ:', dashQ4.billed);
-console.log('- Thực tế đã thu:', dashQ4.collected);
-console.log('- Dư nợ kỳ:', dashQ4.outstanding);
-
-// 3. Dư nợ khách hàng (Debts)
-const debtorTenants = await call('Báo cáo Dư nợ khách hàng', '/reports/tenant-debts');
-console.log('\n[3] Danh sách Dư nợ khách hàng:');
-for (const t of debtorTenants || []) {
-  console.log(`- Khách: ${t.full_name} (${t.phone}) | Dư nợ: ${t.total_debt} VNĐ | Số HĐ nợ: ${t.unpaid_invoice_count} | Quá hạn: ${t.max_overdue_days} ngày`);
+await attachOnce('handover-item', aircon.id, 'hien-trang-tra-phong-mo-phong.png', evidenceImage, 'image/png');
+const receivedAircon = pastDetail.handovers.find(h => h.handover_type === 'MOVE_IN').items
+  .find(item => item.id === aircon.original_item_id);
+await attachOnce('handover-item', receivedAircon.id, 'hien-trang-nhan-phong-mo-phong.png', evidenceImage, 'image/png');
+if (!pastDetail.checkout) {
+  await call('Ghi nhận trả phòng thực tế', `/contracts/${cPast.id}/checkout`, {
+    billingEnd: '2025-11-01', returnedAt, returnHandoverId: returnHandover.id,
+    notes: 'Đã nhận chìa khóa, đối chiếu đồ đạc trước khi quyết toán',
+  });
 }
+const compensation = await call('Lập chứng từ bồi thường', `/handovers/${returnHandover.id}/damage-compensation`, {
+  handoverItemId: aircon.id,
+  amount: 350000,
+  issueDate: '2025-11-01',
+  dueDate: '2025-11-03',
+  note: 'Chi phí thay điều khiển và sửa cánh vẫy điều hòa',
+});
+assert.equal(compensation.document_type, 'COMPENSATION');
+assert.equal(compensation.status, 'ISSUED');
+assert.equal(compensation.total_amount, 350000);
 
-// 4. Điện nước bất thường (Anomaly)
-const meterReadings = await call('Danh sách chỉ số điện nước', '/meter-readings');
-const topReading = meterReadings[0];
-console.log('\n[4] Danh sách Điện nước (Mặc định đẩy bất thường lên đầu):');
-console.log(`- Bản ghi đầu tiên: Phòng ${topReading.room_code} | Kỳ: ${topReading.billing_period} | Tiêu thụ: ${topReading.consumption} | Cảnh báo: ${topReading.has_anomaly} | Tăng: +${topReading.percentage_increase}%`);
-assert.equal(topReading.has_anomaly, true, 'Bản ghi bất thường phải được đẩy lên đầu danh sách');
+const contract101 = await call('Kiểm tra phụ lục P101', `/contracts/${c101.id}`);
+const annex = contract101.versions.find(v => v.version_no === 2);
+assert.ok(annex);
+const pdf = await fetch(`${BASE_URL}/contracts/${c101.id}/pdf?version=2`, {
+  headers: { Authorization: `Bearer ${token}` },
+});
+assert.ok(pdf.ok);
+const pdfBytes = Buffer.from(await pdf.arrayBuffer());
+assert.equal(pdfBytes.subarray(0, 5).toString(), '%PDF-');
+await attachOnce('contract-term', annex.id, 'phu-luc-p101-mau.pdf', pdfBytes, 'application/pdf');
 
-// 5. Đồ đạc và Bàn giao
-const room101Info = await call('Chi tiết phòng 101 kèm đồ đạc', `/rooms/${r101.id}`);
-console.log('\n[5] Đồ đạc trong phòng 101:');
-console.log(`- Số lượng đồ đạc bố trí: ${room101Info.assets?.length || 0} món`);
-for (const a of room101Info.assets || []) {
-  console.log(`  + ${a.asset_type_name} (${a.asset_code}): Số lượng ${a.quantity} ${a.unit_name} [${a.status}]`);
+const dashboard = await call('Dashboard kỳ hóa đơn mới nhất', '/dashboard');
+assert.equal(dashboard.period, '2026-01');
+for (const field of ['paid_early', 'paid_on_time', 'paid_late', 'unpaid', 'electricity', 'water']) {
+  assert.ok(Number(dashboard[field]) > 0, `Ô ${field} cần có số liệu demo`);
 }
+assert.equal(
+  Math.round((dashboard.paid_early + dashboard.paid_on_time + dashboard.paid_late + dashboard.unpaid) * 100),
+  Math.round(dashboard.billed * 100),
+  'Tổng các ô thu và chưa thu phải bằng tiền lập hóa đơn',
+);
+const quarter = await call('Dashboard quý 4/2025', '/dashboard?quarter=2025-Q4');
+assert.equal(quarter.period, '2025-Q4');
+assert.ok(quarter.billed > 0);
 
-console.log('\n========================================');
-console.log('✓ HOÀN TẤT SEED DỮ LIỆU DEMO V13 CHUẨN BẢO VỆ!');
-console.log('========================================\n');
+const debt = (await call('Công nợ theo khách', '/reports/tenant-debts')).find(t => t.phone === '0987654321');
+assert.equal(debt.unpaid_invoice_count, debt.invoices.length);
+assert.equal(debt.earliest_due_date, debt.invoices[0].due_date);
+assert.ok(debt.total_debt > 0 && debt.total_paid > 0 && debt.max_overdue_days > 0);
+
+const alerts = await call('Cảnh báo đang chờ', '/alerts');
+for (const type of ['ELECTRICITY', 'WATER']) {
+  assert.ok(alerts.some(a => a.room_code === 'P102' && a.meter_type === type && a.status === 'PENDING'),
+    `Thiếu cảnh báo ${type} của P102`);
+}
+const sortedReadings = await call('Danh sách điện nước', '/meter-readings');
+assert.equal(sortedReadings[0].has_anomaly, true);
+
+const returned = await call('Kiểm tra quyết toán P201', `/contracts/${cPast.id}/checkout`);
+assert.equal(returned.return_handover_id, returnHandover.id);
+assert.equal(compensation.checkout_id, returned.id);
+console.log('✓ Demo đầy đủ: tháng/quý, sáu chỉ số, công nợ, hai cảnh báo, phụ lục PDF và bàn giao có bồi thường.');

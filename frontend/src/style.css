@@ -907,3 +907,36 @@ tr.row-anomaly:hover {
   border-radius: 6px;
   font-size: 12px;
 }
+
+.contract-files {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+.attachment-upload {
+  display: grid;
+  gap: 4px;
+  font-size: .82rem;
+}
+.attachment-upload label {
+  display: grid;
+  gap: 4px;
+}
+.attachment-upload input[type="file"] {
+  width: 13rem;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  font-size: inherit;
+}
+.attachment-file { overflow-wrap: anywhere; }
+.version-terms { min-width: 12rem; white-space: pre-wrap; }
+.evidence-image img {
+  display: block;
+  width: 5.5rem;
+  max-height: 4rem;
+  object-fit: cover;
+  border-radius: 4px;
+}
+.handover-card td small { display: block; margin-top: 4px; }
+.handover-card:target { outline: 2px solid var(--accent, #2563eb); }

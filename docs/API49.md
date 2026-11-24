@@ -1,4 +1,4 @@
-# API hiện hành — V13 / 49 bảng
+# API hiện hành — V14 / 49 bảng
 
 Tiền tố `/api`. Xác thực Bearer như trước; tài khoản ADMIN/STAFF/TENANT còn hiệu lực mới được dùng API. Mặc định ứng dụng profile `dev`/`prod` kích hoạt `model49`. Các controller V10 chỉ dùng cho kiểm thử lịch sử.
 
@@ -6,21 +6,28 @@ Tiền tố `/api`. Xác thực Bearer như trước; tài khoản ADMIN/STAFF/T
 
 | Method | Đường dẫn | Ý nghĩa |
 | --- | --- | --- |
-| POST | `/contracts` | Nháp: `code,roomId,tenantId,startDate,endDate,rentalPrice,deposit,paymentDay` |
+| POST | `/contracts` | Nháp: `code,roomId,tenantId,startDate,endDate,rentalPrice,deposit,paymentDay,collectionTiming?,primaryResides?,terms?` |
 | POST | `/contracts/{id}/activate` | Ghi ngày đã ký: `signedAt`; tạo quỹ cọc/trả trước, chưa tạo tiền |
-| POST | `/contracts/{id}/renew` | Phụ lục: `effectiveFrom?,endDate,signedAt,reason,rentalPrice?,deposit?` |
+| POST | `/contracts/{id}/renew` | Phụ lục: `effectiveFrom?,endDate,signedAt,reason,rentalPrice?,deposit?,paymentDay?,collectionTiming?,terms?` |
 | POST | `/contracts/{id}/members` | Người ở thực: `tenantId,effectiveFrom,effectiveTo?,relationship?` |
 | POST | `/contracts/{id}/members/{member}/depart` | Ghi `effectiveTo` |
 | POST | `/contracts/{id}/contacts` | Liên hệ: `tenantId,effectiveFrom,canViewBilling,reason` |
 | POST | `/contracts/{id}/possessions` | Giao thực tế: `takenAt,reason?`; thiếu cọc cần quyền WAIVE_DEPOSIT |
 | POST | `/contracts/{id}/move-out-notices` | Đề nghị: `requestedDate,reason,supersedesNoticeId?` |
-| POST | `/contracts/{id}/checkout` | Trả vật lý: `billingEnd,returnedAt,notes?` |
+| POST | `/contracts/{id}/checkout` | Trả vật lý: `billingEnd,returnedAt,returnHandoverId?,notes?` |
 | POST | `/contracts/{id}/checkout/approve` | Duyệt: `reason,applyAdvance?,useDeposit?,pendingUtilityReason?` |
 | POST | `/contracts/{id}/reconcile` | ADMIN xác minh hồ sơ cũ: `confirmed=true,reason` |
 | GET | `/contracts/{id}` | Bản điều kiện, người ở, bên ký, liên hệ, quỹ và quyết toán |
 | GET | `/contracts/{id}/settlement` | ADMIN/STAFF trong phạm vi: các khoản phải thu/điều chỉnh, nguồn cấn, tạm giữ, tiền hoàn thực tế và khoản chưa xác minh |
 | GET | `/contracts/{id}/billing-calendar?period=2026-02` | Ngày chốt gần nhất trước/ngay ngày phát hành, ngày phát hành và hạn thanh toán theo bản điều kiện |
 | GET | `/contracts/{id}/pdf?version=1` | Bản điều kiện theo phiên bản; ngày ký do người vận hành ghi nhận |
+| POST | `/contracts/{id}/handovers` | Tạo biên bản nhận hoặc trả phòng, nạp tài sản hoặc dòng gốc của biên bản nhận |
+| PUT | `/handovers/{id}/items/{itemId}` | Nhập `quantity,conditionNote,note?` trước khi xác nhận |
+| POST | `/handovers/{id}/confirm` | Khóa nội dung kiểm kê |
+| POST | `/handovers/{id}/damage-compensation` | Phát hành chứng từ `COMPENSATION` theo `handoverItemId,amount,issueDate,dueDate,note` |
+| GET/POST | `/files/{kind}/{id}` | Liệt kê hoặc tải lên multipart field `file` cho `contract-term` và `handover-item` |
+
+Lập hợp đồng và gia hạn nhận thông tin tùy chọn `lessorName,lessorIdentity,lessorPhone,lessorAddress,tenantAddress`. Mỗi phiên bản giữ thông tin riêng khi in PDF.
 
 `deposit` khi lập/gia hạn là **cam kết**, không phải tiền thực nhận. Thời điểm chấp nhận ISO có offset hoặc ngày giờ địa phương Việt Nam; ưu tiên gửi `2026-10-26T10:00:00+07:00`.
 
@@ -108,3 +115,11 @@ Resource: properties, rooms, tenants, assignments, staff-permissions, room-price
 - Báo cáo: dashboard, debts, revenue, revenue-quarterly, occupancy, occupancy-history, maintenance dưới `/reports`; PDF hóa đơn và báo cáo còn dùng.
 
 Kết quả kiểm tra và giới hạn: [bản triển khai](TRIEN-KHAI-MO-HINH-49-BANG.md).
+
+
+## Tổng quan, báo cáo và công nợ
+
+- `GET /dashboard` mở kỳ hóa đơn mới nhất. Chọn kỳ bằng `period=YYYY-MM` hoặc `quarter=YYYY-Qn`.
+- `GET /reports/revenue`, `/reports/revenue-quarterly` và `/reports/revenue-yearly` nhóm số liệu theo tháng, quý và năm. `GET /reports/revenue/pdf?group=month|quarter|year` xuất doanh thu theo nhóm.
+- `GET /reports/tenant-debts` và `/reports/tenant-debts/{id}` tính số chứng từ còn nợ và hạn từ cùng tập chứng từ đang mở.
+- Các ô thu áp dụng theo kỳ hóa đơn và ngày thanh toán theo giờ Việt Nam. Các bút toán đảo hoặc giải phóng phân bổ giảm số đã thu của cùng nhóm hạn.

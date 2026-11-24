@@ -18,7 +18,7 @@ import java.util.concurrent.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static com.hostel.service.Database.id;
 
-@SpringBootTest(properties={"spring.flyway.target=${OPENKOS_FLYWAY_TARGET:13}","spring.datasource.url=${OPENKOS_DB_URL:jdbc:postgresql://127.0.0.1:55449/hostel_openkos_test}"})
+@SpringBootTest(properties={"spring.flyway.target=${OPENKOS_FLYWAY_TARGET:14}","spring.datasource.url=${OPENKOS_DB_URL:jdbc:postgresql://127.0.0.1:55449/hostel_openkos_test}"})
 @ActiveProfiles({"test","model49"})
 class OpenKosWorkflowTests {
     @Autowired Database db;@Autowired Leases49 leases;@Autowired Finance49 finance;@Autowired Billing49 billing;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { api, download, getSession } from "./api";
+import { api, download, getSession, imageBlob, upload } from "./api";
 import {
   Download,
   AlertTriangle,
@@ -39,6 +39,83 @@ const label = (r) =>
   r.title ||
   r.fund_code ||
   `#${r.id}`;
+
+function AttachmentUpload({ endpoint, accept, label, reload }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  return (
+    <div className="attachment-upload">
+      <label>
+        <span>{label}</span>
+        <input type="file" accept={accept} disabled={busy} onChange={async (event) => {
+          const input = event.currentTarget;
+          const file = input.files[0];
+          if (!file) return;
+          setBusy(true);
+          setError("");
+          try {
+            await upload(endpoint, file);
+            await reload();
+          } catch (e) {
+            setError(e.message);
+          } finally {
+            input.value = "";
+            setBusy(false);
+          }
+        }} />
+      </label>
+      {busy && <small role="status">Đang tải lên…</small>}
+      {error && <small className="error" role="alert">{error}</small>}
+    </div>
+  );
+}
+
+function AttachmentFile({ file, run }) {
+  if (!file.url?.startsWith("/api/uploads/")) {
+    return /^https?:\/\//i.test(file.url || "") && (
+      <a href={file.url} target="_blank" rel="noreferrer">{file.original_name}</a>
+    );
+  }
+  return (
+    <button type="button" className="attachment-file"
+      onClick={() => run(() => download(file.url.slice(4), file.original_name || "tep-dinh-kem"))}>
+      <Download size={14} /> {file.original_name || "Tải tệp"}
+    </button>
+  );
+}
+
+function EvidenceImage({ file, run }) {
+  const [src, setSrc] = useState("");
+  useEffect(() => {
+    if (!file.url?.startsWith("/api/uploads/")) return;
+    let cancelled = false;
+    let blob;
+    imageBlob(file.url).then(url => {
+      if (cancelled) URL.revokeObjectURL(url);
+      else {
+        blob = url;
+        setSrc(url);
+      }
+    }).catch(() => {});
+    return () => {
+      cancelled = true;
+      if (blob) URL.revokeObjectURL(blob);
+    };
+  }, [file.url]);
+  return (
+    <div className="evidence-image">
+      {src && <a href={src} target="_blank" rel="noreferrer"><img src={src} alt={file.original_name || "Ảnh bàn giao"} /></a>}
+      <AttachmentFile file={file} run={run} />
+    </div>
+  );
+}
+
+function localDateTime() {
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).format(new Date()).replace(" ", "T");
+}
 
 export function Contract49Panel({ contract: c, tenant, showForm, run, reload }) {
   const [holds, setHolds] = useState({});
@@ -100,21 +177,17 @@ export function Contract49Panel({ contract: c, tenant, showForm, run, reload }) 
     showForm(
       type === "MOVE_IN" ? "Tạo biên bản nhận phòng & kiểm kê bàn giao" : "Tạo biên bản trả phòng & đối chiếu đồ đạc",
       [
-        field("handoverType", "Loại biên bản", "select", {
-          options: [
-            ["MOVE_IN", "Nhận phòng (MOVE_IN)"],
-            ["MOVE_OUT", "Trả phòng (MOVE_OUT)"],
-          ],
-        }),
-        field("occurredAt", "Thời điểm bàn giao thực tế", "datetime-local"),
-        field("autoPopulateItems", "Tự động nạp đồ đạc hiện có trong phòng", "boolean"),
+        field("occurredAt", "Thời điểm bàn giao thực tế (giờ Việt Nam)", "datetime-local"),
+        field("autoPopulateItems", type === "MOVE_OUT"
+          ? "Nạp đồ vật từ biên bản nhận phòng để đối chiếu"
+          : "Nạp danh mục tài sản bố trí trong phòng", "boolean", { optional: true }),
         field("note", "Ghi chú bàn giao", "textarea", { optional: true }),
       ],
       endpoint + "/handovers",
       "POST",
       {
         handoverType: type,
-        occurredAt: new Date().toISOString().slice(0, 16),
+        occurredAt: localDateTime(),
         autoPopulateItems: true,
       },
       reload
@@ -132,25 +205,28 @@ export function Contract49Panel({ contract: c, tenant, showForm, run, reload }) 
     );
   };
 
-  const addHandoverItem = (hId) => {
+  const inspectHandoverItem = (handover, item) => {
     showForm(
-      "Bổ sung đồ đạc vào biên bản",
+      item ? "Ghi nhận hiện trạng: " + item.item_name_snapshot : "Bổ sung đồ đạc vào biên bản",
       [
-        field("itemName", "Tên trang thiết bị / đồ đạc"),
-        field("quantity", "Số lượng", "number", { min: 1 }),
-        field("conditionNote", "Hiện trạng ghi nhận (VD: Mới 100%, Trầy xước nhẹ...)"),
+        ...(!item ? [field("itemName", "Tên trang thiết bị / đồ đạc", "text", { maxLength: 150 })] : []),
+        field("quantity", handover.handover_type === "MOVE_OUT" ? "Số lượng trả thực tế" : "Số lượng nhận thực tế",
+          "number", { min: 0, step: 0.01 }),
+        field("conditionNote", "Hiện trạng thực tế", "textarea"),
         field("note", "Ghi chú thêm", "textarea", { optional: true }),
       ],
-      `/handovers/${hId}/items`,
-      "POST",
-      { quantity: 1, conditionNote: "Hoạt động tốt" },
+      `/handovers/${handover.id}/items${item ? "/" + item.id : ""}`,
+      item ? "PUT" : "POST",
+      { quantity: item?.quantity ?? 1, conditionNote: item?.condition_note || "", note: item?.note || "" },
       reload
     );
   };
 
   const damageCompensation = (hId, itemId, itemName) => {
+    const today = localDateTime().slice(0, 10);
+    const deadline = new Date(Date.parse(today + "T00:00:00Z") + 3 * 86400000).toISOString().slice(0, 10);
     showForm(
-      `Phát sinh bồi thường hư hỏng: ${itemName}`,
+      `Lập bồi thường: ${itemName}`,
       [
         field("amount", "Chi phí bồi thường / sửa chữa (VNĐ)", "number", { min: 1000 }),
         field("issueDate", "Ngày phát hành hóa đơn", "date"),
@@ -161,8 +237,8 @@ export function Contract49Panel({ contract: c, tenant, showForm, run, reload }) 
       "POST",
       {
         handoverItemId: itemId,
-        issueDate: new Date().toISOString().slice(0, 10),
-        dueDate: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10),
+        issueDate: today,
+        dueDate: deadline,
         amount: 200000,
       },
       reload
@@ -200,7 +276,8 @@ export function Contract49Panel({ contract: c, tenant, showForm, run, reload }) 
                     <th>Cọc quy định</th>
                     <th>Ngày thu / Hình thức</th>
                     <th>Ngày ký xác nhận</th>
-                    <th>Tài liệu đính kèm</th>
+                    <th>Điều khoản</th>
+                    <th>Tài liệu</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -215,16 +292,16 @@ export function Contract49Panel({ contract: c, tenant, showForm, run, reload }) 
                         {v.collection_timing === "IN_ARREARS" ? "Trả sau" : "Trả trước"})
                       </td>
                       <td>{v.signed_at ? new Date(v.signed_at).toLocaleString("vi-VN") : "Chưa ghi nhận ngày ký"}</td>
+                      <td>{v.terms ? <details><summary>Xem nội dung</summary><p className="version-terms">{v.terms}</p></details> : "—"}</td>
                       <td>
-                        {v.files?.length ? (
-                          v.files.map((fl) => (
-                            <a key={fl.id} href={fl.url} target="_blank" rel="noreferrer" style={{ display: "block" }}>
-                              {fl.original_name || "Tệp PDF"}
-                            </a>
-                          ))
-                        ) : (
-                          <span className="muted">Hợp đồng điện tử</span>
-                        )}
+                        <div className="contract-files">
+                          <button onClick={() => run(() => download(
+                            `${endpoint}/pdf?version=${v.version_no}`, `hop-dong-${c.contract_code}-v${v.version_no}.pdf`
+                          ))}><Download size={14} /> PDF bản {v.version_no}</button>
+                          {v.files?.map(file => <AttachmentFile key={file.id} file={file} run={run} />)}
+                          {!tenant && <AttachmentUpload endpoint={`/files/contract-term/${v.id}`}
+                            accept="application/pdf" label={`Đính kèm PDF bản ${v.version_no}`} reload={reload} />}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -240,7 +317,7 @@ export function Contract49Panel({ contract: c, tenant, showForm, run, reload }) 
           <div>
             <h2>Biên bản bàn giao & Kiểm kê đồ đạc phòng</h2>
             <p className="muted">
-              Biên bản bàn giao khi nhận phòng (MOVE_IN) và trả phòng (MOVE_OUT), ghi nhận từng đồ vật, hiện trạng và phát sinh bồi thường.
+              Ghi nhận số lượng và hiện trạng lúc nhận. Khi trả phòng, đối chiếu từng món với biên bản nhận.
             </p>
           </div>
           {!tenant && (
@@ -257,17 +334,15 @@ export function Contract49Panel({ contract: c, tenant, showForm, run, reload }) 
 
         {c.handovers?.length ? (
           c.handovers.map((h) => (
-            <div key={h.id} className="handover-card">
+            <div key={h.id} id={`handover-${h.id}`} className="handover-card">
               <div className="handover-card-header">
                 <div>
                   <strong>
-                    {h.handover_type === "MOVE_IN"
-                      ? "📦 BIÊN BẢN GIAO PHÒNG KHI VÀO Ở"
-                      : "🚪 BIÊN BẢN BÀN GIAO TRẢ PHÒNG"}
-                    {" "}— {h.handover_code}
+                    {{ MOVE_IN: "Nhận phòng", MOVE_OUT: "Trả phòng", RESPONSIBILITY: "Giao trách nhiệm" }[h.handover_type]}
+                    {" · "}{h.handover_code}
                   </strong>
                   <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-                    Thời điểm: {new Date(h.occurred_at).toLocaleString("vi-VN")} · Người nhận:{" "}
+                    Thời điểm: {new Date(h.occurred_at).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })} · Người nhận:{" "}
                     <strong>{h.received_by_name || "Khách thuê"}</strong> · Trạng thái:{" "}
                     <span className={h.status === "CONFIRMED" ? "badge active" : "badge"}>
                       {h.status === "CONFIRMED" ? "Đã xác nhận" : "Bản nháp (DRAFT)"}
@@ -278,7 +353,7 @@ export function Contract49Panel({ contract: c, tenant, showForm, run, reload }) 
                   <div className="actions">
                     {h.status === "DRAFT" && (
                       <>
-                        <button onClick={() => addHandoverItem(h.id)}>+ Thêm đồ</button>
+                        <button onClick={() => inspectHandoverItem(h)}>+ Thêm đồ</button>
                         <button className="primary" onClick={() => confirmHandover(h.id, h.handover_code)}>
                           <Check size={16} /> Xác nhận biên bản
                         </button>
@@ -293,35 +368,48 @@ export function Contract49Panel({ contract: c, tenant, showForm, run, reload }) 
                   <table>
                     <thead>
                       <tr>
-                        <th>STT</th>
-                        <th>Tên đồ đạc / Trang thiết bị</th>
-                        <th>Số lượng</th>
-                        <th>Hiện trạng lúc kiểm kê</th>
-                        <th>Ghi chú</th>
-                        {!tenant && <th>Xử lý hư hỏng</th>}
+                        <th>Đồ đạc</th>
+                        {h.handover_type === "MOVE_OUT" && <th>Lúc nhận</th>}
+                        <th>{h.handover_type === "MOVE_OUT" ? "Lúc trả" : "Kiểm kê"}</th>
+                        <th>Ảnh minh chứng</th>
+                        {!tenant && <th>Thao tác</th>}
                       </tr>
                     </thead>
                     <tbody>
                       {h.items.map((it) => (
                         <tr key={it.id}>
-                          <td>{it.line_no}</td>
                           <td><strong>{it.item_name_snapshot}</strong></td>
-                          <td>{it.quantity}</td>
+                          {h.handover_type === "MOVE_OUT" && <td>
+                            {it.received_quantity == null ? <span className="muted">Bổ sung lúc trả</span> : (
+                              <><strong>SL {it.received_quantity}</strong><small>{it.received_condition}</small></>
+                            )}
+                          </td>}
                           <td>
-                            <span className="item-badge">{it.condition_note || "Bình thường"}</span>
+                            <strong>SL {it.quantity}</strong>
+                            <small>{it.condition_note || "Chưa kiểm tra"}</small>
+                            {it.note && <small className="muted">{it.note}</small>}
+                            {it.received_quantity != null && Number(it.quantity) < Number(it.received_quantity) &&
+                              <span className="badge-overdue">Thiếu {Number(it.received_quantity) - Number(it.quantity)}</span>}
                           </td>
-                          <td>{it.note || "—"}</td>
-                          {!tenant && (
-                            <td>
-                              <button
-                                className="danger"
-                                style={{ fontSize: 12, padding: "4px 8px", minHeight: 28 }}
-                                onClick={() => damageCompensation(h.id, it.id, it.item_name_snapshot)}
-                              >
-                                Phạt bồi thường
-                              </button>
-                            </td>
-                          )}
+                          <td>
+                            <div className="contract-files">
+                              {it.images?.map(file => <EvidenceImage key={file.id} file={file} run={run} />)}
+                              {!tenant && <AttachmentUpload endpoint={`/files/handover-item/${it.id}`}
+                                accept="image/jpeg,image/png" label={`Thêm ảnh ${it.item_name_snapshot}`} reload={reload} />}
+                            </div>
+                          </td>
+                          {!tenant && <td>
+                            {h.status !== "CONFIRMED" && (
+                              <button onClick={() => inspectHandoverItem(h, it)}>Ghi hiện trạng</button>
+                            )}
+                            {it.compensation_id ? <span className="badge active">Đã lập bồi thường</span> : (
+                              h.status === "CONFIRMED" && h.handover_type === "MOVE_OUT" && c.checkout?.status !== "APPROVED" && (
+                                <button className="danger" onClick={() => damageCompensation(h.id, it.id, it.item_name_snapshot)}>
+                                  Lập bồi thường
+                                </button>
+                              )
+                            )}
+                          </td>}
                         </tr>
                       ))}
                     </tbody>
@@ -924,7 +1012,7 @@ export function ReportsPanel({ run }) {
               Theo Năm
             </button>
           </div>
-          <button onClick={() => run(() => download("/reports/pdf", `bao-cao-${tab}.pdf`))}>
+          <button onClick={() => run(() => download(`/reports/revenue/pdf?group=${tab}`, `bao-cao-doanh-thu-${tab}.pdf`))}>
             <Download size={16} /> Xuất PDF
           </button>
           <button onClick={load}><RefreshCw size={16} /></button>

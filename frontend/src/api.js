@@ -83,7 +83,7 @@ export async function upload(path, file) {
   });
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.message || "Không thể tải ảnh lên.");
+    throw new Error(error.message || "Không thể tải tệp lên.");
   }
   return response.json();
 }

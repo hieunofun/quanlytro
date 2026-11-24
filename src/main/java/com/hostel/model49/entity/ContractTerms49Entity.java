@@ -22,4 +22,9 @@ public class ContractTerms49Entity {
  @Column(name="origin",nullable=false,length=20) private String origin;
  @Column(name="status",nullable=false,length=20) private String status;
  @Column(name="created_at",nullable=false) private java.time.Instant createdAt;
+ @Column(name="lessor_name",nullable=false,length=150) private String lessorName;
+ @Column(name="lessor_identity",nullable=false,length=40) private String lessorIdentity;
+ @Column(name="lessor_phone",nullable=false,length=30) private String lessorPhone;
+ @Column(name="lessor_address",nullable=false,length=350) private String lessorAddress;
+ @Column(name="tenant_address",nullable=false,length=350) private String tenantAddress;
 }

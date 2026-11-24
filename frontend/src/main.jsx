@@ -200,6 +200,19 @@ const f = (name, label, type = "text", extra = {}) => ({
   type,
   ...extra,
 });
+const collectionTimingOptions = [
+  ["IN_ADVANCE", "Thu đầu kỳ"],
+  ["IN_ARREARS", "Thu cuối kỳ"],
+];
+const contractPartyFields = [
+  f("lessorName", "Họ tên bên cho thuê / người đại diện", "text", { optional: true, allowEmpty: true, maxLength: 150 }),
+  f("lessorIdentity", "CCCD / giấy tờ bên cho thuê", "text", { optional: true, allowEmpty: true, maxLength: 40 }),
+  f("lessorPhone", "Điện thoại bên cho thuê", "tel", { optional: true, allowEmpty: true, maxLength: 30 }),
+  f("lessorAddress", "Địa chỉ bên cho thuê", "text", { optional: true, allowEmpty: true, maxLength: 350 }),
+  f("tenantAddress", "Địa chỉ bên thuê", "text", { optional: true, allowEmpty: true, maxLength: 350 }),
+];
+const quarterOf = (month) => month.slice(0, 4) + "-Q" + Math.ceil(Number(month.slice(5, 7)) / 3);
+
 function App() {
   const loadVersion = useRef(0);
   const [session, setSession] = useState(getSession()),
@@ -216,9 +229,9 @@ function App() {
     [mobile, setMobile] = useState(false),
     [dash, setDash] = useState(null),
     [alerts, setAlerts] = useState([]),
-    [month, setMonth] = useState(period()),
+    [month, setMonth] = useState(""),
     [dashViewType, setDashViewType] = useState("month"),
-    [dashQuarter, setDashQuarter] = useState("2026-Q1"),
+    [dashQuarter, setDashQuarter] = useState(""),
     [meterSort, setMeterSort] = useState("anomaly");
   const tenant = session?.user.role === "TENANT",
     admin = session?.user.role === "ADMIN";
@@ -253,10 +266,11 @@ function App() {
     setError("");
     try {
       if (route === "dashboard") {
-        const qParam =
-          dashViewType === "quarter" ? `&quarter=${dashQuarter}` : `&period=${month}`;
+        const params = new URLSearchParams({ viewType: dashViewType });
+        if (month) params.set("period", month);
+        if (dashViewType === "quarter" && dashQuarter) params.set("quarter", dashQuarter);
         const [d, a] = await Promise.all([
-          api(`/dashboard?viewType=${dashViewType}${qParam}`),
+          api(`/dashboard?${params}`),
           api("/alerts"),
         ]);
         if (!current()) return;
@@ -302,7 +316,7 @@ function App() {
   }, [load]);
   useEffect(() => {
     if (detail) window.scrollTo({ top: 0, left: 0, behavior: "instant" });
-  }, [detail]);
+  }, [route, detail?.id]);
   const navigate = (r) => {
     setRoute(r);
     setSearch("");
@@ -394,13 +408,18 @@ function App() {
             f("endDate", "Ngày kết thúc (không tính ngày này)", "date"),
             f("rentalPrice", "Tiền thuê / tháng", "number"),
             f("deposit", "Tiền cọc cam kết (thu tiền ở bước riêng)", "number"),
-            f("paymentDay", "Ngày thanh toán (1–28)", "number"),
+            f("paymentDay", "Ngày thanh toán (1–31)", "number", { min: 1, max: 31, step: 1 }),
+            f("collectionTiming", "Hình thức thu", "select", { options: collectionTimingOptions }),
+            f("primaryResides", "Người đại diện thực tế ở tại phòng", "boolean", { optional: true }),
+            f("terms", "Điều khoản bổ sung", "textarea", { optional: true }),
+            ...contractPartyFields,
           ],
           "/contracts",
           "POST",
           {
             startDate: date(),
             paymentDay: 5,
+            collectionTiming: "IN_ADVANCE",
             deposit: 0,
           },
         );
@@ -479,6 +498,13 @@ function App() {
         );
       }
     });
+  const refreshDetail = async (id) => {
+    const version = loadVersion.current;
+    const fresh = await api(`/${route}/${id}`);
+    if (version === loadVersion.current) {
+      setDetail((current) => current?.id === id ? fresh : current);
+    }
+  };
   const mutate = async (path, method, data, message) => {
     await api(path, method, data);
     setNotice(message);
@@ -609,7 +635,7 @@ function App() {
               </p>
             </div>
             {!detail &&
-              !["dashboard", "settings", "notifications", "operations"].includes(route) &&
+              !["dashboard", "settings", "notifications", "operations", "reports", "debts"].includes(route) &&
               (!tenant || route === "maintenance-requests") && (admin || !["properties","rooms","tenants"].includes(route)) && (
                 <button className="primary" onClick={create}>
                   <Plus size={16} />
@@ -648,6 +674,7 @@ function App() {
               showForm={showForm}
               run={run}
               mutate={mutate}
+              refreshDetail={refreshDetail}
               navigate={navigate}
             />
           ) : route === "dashboard" ? (
@@ -860,7 +887,7 @@ function App() {
           onSave={async (values) => {
             const saved = await api(form.endpoint, form.method, values);
             setForm(null);
-            setDetail(null);
+            if (!form.after) setDetail(null);
             setNotice("Đã lưu thành công.");
             await load();
             if (form.endpoint.endsWith("/checkout") && form.method === "POST") {
@@ -949,6 +976,10 @@ function Dashboard({
   run,
 }) {
   if (!data) return null;
+  const months = data.available_periods || [];
+  const selectedMonth = month || (data.viewType === "month" ? data.period : months[0] || period());
+  const selectedQuarter = quarter || (data.viewType === "quarter" ? data.period : quarterOf(selectedMonth));
+  const quarters = [...new Set([selectedQuarter, quarterOf(period()), ...months.map(quarterOf)])].sort().reverse();
   return (
     <>
       <div className="toolbar" style={{ flexWrap: "wrap", gap: 12 }}>
@@ -970,34 +1001,22 @@ function Dashboard({
         {viewType === "month" ? (
           <label>
             Kỳ thống kê{" "}
-            {data.available_periods?.length ? (
-              <select value={month} onChange={(e) => setMonth(e.target.value)}>
-                {data.available_periods.map((p) => (
-                  <option key={p} value={p}>
-                    Tháng {p}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                type="month"
-                value={month}
-                onChange={(e) => setMonth(e.target.value)}
-              />
-            )}
+            <input
+              type="month"
+              value={selectedMonth}
+              onChange={(e) => setMonth(e.target.value)}
+            />
           </label>
         ) : (
           <label>
             Quý thống kê{" "}
             <select
-              value={quarter}
+              value={selectedQuarter}
               onChange={(e) => setQuarter(e.target.value)}
             >
-              <option value="2026-Q1">Quý 1 / 2026</option>
-              <option value="2025-Q4">Quý 4 / 2025</option>
-              <option value="2025-Q3">Quý 3 / 2025</option>
-              <option value="2025-Q2">Quý 2 / 2025</option>
-              <option value="2025-Q1">Quý 1 / 2025</option>
+              {quarters.map((q) => (
+                <option value={q} key={q}>Quý {q.slice(-1)} / {q.slice(0, 4)}</option>
+              ))}
             </select>
           </label>
         )}
@@ -1019,7 +1038,7 @@ function Dashboard({
           Xuất công nợ
         </button>
         <button
-          onClick={() => run(() => download("/reports/pdf", "bao-cao.pdf"))}
+          onClick={() => run(() => download(`/reports/revenue/pdf?group=${viewType}`, "bao-cao-doanh-thu.pdf"))}
         >
           Báo cáo PDF
         </button>
@@ -1045,7 +1064,7 @@ function Dashboard({
       <div className="period-metrics-section">
         <div className="period-metrics-title">
           <h3>
-            Ô chỉ số kỳ được chọn ({data.period || month}): Phân loại thu nợ & Điện nước
+            Thu hóa đơn và điện nước · {data.period}
           </h3>
           <span className="muted" style={{ fontSize: 13 }}>
             Lập HĐ: <strong>{money(data.billed)}</strong> = Thu trước ({money(data.paid_early)}) + Đúng hạn ({money(data.paid_on_time)}) + Sau hạn ({money(data.paid_late)}) + Chưa thu ({money(data.unpaid)})
@@ -1109,8 +1128,8 @@ function Dashboard({
       </div>
 
       <p className="muted">
-        Tiền thu tính theo ngày nhận trong kỳ {data.period}; cấn trừ cọc là giao dịch nội bộ.
-        Dòng tiền mặt vào quỹ: <strong>{money(data.cash_collected)}</strong> · Hoàn quỹ: <strong>{money(data.refunded)}</strong>.
+        Các ô thu theo kỳ của hóa đơn. Dòng tiền vào và ra được tính theo ngày giao dịch.
+        Tiền vào quỹ: <strong>{money(data.cash_collected)}</strong> · Hoàn quỹ: <strong>{money(data.refunded)}</strong>.
       </p>
       <div className="dashboard-grid">
         <section className="card">
@@ -1191,14 +1210,18 @@ function Dashboard({
     </>
   );
 }
-function Detail({ route, data: d, tenant, back, showForm, run, mutate, navigate }) {
+function Detail({ route, data: d, tenant, back, showForm, run, mutate, refreshDetail, navigate }) {
   const [repairImages,setRepairImages]=useState((d.image_urls||"").split("\n").filter(Boolean));
+  const versions = d.versions || [];
+  const latestTerms = versions.at(-1);
+  const returnHandovers = (d.handovers || []).filter(h => h.handover_type === "MOVE_OUT" && h.status === "CONFIRMED");
   const [lookups, setLookups] = useState({
     accounts: [],
     floors: [],
     properties: [],
     assignees: [],
     images: [],
+    debt: null,
   });
   useEffect(() => {
     let mounted = true;
@@ -1210,6 +1233,7 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate, navigate 
         properties: [],
         assignees: [],
         images: [],
+        debt: null,
       };
       if (route === "rooms") {
         result.images = [];
@@ -1220,8 +1244,12 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate, navigate 
           ]);
         }
       }
-      if (route === "tenants" && getSession().user.role === "ADMIN")
-        result.accounts = await api("/users");
+      if (route === "tenants") {
+        [result.debt, result.accounts] = await Promise.all([
+          api("/reports/tenant-debts/" + d.id),
+          getSession().user.role === "ADMIN" ? api("/users") : Promise.resolve([]),
+        ]);
+      }
       if (route === "maintenance-requests" && !tenant)
         result.assignees = await api(
           (d.resolved_room_id?"/rooms/"+d.resolved_room_id:"/properties/"+d.resolved_property_id)+"/assignees",
@@ -1396,10 +1424,7 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate, navigate 
           tenant={tenant}
           showForm={showForm}
           run={run}
-          reload={async () => {
-            const fresh = await api("/contracts/" + d.id);
-            mutate("/contracts/" + d.id, undefined, undefined, undefined, fresh);
-          }}
+          reload={() => refreshDetail(d.id)}
         />
       )}
       {route === "rooms" && (
@@ -1407,18 +1432,21 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate, navigate 
           roomId={d.id}
           showForm={showForm}
           run={run}
-          reload={async () => {
-            const fresh = await api("/rooms/" + d.id);
-            mutate("/rooms/" + d.id, undefined, undefined, undefined, fresh);
-          }}
+          reload={() => refreshDetail(d.id)}
         />
       )}
       {route === "tenants" && (
         <section className="card">
           <h2>Tình trạng công nợ & Hợp đồng</h2>
-          <p className="muted">
-            Khách thuê: <strong>{d.full_name}</strong> (SĐT: {d.phone || "—"}, CCCD: {d.identity_number || "—"})
-          </p>
+          {lookups.debt?.tenant_id === d.id ? (
+            <dl>
+              <div><dt>Dư nợ hiện tại</dt><dd><strong>{money(lookups.debt.total_debt)}</strong></dd></div>
+              <div><dt>Hóa đơn còn nợ</dt><dd>{lookups.debt.unpaid_invoice_count}</dd></div>
+              {lookups.debt.earliest_due_date && (
+                <div><dt>Hạn nợ sớm nhất</dt><dd>{lookups.debt.earliest_due_date}</dd></div>
+              )}
+            </dl>
+          ) : <p className="muted">Đang tải công nợ…</p>}
           <div className="actions">
             <button onClick={() => navigate("debts")}>
               <CreditCard size={16} /> Kiểm tra số dư nợ trong danh sách công nợ
@@ -1436,6 +1464,11 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate, navigate 
             <div><dt>Ngày trả phòng</dt><dd>{d.checkout.checkout_date}</dd></div>
             <div><dt>Tiền cọc ban đầu</dt><dd>{money(d.checkout.initial_deposit)}</dd></div>
             <div><dt>Công nợ trước cấn cọc</dt><dd>{money(d.checkout.unpaid_invoices_amount)}</dd></div>
+            {d.checkout.return_handover_id && (
+              <div><dt>Biên bản trả phòng</dt><dd><a href={"#handover-" + d.checkout.return_handover_id}>
+                {d.handovers?.find(h => h.id === d.checkout.return_handover_id)?.handover_code || d.checkout.return_handover_id}
+              </a></dd></div>
+            )}
             <div><dt>Khấu trừ thiệt hại</dt><dd>{money(d.checkout.damage_amount)}</dd></div>
             <div><dt>Trạng thái quyết toán</dt><dd><Badge value={d.checkout.status}/></dd></div>
             <div><dt>Số dư quỹ hiện còn giữ</dt><dd><strong>{money(d.checkout.held_balance)}</strong></dd></div>
@@ -1577,8 +1610,33 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate, navigate 
                 onClick={() =>
                   showForm(
                     "Gia hạn hợp đồng",
-                    [f("endDate", "Ngày kết thúc mới", "date"),f("signedAt","Ngày giờ đã ký phụ lục (giờ Việt Nam)","datetime-local"),f("reason","Căn cứ gia hạn","textarea")],
+                    [
+                      f("effectiveFrom", "Ngày hiệu lực phụ lục", "date"),
+                      f("endDate", "Ngày kết thúc mới (không tính ngày này)", "date"),
+                      f("rentalPrice", "Tiền thuê / tháng", "number"),
+                      f("deposit", "Tiền cọc cam kết", "number"),
+                      f("paymentDay", "Ngày thanh toán (1–31)", "number", { min: 1, max: 31, step: 1 }),
+                      f("collectionTiming", "Hình thức thu", "select", { options: collectionTimingOptions }),
+                      f("terms", "Điều khoản bổ sung", "textarea", { optional: true, allowEmpty: true }),
+                      ...contractPartyFields,
+                      f("signedAt", "Ngày giờ đã ký phụ lục (giờ Việt Nam)", "datetime-local"),
+                      f("reason", "Căn cứ gia hạn", "textarea"),
+                    ],
                     "/contracts/" + d.id + "/renew",
+                    "POST",
+                    {
+                      effectiveFrom: latestTerms?.lease_end || d.end_date,
+                      rentalPrice: latestTerms?.rental_price ?? d.rental_price,
+                      deposit: latestTerms?.deposit_required ?? d.deposit_amount,
+                      paymentDay: latestTerms?.payment_day ?? d.payment_cycle_day,
+                      collectionTiming: latestTerms?.collection_timing ?? d.collection_timing,
+                      terms: latestTerms?.terms || "",
+                      lessorName: latestTerms?.lessor_name || "",
+                      lessorIdentity: latestTerms?.lessor_identity || "",
+                      lessorPhone: latestTerms?.lessor_phone || "",
+                      lessorAddress: latestTerms?.lessor_address || "",
+                      tenantAddress: latestTerms?.tenant_address || "",
+                    },
                   )
                 }
               >
@@ -1603,22 +1661,27 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate, navigate 
               </button>
               <button
                 className="danger"
+                disabled={!returnHandovers.length}
                 onClick={() =>
                   showForm(
                     "Ghi nhận trả phòng thực tế",
                     [
                       f("billingEnd", "Ngày kết thúc tính tiền đã thỏa thuận (không tính ngày này)", "date"),
                       f("returnedAt", "Thời điểm giao trả thực tế (giờ Việt Nam)", "datetime-local"),
+                      f("returnHandoverId", "Biên bản trả phòng đã xác nhận", "select", {
+                        options: returnHandovers.map(h => [h.id, h.handover_code]),
+                      }),
                       f("notes", "Ghi chú", "textarea", { optional: true }),
                     ],
                     "/contracts/" + d.id + "/checkout",
                     "POST",
-                    { billingEnd: date() },
+                    { billingEnd: date(), returnHandoverId: returnHandovers[0]?.id },
                   )
                 }
               >
                 Trả phòng
               </button>
+              {!returnHandovers.length && <small className="muted">Xác nhận biên bản kiểm kê trả phòng trước khi ghi nhận giao trả.</small>}
             </div>
           )}
         </section>
@@ -1860,7 +1923,7 @@ function FormDialog({ spec: s, onClose, onSave }) {
                           .split("\n")
                           .map((x) => x.trim())
                           .filter(Boolean)
-                      : field.optional && !v
+                      : field.optional && !v && !field.allowEmpty
                         ? null
                         : (v ?? "");
             });
@@ -1923,10 +1986,11 @@ function FormDialog({ spec: s, onClose, onSave }) {
                     }
                     required={!field.optional}
                     type={field.type}
-                    min={field.type === "number" ? 0 : undefined}
+                    min={field.min ?? (field.type === "number" ? 0 : undefined)}
                     max={field.max}
                     minLength={field.minLength}
-                    step={field.type === "number" ? "0.01" : undefined}
+                    maxLength={field.maxLength}
+                    step={field.step ?? (field.type === "number" ? "0.01" : undefined)}
                     value={values[field.name] ?? ""}
                     onChange={(e) =>
                       setValues({ ...values, [field.name]: e.target.value })

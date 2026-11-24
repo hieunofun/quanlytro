@@ -18,10 +18,11 @@ import java.util.concurrent.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static com.hostel.service.Database.id;
 
-@SpringBootTest(properties={"spring.flyway.target=13","spring.datasource.url=${DB49_URL:jdbc:postgresql://127.0.0.1:55449/hostel_test49}"})
+@SpringBootTest(properties={"spring.flyway.target=14","spring.datasource.url=${DB49_URL:jdbc:postgresql://127.0.0.1:55449/hostel_test49}"})
 @ActiveProfiles({"test","model49"})
 class Model49Tests {
     @Autowired Database db; @Autowired Leases49 leases; @Autowired Finance49 finance;
+    @Autowired Reports49 reports;
     @Autowired Access49 access; @Autowired Meters49 meters; @Autowired Api49 api;
     @Autowired Settlements49 settlements; @Autowired PlatformTransactionManager manager; @Autowired Billing49 billing;
     long actor,property,room,person,contract,deposit,advance,account;String suffix;
@@ -51,6 +52,27 @@ class Model49Tests {
         equalMoney("0",access.fund(deposit).get("balance"));assertEquals(0,db.jdbc.queryForObject("select count(*) from contract_residencies where contract_id=?",Integer.class,contract));
         assertEquals(0,db.jdbc.queryForObject("select count(*) from cash_transactions where cash_account_id=?",Integer.class,account));
     }
+    @Test void reversalReducesTimingTotalsAndTenantSummaryCountsOnlyOpenInvoices() {
+        long fullyPaid = bill(500);
+        long partlyPaid = bill(1000);
+        receipt(contract, 1500, "ADVANCE", "RC-REPORT-" + suffix, true);
+        payment(advance, fullyPaid, 500, "PAID-REPORT-" + suffix);
+        var allocation = finance.entry(Map.of(
+                "code", "PART-REPORT-" + suffix, "entryType", "PAYMENT", "fromFundId", advance,
+                "debitItemId", partlyPaid, "amount", 1000, "postedAt", "2026-01-02T08:00:00+07:00"));
+        var before = (Map<?, ?>) reports.dashboard("2026-01", null, null);
+        finance.entry(Map.of("code", "REV-REPORT-" + suffix, "entryType", "REVERSAL",
+                "originalEntryId", allocation.get("id"), "amount", 100, "reason", "Reversal test"));
+        var after = (Map<?, ?>) reports.dashboard("2026-01", null, null);
+        equalMoney("100", ((BigDecimal) before.get("paid_early")).subtract((BigDecimal) after.get("paid_early")));
+        equalMoney("100", ((BigDecimal) after.get("unpaid")).subtract((BigDecimal) before.get("unpaid")));
+
+        var tenant = reports.tenantDebtDetail(person);
+        assertEquals(1, tenant.get("unpaid_invoice_count"));
+        equalMoney("100", tenant.get("total_debt"));
+        assertEquals(1, ((List<?>) tenant.get("invoices")).size());
+    }
+
     @Test void actualReceiptOverpaymentAndAllocationAreSeparate(){
         receipt(contract,1200,"ADVANCE","RC-"+suffix,true);long line=bill(1000);payment(advance,line,1000,"PAY-"+suffix);
         equalMoney("200",access.fund(advance).get("balance"));equalMoney("0",db.one("select balance_due from v_item_balances where id=?",line).get("balance_due"));

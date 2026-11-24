@@ -15,7 +15,7 @@ import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT,properties={"spring.flyway.target=13","spring.datasource.url=${DB49_URL:jdbc:postgresql://127.0.0.1:55449/hostel_test49}","app.upload-directory=.runtime/implementation-49/http-uploads"})
+@SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT,properties={"spring.flyway.target=14","spring.datasource.url=${DB49_URL:jdbc:postgresql://127.0.0.1:55449/hostel_test49}","app.upload-directory=.runtime/implementation-49/http-uploads"})
 @ActiveProfiles({"test","model49"})
 class Model49HttpTests {
     @Autowired Database db;@Autowired PasswordEncoder encoder;@Value("${local.server.port}")int port;

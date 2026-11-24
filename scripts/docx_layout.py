@@ -66,8 +66,8 @@ def configure_base_styles(doc: docx.Document):
 
     for lvl, (sz, bold, italic, color, sb, sa, pbb) in {
         "Heading 1": (15, True, False, NAVY, 4, 10, True),
-        "Heading 2": (13.5, True, False, NAVY, 12, 5, False),
-        "Heading 3": (13, True, True, SUBNAVY, 8, 4, False),
+        "Heading 2": (14, True, False, NAVY, 12, 5, False),
+        "Heading 3": (13, True, False, NAVY, 8, 4, False),
     }.items():
         st = doc.styles[lvl]
         st.font.name = "Times New Roman"
@@ -89,12 +89,12 @@ def configure_base_styles(doc: docx.Document):
         st.paragraph_format.page_break_before = pbb
         st.paragraph_format.first_line_indent = Cm(0)
 
-    # Set clean TOC styles if present
+    # Set clean TOC styles if present (uniform 12pt)
     for toc_name in ("TOC 1", "TOC 2", "TOC 3", "TOC Heading"):
         if toc_name in doc.styles:
             st = doc.styles[toc_name]
             st.font.name = "Times New Roman"
-            st.font.size = Pt(12.5 if toc_name == "TOC 1" else 12)
+            st.font.size = Pt(12)
             st.font.bold = (toc_name == "TOC 1")
             st.font.color.rgb = NAVY if toc_name == "TOC 1" else INK
             st.paragraph_format.space_after = Pt(3)
@@ -198,21 +198,21 @@ def set_paragraph_top_border(paragraph, color_hex=BORDER_HEX, sz="4"):
 
 def _append_rich_runs(paragraph, text: str, font_size=13, base_bold=False, base_italic=False, base_color=INK, code_size=None):
     import re
-    cs = code_size if code_size is not None else max(font_size - 1.5, 8.5)
+    # Keep uniform Times New Roman at the exact same font_size for inline technical identifiers (no jarring small Consolas!)
     tokens = re.split(r"(`[^`]+`|\*\*[^*]+\*\*|\*[^*\n]+\*)", str(text))
     for tok in tokens:
         if not tok:
             continue
         if tok.startswith("`") and tok.endswith("`"):
             r = paragraph.add_run(tok[1:-1])
-            set_run_font(r, name="Consolas", size_pt=cs, bold=base_bold, italic=base_italic, color=SUBNAVY if base_color == INK else base_color)
+            set_run_font(r, name="Times New Roman", size_pt=font_size, bold=base_bold, italic=base_italic, color=base_color)
         elif tok.startswith("**") and tok.endswith("**"):
-            _append_rich_runs(paragraph, tok[2:-2], font_size=font_size, base_bold=True, base_italic=base_italic, base_color=base_color, code_size=cs)
+            _append_rich_runs(paragraph, tok[2:-2], font_size=font_size, base_bold=True, base_italic=base_italic, base_color=base_color)
         elif tok.startswith("*") and tok.endswith("*"):
-            _append_rich_runs(paragraph, tok[1:-1], font_size=font_size, base_bold=base_bold, base_italic=True, base_color=base_color, code_size=cs)
+            _append_rich_runs(paragraph, tok[1:-1], font_size=font_size, base_bold=base_bold, base_italic=True, base_color=base_color)
         else:
             r = paragraph.add_run(tok)
-            set_run_font(r, size_pt=font_size, bold=base_bold, italic=base_italic, color=base_color)
+            set_run_font(r, name="Times New Roman", size_pt=font_size, bold=base_bold, italic=base_italic, color=base_color)
 
 
 def configure_running_header_footer(section, header_text: str, footer_left: str, show_page_num=True):

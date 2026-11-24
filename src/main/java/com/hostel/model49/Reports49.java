@@ -253,7 +253,8 @@ public class Reports49 {
                                     + access.contractScope("c", true)
                                     + " group by d.id,d.document_code,d.billing_period,d.due_date,d.issue_date,r.room_code,c.contract_code "
                                     + "having sum(i.balance_due)>0 "
-                                    + "order by d.due_date asc");
+                                    + "order by d.due_date asc",
+                            tenantId);
             t.put("invoices", invoices);
         }
         return tenants;

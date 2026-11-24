@@ -8,48 +8,51 @@ const { chromium } = require('../frontend/node_modules/playwright');
 const OUT_DIR = path.resolve(process.cwd(), 'docs/report-assets');
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
+// Calibrated at 960px logical width × 2x scale = 1920px exact PNG (< 2048px Google Docs limit -> ZERO downscaling, 300+ DPI on A4!)
 const COMMON_CSS = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     background: #FFFFFF;
     color: #0F172A;
-    font-family: 'Segoe UI', 'Inter', Arial, sans-serif;
+    font-family: 'Segoe UI', Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
+    text-rendering: geometricPrecision;
   }
   .canvas {
-    width: 1200px;
-    padding: 26px 28px 22px 28px;
+    width: 960px;
+    padding: 20px 22px 16px 22px;
     background: #FFFFFF;
-    border: 1.5px solid #CBD5E1;
+    border: 2px solid #94A3B8;
   }
   .header {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    gap: 16px;
-    border-bottom: 2px solid #1B365D;
-    padding-bottom: 10px;
-    margin-bottom: 18px;
+    gap: 12px;
+    border-bottom: 2.5px solid #1B365D;
+    padding-bottom: 8px;
+    margin-bottom: 14px;
   }
-  .title { font-size: 18px; font-weight: 700; color: #1B365D; letter-spacing: -0.2px; white-space: nowrap; }
-  .subtitle { font-size: 12.2px; color: #475569; font-weight: 500; text-align: right; }
+  .title { font-size: 17px; font-weight: 800; color: #1B365D; letter-spacing: -0.2px; }
+  .subtitle { font-size: 12px; color: #334155; font-weight: 600; text-align: right; }
   .footer-note {
-    margin-top: 14px;
-    padding-top: 9px;
-    border-top: 1px solid #E2E8F0;
-    font-size: 12px;
-    color: #475569;
+    margin-top: 12px;
+    padding-top: 7px;
+    border-top: 1.5px solid #CBD5E1;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: #334155;
     display: flex;
     justify-content: space-between;
   }
 `;
 
-// 1. Architecture Diagram (4-layer)
+// 1. Architecture Diagram (4-layer, large readable labels)
 const DIAG_ARCH = `<!doctype html><html lang="vi"><head><meta charset="utf-8"><style>
 ${COMMON_CSS}
-.layers { display: flex; flex-direction: column; gap: 14px; }
+.layers { display: flex; flex-direction: column; gap: 11px; }
 .layer {
-  border: 1.5px solid #94A3B8;
+  border: 1.8px solid #64748B;
   border-radius: 6px;
   overflow: hidden;
   background: #F8FAFC;
@@ -57,312 +60,264 @@ ${COMMON_CSS}
 .layer-head {
   background: #1B365D;
   color: #FFF;
-  padding: 7px 14px;
-  font-size: 13.5px;
+  padding: 6px 12px;
+  font-size: 13px;
   font-weight: 700;
   display: flex;
   justify-content: space-between;
 }
-.layer-head.l2 { background: #264B77; }
-.layer-head.l3 { background: #335C67; }
+.layer-head.l2 { background: #1E40AF; }
+.layer-head.l3 { background: #0F5257; }
 .layer-head.l4 { background: #1E293B; }
-.layer-head span.tag { font-weight: 400; font-size: 12px; opacity: 0.9; }
+.layer-head span.tag { font-weight: 600; font-size: 11.5px; color: #E2E8F0; }
 .layer-body {
-  padding: 12px 14px;
+  padding: 10px 10px;
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 .g3 { grid-template-columns: repeat(3, 1fr); }
 .g4 { grid-template-columns: repeat(4, 1fr); }
-.g5 { grid-template-columns: repeat(5, 1fr); }
 .box {
   background: #FFFFFF;
-  border: 1.2px solid #CBD5E1;
-  border-left: 4px solid #1B365D;
+  border: 1.5px solid #94A3B8;
+  border-left: 4.5px solid #1B365D;
   border-radius: 4px;
-  padding: 9px 11px;
+  padding: 7px 9px;
 }
-.box.accent { border-left-color: #2B6CB0; }
-.box.teal { border-left-color: #2C7A7B; }
+.box.accent { border-left-color: #1E40AF; }
+.box.teal { border-left-color: #0F766E; }
 .box.dark { border-left-color: #334155; }
-.box h4 { font-size: 13px; font-weight: 700; color: #0F172A; margin-bottom: 4px; }
-.box p { font-size: 11.8px; color: #334155; line-height: 1.4; }
+.box h4 { font-size: 12.8px; font-weight: 700; color: #0F172A; margin-bottom: 3px; }
+.box p { font-size: 11.6px; color: #1E293B; line-height: 1.35; }
 .arrow-row {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 16px;
-  margin: -5px 0;
-  font-size: 11.8px;
-  font-weight: 600;
+  gap: 12px;
+  margin: -4px 0;
+  font-size: 11.5px;
+  font-weight: 700;
   color: #1B365D;
 }
 .arrow-pill {
   background: #EFF6FF;
-  border: 1px solid #93C5FD;
-  border-radius: 12px;
+  border: 1.5px solid #60A5FA;
+  border-radius: 10px;
   padding: 2px 12px;
 }
 </style></head><body>
 <div class="canvas">
   <div class="header">
-    <div class="title">KIẾN TRÚC TỔNG THỂ HỆ THỐNG QUẢN LÝ NHÀ TRỌ (MODEL49 / V14)</div>
-    <div class="subtitle">Java 21 · Spring Boot 4.1.1 · PostgreSQL 18.6 · React 19 + Vite 7</div>
+    <div class="title">KIẾN TRÚC 4 TẦNG HỆ THỐNG QUẢN LÝ NHÀ TRỌ (V14)</div>
+    <div class="subtitle">Java 21 · Spring Boot 4.1.1 · PostgreSQL 18.6 · React 19</div>
   </div>
   <div class="layers">
     <div class="layer">
-      <div class="layer-head"><span>TẦNG 1 — GIAO DIỆN NGƯỜI DÙNG (PRESENTATION / SPA)</span><span class="tag">React 19.2 · Vite 7.1 · Responsive Desktop & Mobile</span></div>
+      <div class="layer-head"><span>1. TẦNG GIAO DIỆN WEB (REACT 19 + VITE 7 SPA)</span><span class="tag">Desktop &amp; Mobile 390px</span></div>
       <div class="layer-body g4">
-        <div class="box"><h4>Điều hành & Báo cáo</h4><p>Tổng quan tháng/quý (6 chỉ số thu), biểu đồ doanh thu–dòng tiền, công nợ khách thuê.</p></div>
-        <div class="box"><h4>Hợp đồng & Bàn giao</h4><p>Vòng đời hợp đồng, phụ lục PDF, đối chiếu tài sản nhận–trả phòng, quyết toán trả phòng.</p></div>
-        <div class="box"><h4>Điện nước & Hóa đơn</h4><p>Ghi chỉ số, hàng đợi cảnh báo bất thường, hóa đơn minh bạch & ghi nhận thanh toán.</p></div>
-        <div class="box"><h4>Cổng Khách & Vận hành</h4><p>TENANT xem hợp đồng/hóa đơn/sự cố; nhân viên xử lý danh mục 22 tài nguyên & tải tệp.</p></div>
+        <div class="box"><h4>Tổng quan &amp; Báo cáo</h4><p>6 chỉ số thu–điện–nước, biểu đồ tháng/quý/năm, công nợ.</p></div>
+        <div class="box"><h4>Hợp đồng &amp; Bàn giao</h4><p>Ký/gia hạn, xuất PDF, đối chiếu đồ nhận–trả, quyết toán.</p></div>
+        <div class="box"><h4>Điện nước &amp; Hóa đơn</h4><p>Ghi công tơ, cảnh báo bất thường, hóa đơn &amp; thu tiền.</p></div>
+        <div class="box"><h4>Cổng Khách &amp; Vận hành</h4><p>TENANT xem HĐ/hóa đơn/báo hỏng; quản lý 22 danh mục.</p></div>
       </div>
     </div>
 
-    <div class="arrow-row"><span>▼</span><span class="arrow-pill">REST/JSON qua HTTPS/HTTP · Authorization: Bearer JWT · Multipart Upload · PDF Stream</span><span>▲</span></div>
+    <div class="arrow-row"><span>▼</span><span class="arrow-pill">REST JSON · Bearer JWT · Multipart Upload · PDF Stream</span><span>▲</span></div>
 
     <div class="layer">
-      <div class="layer-head l2"><span>TẦNG 2 — GIAO TIẾP API, BẢO MẬT & CẮT NGANG (WEB / SECURITY / AOP)</span><span class="tag">Spring Web MVC · Spring Security · JJWT 0.13 · AspectJ</span></div>
+      <div class="layer-head l2"><span>2. TẦNG API, BẢO MẬT &amp; AOP (SPRING WEB MVC + SECURITY)</span><span class="tag">JJWT 0.13 · AspectJ</span></div>
       <div class="layer-body g4">
-        <div class="box accent"><h4>JwtFilter & SessionRegistry</h4><p>Xác thực Access Token, xoay vòng Refresh Token, thu hồi phiên khi khóa tài khoản/đổi mật khẩu.</p></div>
-        <div class="box accent"><h4>Access49 (RBAC + Scope)</h4><p>Phân quyền ADMIN / STAFF / TENANT, kiểm tra phạm vi khu–phòng & hạn mức ủy quyền.</p></div>
-        <div class="box accent"><h4>Api49 & AuthController</h4><p>Điểm vào REST cho hợp đồng, hóa đơn, sổ quỹ, bàn giao, báo cáo, danh mục & tệp đính kèm.</p></div>
-        <div class="box accent"><h4>ApiErrors & ApiTimingAspect</h4><p>Ánh xạ 22 lỗi trigger DB sang HTTP 409 rõ nghĩa; AOP đo thời gian xử lý API tự động.</p></div>
+        <div class="box accent"><h4>JwtFilter &amp; Session</h4><p>Xác thực JWT, xoay vòng Refresh Token, thu hồi phiên.</p></div>
+        <div class="box accent"><h4>Access49 (Phân quyền)</h4><p>ADMIN / STAFF (khu, phòng, hạn mức) / TENANT.</p></div>
+        <div class="box accent"><h4>Api49 &amp; Controllers</h4><p>Điều phối REST cho hợp đồng, sổ quỹ, bàn giao, báo cáo.</p></div>
+        <div class="box accent"><h4>ApiErrors &amp; TimingAOP</h4><p>Đổi 22 lỗi trigger DB sang HTTP 409; đo thời gian API.</p></div>
       </div>
     </div>
 
-    <div class="arrow-row"><span>▼</span><span class="arrow-pill">@Transactional · Row Locking (FOR UPDATE) · pg_advisory_xact_lock · Idempotency Keys</span><span>▲</span></div>
+    <div class="arrow-row"><span>▼</span><span class="arrow-pill">@Transactional · SELECT FOR UPDATE · pg_advisory_xact_lock · Idempotency</span><span>▲</span></div>
 
     <div class="layer">
-      <div class="layer-head l3"><span>TẦNG 3 — XỬ LÝ NGHIỆP VỤ MIỀN (DOMAIN SERVICES — PROFILE model49)</span><span class="tag">Spring JDBC Template + JPA Validate + Apache PDFBox 3.0.7</span></div>
-      <div class="layer-body g5">
-        <div class="box teal"><h4>Leases49 & Catalog49</h4><p>Hợp đồng, phụ lục, cư trú, nhận/trả phòng, biên bản bàn giao & tài sản phòng.</p></div>
-        <div class="box teal"><h4>Meters49</h4><p>Công tơ, điểm đo, khoảng tiêu thụ, thay công tơ & cảnh báo WEIGHTED_DAILY.</p></div>
-        <div class="box teal"><h4>Billing49 & Finance49</h4><p>Lập/phát hành chứng từ bất biến, sổ quỹ tiền thật, phân bổ, cấn cọc, hoàn & đảo.</p></div>
-        <div class="box teal"><h4>Settlements49 & Reports49</h4><p>Quyết toán trả phòng, điều chỉnh trả sớm, báo cáo tháng/quý/năm & công nợ.</p></div>
-        <div class="box teal"><h4>ContractPdf & Files49</h4><p>Xuất PDF hợp đồng/phụ lục/báo cáo (NotoSans Unicode), xác thực ảnh ImageIO + SHA-256.</p></div>
+      <div class="layer-head l3"><span>3. TẦNG DỊCH VỤ NGHIỆP VỤ (PACKAGE com.hostel.model49)</span><span class="tag">JdbcTemplate + PDFBox 3.0.7</span></div>
+      <div class="layer-body g4">
+        <div class="box teal"><h4>Leases49 &amp; Catalog49</h4><p>Hợp đồng, phụ lục, cư trú, nhận/trả phòng, đồ đạc phòng.</p></div>
+        <div class="box teal"><h4>Meters49</h4><p>Công tơ, điểm đo, đoạn tiêu thụ &amp; cảnh báo WEIGHTED_DAILY.</p></div>
+        <div class="box teal"><h4>Billing49 &amp; Finance49</h4><p>Hóa đơn khóa bất biến, phiếu thu/chi thật, sổ cái quỹ khách.</p></div>
+        <div class="box teal"><h4>Settlements49, Reports49 &amp; PDF</h4><p>Quyết toán cọc, báo cáo doanh thu, xuất PDF NotoSans &amp; lưu ảnh.</p></div>
       </div>
     </div>
 
-    <div class="arrow-row"><span>▼</span><span class="arrow-pill">PostgreSQL JDBC Driver · Prepared Statements (No Raw SQL Concatenation) · Flyway Forward-Only</span><span>▲</span></div>
+    <div class="arrow-row"><span>▼</span><span class="arrow-pill">PreparedStatement (Chống SQLi) · Hibernate ddl-auto=validate · Flyway V1–V14</span><span>▲</span></div>
 
     <div class="layer">
-      <div class="layer-head l4"><span>TẦNG 4 — LƯU TRỮ DỮ LIỆU & TOÀN VẸN CẤP CSDL (PERSISTENCE & STORAGE)</span><span class="tag">PostgreSQL 18.6 · Flyway V1–V14 · File Storage</span></div>
+      <div class="layer-head l4"><span>4. TẦNG DỮ LIỆU &amp; TỆP (POSTGRESQL 18.6 + UPLOAD STORAGE)</span><span class="tag">49 bảng · 461 cột</span></div>
       <div class="layer-body g3">
-        <div class="box dark"><h4>Lược đồ chuẩn hóa 49 bảng (461 cột)</h4><p>49 PK · 152 FK thật · 133 CHECK · 7 GiST EXCLUDE (chống chồng lịch phòng/cư trú/tài sản/công tơ).</p></div>
-        <div class="box dark"><h4>10 View dẫn xuất & Trigger khóa sổ</h4><p>Tính tổng/nợ/số dư quỹ tự động qua View; Trigger chặn sửa hóa đơn phát hành, chặn chi/cấn vượt số dư, bảo toàn append-only.</p></div>
-        <div class="box dark"><h4>Migration & Kho tệp chứng cứ</h4><p>Flyway V1–V14 bảo lưu lịch sử V10 tại <code>model_v10</code>; lưu ảnh/PDF gắn <code>stored_files</code> + kiểm quyền khi tải.</p></div>
+        <div class="box dark"><h4>49 Bảng chuẩn hóa</h4><p>49 PK · 152 FK · 133 CHECK · 7 GiST EXCLUDE chống chồng lịch.</p></div>
+        <div class="box dark"><h4>10 View &amp; Trigger khóa sổ</h4><p>Tính nợ/số dư qua View; Trigger chặn sửa HĐ đã phát hành &amp; sổ quỹ.</p></div>
+        <div class="box dark"><h4>Flyway &amp; Kho tệp chứng cứ</h4><p>Nâng cấp V1→V14 (lưu lịch sử V10); kiểm tra ImageIO + SHA-256.</p></div>
       </div>
     </div>
   </div>
   <div class="footer-note">
-    <span>Nguồn: Kiến trúc hiện thực thực tế tại package <code>com.hostel.*</code> và <code>frontend/src/*</code> (phiên bản V14).</span>
-    <span>131/131 kiểm thử Java PASS · 20/20 kiểm thử SQL PASS</span>
+    <span>Đóng gói thành 1 file JAR duy nhất phục vụ cả giao diện tĩnh và REST API.</span>
+    <span>131/131 test Java PASS · 20/20 ca SQL PASS</span>
   </div>
 </div>
 </body></html>`;
 
-// 2. UML Use Case Diagram (SVG inside clean frame)
+// 2. UML Use Case Diagram (crisp 916px SVG -> huge readable labels)
 const DIAG_USECASE = `<!doctype html><html lang="vi"><head><meta charset="utf-8"><style>
 ${COMMON_CSS}
-.svg-wrap { width: 100%; display: flex; justify-content: center; }
 </style></head><body>
 <div class="canvas">
   <div class="header">
-    <div class="title">BIỂU ĐỒ USE CASE TỔNG QUÁT HỆ THỐNG QUẢN LÝ NHÀ TRỌ</div>
-    <div class="subtitle">3 Tác nhân (ADMIN · STAFF · TENANT) · 6 Nhóm nghiệp vụ trọng tâm</div>
+    <div class="title">BIỂU ĐỒ USE CASE TỔNG QUÁT HỆ THỐNG</div>
+    <div class="subtitle">3 Tác nhân: Chủ nhà (ADMIN) · Nhân viên (STAFF) · Người thuê (TENANT)</div>
   </div>
-  <div class="svg-wrap">
-    <svg viewBox="0 0 1140 650" width="1140" height="650" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
-      <defs>
-        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-          <path d="M 0 1 L 10 5 L 0 9 z" fill="#475569"/>
-        </marker>
-        <marker id="openArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
-          <path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#1B365D" stroke-width="1.4"/>
-        </marker>
-      </defs>
+  <svg viewBox="0 0 912 560" width="912" height="560" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+    <defs>
+      <marker id="openArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+        <path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#1B365D" stroke-width="1.8"/>
+      </marker>
+    </defs>
 
-      <!-- System Boundary -->
-      <rect x="210" y="10" width="720" height="630" rx="8" fill="#F8FAFC" stroke="#1B365D" stroke-width="2"/>
-      <text x="570" y="34" text-anchor="middle" font-size="15" font-weight="700" fill="#1B365D">HỆ THỐNG QUẢN LÝ NHÀ TRỌ (HOSTEL MANAGEMENT V14)</text>
+    <rect x="155" y="8" width="602" height="544" rx="8" fill="#F8FAFC" stroke="#1B365D" stroke-width="2.2"/>
+    <text x="456" y="30" text-anchor="middle" font-size="14.5" font-weight="800" fill="#1B365D">HỆ THỐNG QUẢN LÝ NHÀ TRỌ (V14)</text>
 
-      <!-- Group boxes inside boundary -->
-      <rect x="230" y="48" width="330" height="150" rx="6" fill="#FFFFFF" stroke="#CBD5E1" stroke-dasharray="4 3"/>
-      <text x="242" y="66" font-size="11.5" font-weight="700" fill="#475569">1. Quản trị, Danh mục &amp; Tài sản</text>
+    <!-- Left column groups -->
+    <rect x="170" y="42" width="276" height="136" rx="5" fill="#FFF" stroke="#94A3B8" stroke-width="1.3" stroke-dasharray="4 3"/>
+    <text x="180" y="58" font-size="11.5" font-weight="700" fill="#1B365D">1. Quản trị &amp; Danh mục</text>
+    <ellipse cx="308" cy="82" rx="124" ry="16" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.6"/>
+    <text x="308" y="86" text-anchor="middle" font-size="12" font-weight="700" fill="#0F172A">Tài khoản, phân công &amp; hạn mức</text>
+    <ellipse cx="308" cy="118" rx="124" ry="16" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.6"/>
+    <text x="308" y="122" text-anchor="middle" font-size="12" font-weight="700" fill="#0F172A">Khu nhà, phòng, giá &amp; ngưỡng</text>
+    <ellipse cx="308" cy="154" rx="124" ry="16" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.6"/>
+    <text x="308" y="158" text-anchor="middle" font-size="12" font-weight="700" fill="#0F172A">Đồ đạc &amp; tài sản trong phòng</text>
 
-      <rect x="580" y="48" width="330" height="182" rx="6" fill="#FFFFFF" stroke="#CBD5E1" stroke-dasharray="4 3"/>
-      <text x="592" y="66" font-size="11.5" font-weight="700" fill="#475569">2. Hợp đồng, Cư trú &amp; Bàn giao</text>
+    <rect x="170" y="190" width="276" height="150" rx="5" fill="#FFF" stroke="#94A3B8" stroke-width="1.3" stroke-dasharray="4 3"/>
+    <text x="180" y="206" font-size="11.5" font-weight="700" fill="#1B365D">3. Điện nước &amp; Cảnh báo</text>
+    <ellipse cx="308" cy="232" rx="124" ry="16" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.6"/>
+    <text x="308" y="236" text-anchor="middle" font-size="12" font-weight="700" fill="#0F172A">Ghi chỉ số &amp; thay công tơ</text>
+    <ellipse cx="308" cy="276" rx="124" ry="16" fill="#FEF3C7" stroke="#B45309" stroke-width="1.8"/>
+    <text x="308" y="280" text-anchor="middle" font-size="12" font-weight="700" fill="#92400E">Đánh giá cảnh báo bất thường</text>
+    <line x1="308" y1="248" x2="308" y2="260" stroke="#1B365D" stroke-width="1.4" stroke-dasharray="3 2" marker-end="url(#openArr)"/>
+    <text x="348" y="257" font-size="10.5" font-weight="700" font-style="italic" fill="#1B365D">«include»</text>
+    <ellipse cx="308" cy="316" rx="124" ry="16" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.6"/>
+    <text x="308" y="320" text-anchor="middle" font-size="12" font-weight="700" fill="#0F172A">Kiểm tra &amp; xác nhận cảnh báo</text>
 
-      <rect x="230" y="210" width="330" height="175" rx="6" fill="#FFFFFF" stroke="#CBD5E1" stroke-dasharray="4 3"/>
-      <text x="242" y="228" font-size="11.5" font-weight="700" fill="#475569">3. Điện nước &amp; Cảnh báo bất thường</text>
+    <rect x="170" y="352" width="276" height="104" rx="5" fill="#FFF" stroke="#94A3B8" stroke-width="1.3" stroke-dasharray="4 3"/>
+    <text x="180" y="368" font-size="11.5" font-weight="700" fill="#1B365D">5. Báo cáo &amp; Công nợ</text>
+    <ellipse cx="308" cy="394" rx="124" ry="16" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.6"/>
+    <text x="308" y="398" text-anchor="middle" font-size="12" font-weight="700" fill="#0F172A">Tổng quan 6 chỉ số &amp; dư nợ</text>
+    <ellipse cx="308" cy="432" rx="124" ry="16" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.6"/>
+    <text x="308" y="436" text-anchor="middle" font-size="12" font-weight="700" fill="#0F172A">Báo cáo Tháng/Quý/Năm &amp; PDF</text>
 
-      <rect x="580" y="242" width="330" height="190" rx="6" fill="#FFFFFF" stroke="#CBD5E1" stroke-dasharray="4 3"/>
-      <text x="592" y="260" font-size="11.5" font-weight="700" fill="#475569">4. Hóa đơn, Thanh toán &amp; Quyết toán</text>
+    <rect x="170" y="468" width="276" height="72" rx="5" fill="#FFF" stroke="#94A3B8" stroke-width="1.3" stroke-dasharray="4 3"/>
+    <text x="180" y="484" font-size="11.5" font-weight="700" fill="#1B365D">7. Tài khoản chung</text>
+    <ellipse cx="308" cy="512" rx="124" ry="16" fill="#F1F5F9" stroke="#334155" stroke-width="1.6"/>
+    <text x="308" y="516" text-anchor="middle" font-size="12" font-weight="700" fill="#0F172A">Đăng nhập JWT, mật khẩu, TB</text>
 
-      <rect x="230" y="397" width="330" height="115" rx="6" fill="#FFFFFF" stroke="#CBD5E1" stroke-dasharray="4 3"/>
-      <text x="242" y="415" font-size="11.5" font-weight="700" fill="#475569">5. Báo cáo &amp; Công nợ</text>
+    <!-- Right column groups -->
+    <rect x="466" y="42" width="276" height="154" rx="5" fill="#FFF" stroke="#94A3B8" stroke-width="1.3" stroke-dasharray="4 3"/>
+    <text x="476" y="58" font-size="11.5" font-weight="700" fill="#1B365D">2. Hợp đồng &amp; Bàn giao</text>
+    <ellipse cx="604" cy="82" rx="124" ry="16" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.6"/>
+    <text x="604" y="86" text-anchor="middle" font-size="12" font-weight="700" fill="#0F172A">Lập, ký, gia hạn &amp; xuất PDF</text>
+    <ellipse cx="604" cy="118" rx="124" ry="16" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.6"/>
+    <text x="604" y="122" text-anchor="middle" font-size="12" font-weight="700" fill="#0F172A">Cư trú thực tế &amp; giao phòng</text>
+    <ellipse cx="604" cy="154" rx="124" ry="16" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.6"/>
+    <text x="604" y="158" text-anchor="middle" font-size="12" font-weight="700" fill="#0F172A">Biên bản đối chiếu nhận/trả</text>
+    <text x="604" y="186" text-anchor="middle" font-size="10.8" font-weight="600" font-style="italic" fill="#334155">«extend» Ảnh hỏng đồ &amp; bồi thường</text>
 
-      <rect x="580" y="444" width="330" height="178" rx="6" fill="#FFFFFF" stroke="#CBD5E1" stroke-dasharray="4 3"/>
-      <text x="592" y="462" font-size="11.5" font-weight="700" fill="#475569">6. Sự cố, Bảo trì &amp; Cổng Khách thuê</text>
+    <rect x="466" y="208" width="276" height="156" rx="5" fill="#FFF" stroke="#94A3B8" stroke-width="1.3" stroke-dasharray="4 3"/>
+    <text x="476" y="224" font-size="11.5" font-weight="700" fill="#1B365D">4. Hóa đơn, Sổ quỹ &amp; Quyết toán</text>
+    <ellipse cx="604" cy="250" rx="124" ry="16" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.6"/>
+    <text x="604" y="254" text-anchor="middle" font-size="12" font-weight="700" fill="#0F172A">Lập nháp, phát hành &amp; điều chỉnh</text>
+    <ellipse cx="604" cy="290" rx="124" ry="16" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.6"/>
+    <text x="604" y="294" text-anchor="middle" font-size="12" font-weight="700" fill="#0F172A">Thu tiền, tách quỹ cọc / tiền dư</text>
+    <ellipse cx="604" cy="330" rx="124" ry="16" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.6"/>
+    <text x="604" y="334" text-anchor="middle" font-size="12" font-weight="700" fill="#0F172A">Duyệt quyết toán &amp; chi hoàn cọc</text>
 
-      <rect x="230" y="524" width="330" height="98" rx="6" fill="#FFFFFF" stroke="#CBD5E1" stroke-dasharray="4 3"/>
-      <text x="242" y="542" font-size="11.5" font-weight="700" fill="#475569">7. Xác thực &amp; Tài khoản</text>
+    <rect x="466" y="376" width="276" height="164" rx="5" fill="#FFF" stroke="#94A3B8" stroke-width="1.3" stroke-dasharray="4 3"/>
+    <text x="476" y="392" font-size="11.5" font-weight="700" fill="#166534">6. Sự cố &amp; Cổng Người thuê</text>
+    <ellipse cx="604" cy="420" rx="124" ry="16" fill="#F0FDF4" stroke="#166534" stroke-width="1.6"/>
+    <text x="604" y="424" text-anchor="middle" font-size="12" font-weight="700" fill="#0F172A">Xem hợp đồng, hóa đơn, lịch sử</text>
+    <ellipse cx="604" cy="462" rx="124" ry="16" fill="#F0FDF4" stroke="#166534" stroke-width="1.6"/>
+    <text x="604" y="466" text-anchor="middle" font-size="12" font-weight="700" fill="#0F172A">Gửi báo hỏng &amp; đính kèm ảnh</text>
+    <ellipse cx="604" cy="506" rx="124" ry="16" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.6"/>
+    <text x="604" y="510" text-anchor="middle" font-size="12" font-weight="700" fill="#0F172A">Xử lý sự cố, chi phí &amp; bảo trì</text>
 
-      <!-- Use Case Ellipses helper -->
-      <!-- Group 1 -->
-      <ellipse cx="395" cy="94" rx="142" ry="18" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.3"/>
-      <text x="395" y="98" text-anchor="middle" font-size="12" font-weight="600" fill="#0F172A">Quản lý tài khoản, phân công &amp; hạn mức</text>
+    <!-- Actors -->
+    <g transform="translate(68, 105)">
+      <circle cx="0" cy="-22" r="13" fill="#EFF6FF" stroke="#1B365D" stroke-width="2.4"/>
+      <line x1="0" y1="-9" x2="0" y2="22" stroke="#1B365D" stroke-width="2.4"/>
+      <line x1="-20" y1="2" x2="20" y2="2" stroke="#1B365D" stroke-width="2.4"/>
+      <line x1="0" y1="22" x2="-16" y2="46" stroke="#1B365D" stroke-width="2.4"/>
+      <line x1="0" y1="22" x2="16" y2="46" stroke="#1B365D" stroke-width="2.4"/>
+      <text x="0" y="64" text-anchor="middle" font-size="13" font-weight="800" fill="#1B365D">Chủ nhà</text>
+      <text x="0" y="80" text-anchor="middle" font-size="11.5" font-weight="700" fill="#334155">(ADMIN)</text>
+    </g>
 
-      <ellipse cx="395" cy="136" rx="142" ry="18" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.3"/>
-      <text x="395" y="140" text-anchor="middle" font-size="12" font-weight="600" fill="#0F172A">Quản lý khu, phòng, đơn giá &amp; ngưỡng</text>
+    <line x1="68" y1="194" x2="68" y2="306" stroke="#1B365D" stroke-width="2"/>
+    <polygon points="68,318 61,304 75,304" fill="#FFFFFF" stroke="#1B365D" stroke-width="2"/>
+    <text x="78" y="256" font-size="11" font-weight="600" font-style="italic" fill="#1B365D">kế thừa</text>
 
-      <ellipse cx="395" cy="176" rx="142" ry="18" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.3"/>
-      <text x="395" y="180" text-anchor="middle" font-size="12" font-weight="600" fill="#0F172A">Quản lý đồ đạc, tài sản bố trí phòng</text>
+    <g transform="translate(68, 355)">
+      <circle cx="0" cy="-22" r="13" fill="#EFF6FF" stroke="#1E40AF" stroke-width="2.4"/>
+      <line x1="0" y1="-9" x2="0" y2="22" stroke="#1E40AF" stroke-width="2.4"/>
+      <line x1="-20" y1="2" x2="20" y2="2" stroke="#1E40AF" stroke-width="2.4"/>
+      <line x1="0" y1="22" x2="-16" y2="46" stroke="#1E40AF" stroke-width="2.4"/>
+      <line x1="0" y1="22" x2="16" y2="46" stroke="#1E40AF" stroke-width="2.4"/>
+      <text x="0" y="64" text-anchor="middle" font-size="13" font-weight="800" fill="#1E40AF">Nhân viên</text>
+      <text x="0" y="80" text-anchor="middle" font-size="11.5" font-weight="700" fill="#334155">(STAFF)</text>
+      <text x="0" y="95" text-anchor="middle" font-size="10.5" font-weight="600" fill="#475569">Theo khu/phòng</text>
+    </g>
 
-      <!-- Group 2 -->
-      <ellipse cx="745" cy="94" rx="144" ry="18" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.3"/>
-      <text x="745" y="98" text-anchor="middle" font-size="12" font-weight="600" fill="#0F172A">Lập, ký, gia hạn hợp đồng &amp; xuất PDF</text>
+    <g transform="translate(838, 435)">
+      <circle cx="0" cy="-22" r="13" fill="#F0FDF4" stroke="#166534" stroke-width="2.4"/>
+      <line x1="0" y1="-9" x2="0" y2="22" stroke="#166534" stroke-width="2.4"/>
+      <line x1="-20" y1="2" x2="20" y2="2" stroke="#166534" stroke-width="2.4"/>
+      <line x1="0" y1="22" x2="-16" y2="46" stroke="#166534" stroke-width="2.4"/>
+      <line x1="0" y1="22" x2="16" y2="46" stroke="#166534" stroke-width="2.4"/>
+      <text x="0" y="64" text-anchor="middle" font-size="13" font-weight="800" fill="#166534">Người thuê</text>
+      <text x="0" y="80" text-anchor="middle" font-size="11.5" font-weight="700" fill="#334155">(TENANT)</text>
+    </g>
 
-      <ellipse cx="745" cy="138" rx="144" ry="18" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.3"/>
-      <text x="745" y="142" text-anchor="middle" font-size="12" font-weight="600" fill="#0F172A">Quản lý cư trú thực tế &amp; giao/nhận phòng</text>
+    <!-- Associations -->
+    <line x1="92" y1="98" x2="184" y2="82" stroke="#1B365D" stroke-width="1.7"/>
+    <line x1="92" y1="108" x2="184" y2="118" stroke="#1B365D" stroke-width="1.7"/>
+    <line x1="92" y1="118" x2="184" y2="154" stroke="#1B365D" stroke-width="1.7"/>
 
-      <ellipse cx="745" cy="182" rx="144" ry="18" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.3"/>
-      <text x="745" y="186" text-anchor="middle" font-size="12" font-weight="600" fill="#0F172A">Lập &amp; đối chiếu biên bản nhận/trả phòng</text>
+    <line x1="92" y1="340" x2="184" y2="232" stroke="#1E40AF" stroke-width="1.6"/>
+    <line x1="92" y1="348" x2="184" y2="316" stroke="#1E40AF" stroke-width="1.6"/>
+    <line x1="92" y1="360" x2="184" y2="394" stroke="#1E40AF" stroke-width="1.6"/>
+    <line x1="92" y1="370" x2="184" y2="432" stroke="#1E40AF" stroke-width="1.6"/>
+    <line x1="92" y1="382" x2="184" y2="512" stroke="#1E40AF" stroke-width="1.6"/>
 
-      <text x="745" y="218" text-anchor="middle" font-size="11" font-style="italic" fill="#475569">«extend» Đính ảnh minh chứng &amp; lập bồi thường hỏng đồ</text>
+    <path d="M 92 354 L 456 354 L 480 250" fill="none" stroke="#1E40AF" stroke-width="1.5"/>
+    <path d="M 456 354 L 480 290" fill="none" stroke="#1E40AF" stroke-width="1.5"/>
+    <path d="M 456 354 L 480 330" fill="none" stroke="#1E40AF" stroke-width="1.5"/>
+    <path d="M 456 354 L 456 82 L 480 82" fill="none" stroke="#1E40AF" stroke-width="1.5"/>
+    <path d="M 456 118 L 480 118" fill="none" stroke="#1E40AF" stroke-width="1.5"/>
+    <path d="M 456 154 L 480 154" fill="none" stroke="#1E40AF" stroke-width="1.5"/>
+    <path d="M 456 354 L 456 506 L 480 506" fill="none" stroke="#1E40AF" stroke-width="1.5"/>
 
-      <!-- Group 3 -->
-      <ellipse cx="395" cy="256" rx="142" ry="18" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.3"/>
-      <text x="395" y="260" text-anchor="middle" font-size="12" font-weight="600" fill="#0F172A">Ghi chỉ số công tơ &amp; thay công tơ</text>
-
-      <ellipse cx="395" cy="306" rx="142" ry="18" fill="#FFFBEB" stroke="#B45309" stroke-width="1.4"/>
-      <text x="395" y="310" text-anchor="middle" font-size="12" font-weight="600" fill="#92400E">Tự động đánh giá cảnh báo bất thường</text>
-
-      <ellipse cx="395" cy="356" rx="142" ry="18" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.3"/>
-      <text x="395" y="360" text-anchor="middle" font-size="12" font-weight="600" fill="#0F172A">Kiểm tra, xác nhận / bỏ qua cảnh báo</text>
-
-      <line x1="395" y1="274" x2="395" y2="288" stroke="#1B365D" stroke-width="1.2" stroke-dasharray="3 2" marker-end="url(#openArr)"/>
-      <text x="444" y="285" font-size="10.5" font-style="italic" fill="#1B365D">«include»</text>
-
-      <!-- Group 4 -->
-      <ellipse cx="745" cy="288" rx="144" ry="18" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.3"/>
-      <text x="745" y="292" text-anchor="middle" font-size="12" font-weight="600" fill="#0F172A">Lập nháp, phát hành &amp; điều chỉnh hóa đơn</text>
-
-      <ellipse cx="745" cy="336" rx="144" ry="18" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.3"/>
-      <text x="745" y="340" text-anchor="middle" font-size="12" font-weight="600" fill="#0F172A">Thu tiền, tách quỹ cọc / trả trước / dư</text>
-
-      <ellipse cx="745" cy="384" rx="144" ry="18" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.3"/>
-      <text x="745" y="388" text-anchor="middle" font-size="12" font-weight="600" fill="#0F172A">Duyệt quyết toán trả phòng &amp; chi hoàn cọc</text>
-
-      <text x="745" y="420" text-anchor="middle" font-size="11" font-style="italic" fill="#475569">«constraint» Chặn phát hành khi còn cảnh báo PENDING</text>
-
-      <!-- Group 5 -->
-      <ellipse cx="395" cy="444" rx="142" ry="18" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.3"/>
-      <text x="395" y="448" text-anchor="middle" font-size="12" font-weight="600" fill="#0F172A">Xem tổng quan 6 chỉ số &amp; công nợ khách</text>
-
-      <ellipse cx="395" cy="488" rx="142" ry="18" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.3"/>
-      <text x="395" y="492" text-anchor="middle" font-size="12" font-weight="600" fill="#0F172A">Báo cáo doanh thu tháng/quý/năm &amp; PDF</text>
-
-      <!-- Group 6 -->
-      <ellipse cx="745" cy="492" rx="144" ry="18" fill="#F0FDF4" stroke="#166534" stroke-width="1.3"/>
-      <text x="745" y="496" text-anchor="middle" font-size="12" font-weight="600" fill="#0F172A">Tra cứu hợp đồng, hóa đơn &amp; lịch sử thu</text>
-
-      <ellipse cx="745" cy="540" rx="144" ry="18" fill="#F0FDF4" stroke="#166534" stroke-width="1.3"/>
-      <text x="745" y="544" text-anchor="middle" font-size="12" font-weight="600" fill="#0F172A">Gửi yêu cầu sửa chữa &amp; đính kèm ảnh</text>
-
-      <ellipse cx="745" cy="588" rx="144" ry="18" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.3"/>
-      <text x="745" y="592" text-anchor="middle" font-size="12" font-weight="600" fill="#0F172A">Xử lý sự cố, ghi chi phí &amp; lịch bảo trì</text>
-
-      <!-- Group 7 -->
-      <ellipse cx="395" cy="574" rx="142" ry="18" fill="#F1F5F9" stroke="#334155" stroke-width="1.3"/>
-      <text x="395" y="578" text-anchor="middle" font-size="12" font-weight="600" fill="#0F172A">Đăng nhập JWT, đổi mật khẩu, thông báo</text>
-
-      <!-- Actors LEFT: ADMIN & STAFF -->
-      <!-- ADMIN Stick figure -->
-      <g transform="translate(88, 125)">
-        <circle cx="0" cy="-24" r="14" fill="#EFF6FF" stroke="#1B365D" stroke-width="2.2"/>
-        <line x1="0" y1="-10" x2="0" y2="26" stroke="#1B365D" stroke-width="2.2"/>
-        <line x1="-22" y1="2" x2="22" y2="2" stroke="#1B365D" stroke-width="2.2"/>
-        <line x1="0" y1="26" x2="-18" y2="52" stroke="#1B365D" stroke-width="2.2"/>
-        <line x1="0" y1="26" x2="18" y2="52" stroke="#1B365D" stroke-width="2.2"/>
-        <text x="0" y="72" text-anchor="middle" font-size="13.5" font-weight="700" fill="#1B365D">Chủ nhà</text>
-        <text x="0" y="88" text-anchor="middle" font-size="11.5" font-weight="600" fill="#475569">(ADMIN)</text>
-        <text x="0" y="103" text-anchor="middle" font-size="10.5" fill="#64748B">Toàn quyền hệ thống</text>
-      </g>
-
-      <!-- STAFF Stick figure -->
-      <g transform="translate(88, 395)">
-        <circle cx="0" cy="-24" r="14" fill="#EFF6FF" stroke="#264B77" stroke-width="2.2"/>
-        <line x1="0" y1="-10" x2="0" y2="26" stroke="#264B77" stroke-width="2.2"/>
-        <line x1="-22" y1="2" x2="22" y2="2" stroke="#264B77" stroke-width="2.2"/>
-        <line x1="0" y1="26" x2="-18" y2="52" stroke="#264B77" stroke-width="2.2"/>
-        <line x1="0" y1="26" x2="18" y2="52" stroke="#264B77" stroke-width="2.2"/>
-        <text x="0" y="72" text-anchor="middle" font-size="13.5" font-weight="700" fill="#264B77">Nhân viên</text>
-        <text x="0" y="88" text-anchor="middle" font-size="11.5" font-weight="600" fill="#475569">(STAFF)</text>
-        <text x="0" y="103" text-anchor="middle" font-size="10.5" fill="#64748B">Theo khu/phòng</text>
-        <text x="0" y="117" text-anchor="middle" font-size="10.5" fill="#64748B">&amp; hạn mức ủy quyền</text>
-      </g>
-
-      <!-- Actor RIGHT: TENANT -->
-      <g transform="translate(1045, 495)">
-        <circle cx="0" cy="-24" r="14" fill="#F0FDF4" stroke="#166534" stroke-width="2.2"/>
-        <line x1="0" y1="-10" x2="0" y2="26" stroke="#166534" stroke-width="2.2"/>
-        <line x1="-22" y1="2" x2="22" y2="2" stroke="#166534" stroke-width="2.2"/>
-        <line x1="0" y1="26" x2="-18" y2="52" stroke="#166534" stroke-width="2.2"/>
-        <line x1="0" y1="26" x2="18" y2="52" stroke="#166534" stroke-width="2.2"/>
-        <text x="0" y="72" text-anchor="middle" font-size="13.5" font-weight="700" fill="#166534">Người thuê</text>
-        <text x="0" y="88" text-anchor="middle" font-size="11.5" font-weight="600" fill="#475569">(TENANT)</text>
-        <text x="0" y="103" text-anchor="middle" font-size="10.5" fill="#64748B">Theo hợp đồng</text>
-        <text x="0" y="117" text-anchor="middle" font-size="10.5" fill="#64748B">đại diện / cư trú</text>
-      </g>
-
-      <!-- Generalization: ADMIN inherits STAFF operational use cases (clean hollow triangle per UML 2.5) -->
-      <line x1="88" y1="234" x2="88" y2="354" stroke="#1B365D" stroke-width="1.8"/>
-      <polygon points="88,365 81,351 95,351" fill="#FFFFFF" stroke="#1B365D" stroke-width="1.8"/>
-      <text x="100" y="302" font-size="10.5" font-style="italic" fill="#1B365D">kế thừa quyền</text>
-      <text x="100" y="316" font-size="10.5" font-style="italic" fill="#1B365D">vận hành</text>
-
-      <!-- ADMIN exclusive lines (Group 1 + full reports) -->
-      <line x1="115" y1="120" x2="252" y2="94" stroke="#1B365D" stroke-width="1.5"/>
-      <line x1="115" y1="130" x2="252" y2="136" stroke="#1B365D" stroke-width="1.5"/>
-      <line x1="115" y1="142" x2="252" y2="176" stroke="#1B365D" stroke-width="1.5"/>
-
-      <!-- STAFF lines (and inherited by ADMIN) -->
-      <line x1="115" y1="382" x2="252" y2="256" stroke="#264B77" stroke-width="1.4"/>
-      <line x1="115" y1="392" x2="252" y2="356" stroke="#264B77" stroke-width="1.4"/>
-      <line x1="115" y1="402" x2="252" y2="444" stroke="#264B77" stroke-width="1.4"/>
-      <line x1="115" y1="412" x2="252" y2="488" stroke="#264B77" stroke-width="1.4"/>
-      <line x1="115" y1="422" x2="252" y2="574" stroke="#264B77" stroke-width="1.4"/>
-      <path d="M 115 398 L 568 398 L 601 288" fill="none" stroke="#264B77" stroke-width="1.3"/>
-      <path d="M 568 398 L 601 336" fill="none" stroke="#264B77" stroke-width="1.3"/>
-      <path d="M 568 398 L 601 384" fill="none" stroke="#264B77" stroke-width="1.3"/>
-      <path d="M 568 398 L 568 94 L 601 94" fill="none" stroke="#264B77" stroke-width="1.3"/>
-      <path d="M 568 138 L 601 138" fill="none" stroke="#264B77" stroke-width="1.3"/>
-      <path d="M 568 182 L 601 182" fill="none" stroke="#264B77" stroke-width="1.3"/>
-      <path d="M 568 398 L 568 588 L 601 588" fill="none" stroke="#264B77" stroke-width="1.3"/>
-
-      <!-- TENANT lines -->
-      <line x1="1018" y1="490" x2="889" y2="492" stroke="#166534" stroke-width="1.6"/>
-      <line x1="1018" y1="504" x2="889" y2="540" stroke="#166534" stroke-width="1.6"/>
-      <path d="M 1018 520 L 965 520 L 965 632 L 395 632 L 395 592" fill="none" stroke="#166534" stroke-width="1.4"/>
-    </svg>
-  </div>
+    <line x1="814" y1="425" x2="728" y2="420" stroke="#166534" stroke-width="1.8"/>
+    <line x1="814" y1="442" x2="728" y2="462" stroke="#166534" stroke-width="1.8"/>
+    <path d="M 814 456 L 772 456 L 772 546 L 308 546 L 308 528" fill="none" stroke="#166534" stroke-width="1.7"/>
+  </svg>
   <div class="footer-note">
-    <span>Ghi chú: ADMIN bao quát toàn bộ nghiệp vụ vận hành của STAFF và độc quyền quản trị tài khoản, phân công, đơn giá, ngưỡng cảnh báo và tạo danh mục tài sản.</span>
-    <span>Ký hiệu UML 2.5</span>
+    <span>Mọi kiểm tra quyền và phạm vi khu/phòng đều thực hiện tại backend (Access49.java).</span>
+    <span>UML 2.5</span>
   </div>
 </div>
 </body></html>`;
 
-// 3. 8-Module Database Architecture Overview (49 tables)
+// 3. 8-Module Database Overview (960px logical width -> bold readable table names)
 const DIAG_DB_MODULES = `<!doctype html><html lang="vi"><head><meta charset="utf-8"><style>
 ${COMMON_CSS}
-.grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
 .mod {
-  border: 1.5px solid #94A3B8;
-  border-radius: 6px;
+  border: 1.8px solid #64748B;
+  border-radius: 5px;
   overflow: hidden;
   background: #FFFFFF;
   display: flex;
@@ -371,8 +326,8 @@ ${COMMON_CSS}
 .mod-hd {
   background: #1B365D;
   color: #FFF;
-  padding: 7px 10px;
-  font-size: 12.5px;
+  padding: 6px 8px;
+  font-size: 12.2px;
   font-weight: 700;
   display: flex;
   justify-content: space-between;
@@ -385,652 +340,872 @@ ${COMMON_CSS}
 .mod-hd.m6 { background: #334155; }
 .mod-hd.m7 { background: #475569; }
 .mod-hd.m8 { background: #1E293B; }
-.cnt {
-  background: rgba(255,255,255,0.2);
-  padding: 1px 7px;
-  border-radius: 10px;
-  font-size: 11px;
-}
-.mod-bd { padding: 8px 10px; font-size: 11.4px; line-height: 1.48; flex: 1; }
+.cnt { background: rgba(255,255,255,0.22); padding: 1px 6px; border-radius: 8px; font-size: 10.8px; }
+.mod-bd { padding: 7px 8px; flex: 1; }
 .tbl-list { list-style: none; }
 .tbl-list li {
   font-family: Consolas, 'Courier New', monospace;
-  font-size: 11.2px;
+  font-size: 11.4px;
+  font-weight: 600;
   color: #0F172A;
   padding: 1.5px 0;
-  border-bottom: 1px dotted #E2E8F0;
+  border-bottom: 1px dotted #CBD5E1;
 }
 .tbl-list li:last-child { border-bottom: none; }
-.tbl-list li span.v14 {
+.v14 {
   background: #FEF3C7;
   color: #92400E;
   font-family: 'Segoe UI', Arial, sans-serif;
   font-weight: 700;
-  font-size: 9.8px;
+  font-size: 9.5px;
   padding: 0 4px;
   border-radius: 3px;
-  margin-left: 4px;
 }
 .mod-ft {
-  background: #F8FAFC;
-  border-top: 1px solid #E2E8F0;
-  padding: 6px 10px;
-  font-size: 11px;
-  color: #475569;
+  background: #F1F5F9;
+  border-top: 1px solid #CBD5E1;
+  padding: 5px 8px;
+  font-size: 10.8px;
+  font-weight: 500;
+  color: #1E293B;
 }
-.summary-bar {
-  margin-top: 14px;
-  display: grid;
-  grid-template-columns: 1.5fr 1fr;
-  gap: 12px;
-}
+.summary-bar { margin-top: 11px; display: grid; grid-template-columns: 1.35fr 1fr; gap: 10px; }
 .info-card {
   background: #F8FAFC;
-  border: 1.2px solid #CBD5E1;
-  border-left: 4px solid #1B365D;
+  border: 1.5px solid #94A3B8;
+  border-left: 4.5px solid #1B365D;
   border-radius: 4px;
-  padding: 9px 12px;
-  font-size: 11.8px;
-  line-height: 1.48;
+  padding: 7px 10px;
+  font-size: 11.5px;
+  line-height: 1.42;
 }
 .info-card.v14box { border-left-color: #B45309; background: #FFFBEB; }
-.info-card b { color: #0F172A; }
 </style></head><body>
 <div class="canvas">
   <div class="header">
-    <div class="title">CƠ SỞ DỮ LIỆU 49 BẢNG CHIA THEO 8 PHÂN HỆ (POSTGRESQL 18.6 — V14)</div>
-    <div class="subtitle">49 bảng · 461 cột · 49 PK · 152 FK · 133 CHECK · 7 EXCLUDE · 10 View</div>
+    <div class="title">TỔ CHỨC CSDL 49 BẢNG THEO 8 PHÂN HỆ (POSTGRESQL 18.6 — V14)</div>
+    <div class="subtitle">49 bảng · 461 cột · 152 FK · 133 CHECK · 7 EXCLUDE · 10 View</div>
   </div>
   <div class="grid">
     <div class="mod">
-      <div class="mod-hd"><span>A. Tài khoản &amp; Quyền</span><span class="cnt">6 bảng</span></div>
+      <div class="mod-hd"><span>A. Tài khoản &amp; Quyền</span><span class="cnt">6</span></div>
       <div class="mod-bd"><ul class="tbl-list">
-        <li>users</li>
-        <li>tenant_profiles</li>
-        <li>employee_assignments</li>
-        <li>staff_permission_grants</li>
-        <li>password_reset_tokens</li>
-        <li>audit_events</li>
+        <li>users</li><li>tenant_profiles</li><li>employee_assignments</li>
+        <li>staff_permission_grants</li><li>password_reset_tokens</li><li>audit_events</li>
       </ul></div>
-      <div class="mod-ft">RBAC, phạm vi khu/phòng, hạn mức ủy quyền &amp; nhật ký tra soát.</div>
+      <div class="mod-ft">Phân quyền, phạm vi khu/phòng &amp; nhật ký.</div>
     </div>
-
     <div class="mod">
-      <div class="mod-hd m2"><span>B. Khu, Phòng &amp; Tài sản</span><span class="cnt">7 bảng</span></div>
+      <div class="mod-hd m2"><span>B. Khu, Phòng &amp; Đồ đạc</span><span class="cnt">7</span></div>
       <div class="mod-bd"><ul class="tbl-list">
-        <li>properties</li>
-        <li>rooms</li>
-        <li>room_price_history</li>
-        <li>room_operating_periods</li>
-        <li>asset_types</li>
-        <li>assets</li>
-        <li>asset_placements</li>
+        <li>properties · rooms</li><li>room_price_history</li><li>room_operating_periods</li>
+        <li>asset_types · assets</li><li>asset_placements</li>
       </ul></div>
-      <div class="mod-ft">Lịch sử giá niêm yết, trạng thái khai thác &amp; vị trí đồ đạc theo thời gian.</div>
+      <div class="mod-ft">Lịch sử giá phòng &amp; vị trí tài sản theo kỳ.</div>
     </div>
-
     <div class="mod">
-      <div class="mod-hd m3"><span>C. Hợp đồng &amp; Bàn giao</span><span class="cnt">12 bảng</span></div>
+      <div class="mod-hd m3"><span>C. Hợp đồng &amp; Bàn giao</span><span class="cnt">12</span></div>
       <div class="mod-bd"><ul class="tbl-list">
-        <li>reservations · contracts</li>
-        <li>contract_parties</li>
-        <li>contract_contacts</li>
-        <li>contract_residencies</li>
-        <li>contract_terms <span class="v14">+5 cột V14</span></li>
-        <li>room_possessions</li>
-        <li>move_out_notices</li>
-        <li>handovers</li>
-        <li>handover_items <span class="v14">+1 FK V14</span></li>
-        <li>contract_violations</li>
-        <li>checkout_records</li>
+        <li>reservations · contracts</li><li>contract_parties</li><li>contract_contacts</li>
+        <li>contract_residencies</li><li>contract_terms <span class="v14">+5 V14</span></li>
+        <li>room_possessions</li><li>move_out_notices</li><li>handovers</li>
+        <li>handover_items <span class="v14">+1 V14</span></li><li>contract_violations</li><li>checkout_records</li>
       </ul></div>
-      <div class="mod-ft">Tách bên ký/liên hệ/thực ở; phiên bản điều khoản bất biến; đối chiếu nhận–trả.</div>
+      <div class="mod-ft">Tách người ký / thực ở; đối chiếu nhận–trả.</div>
     </div>
-
     <div class="mod">
-      <div class="mod-hd m4"><span>D. Dịch vụ &amp; Điện nước</span><span class="cnt">9 bảng</span></div>
+      <div class="mod-hd m4"><span>D. Dịch vụ &amp; Điện nước</span><span class="cnt">9</span></div>
       <div class="mod-bd"><ul class="tbl-list">
-        <li>service_items</li>
-        <li>service_price_configs</li>
-        <li>contract_service_subscriptions</li>
-        <li>meters</li>
-        <li>meter_readings</li>
-        <li>consumption_segments</li>
-        <li>alert_policies</li>
-        <li>consumption_alerts</li>
-        <li>alert_baseline_sources</li>
+        <li>service_items</li><li>service_price_configs</li><li>contract_service_sub...</li>
+        <li>meters · meter_readings</li><li>consumption_segments</li><li>alert_policies</li>
+        <li>consumption_alerts</li><li>alert_baseline_sources</li>
       </ul></div>
-      <div class="mod-ft">Công tơ vật lý → điểm đo → đoạn dùng; lưu đủ căn cứ baseline cảnh báo.</div>
+      <div class="mod-ft">Công tơ → điểm đo → đoạn dùng &amp; cảnh báo.</div>
     </div>
-
     <div class="mod">
-      <div class="mod-hd m6"><span>E. Sửa chữa &amp; Bảo trì</span><span class="cnt">4 bảng</span></div>
+      <div class="mod-hd m6"><span>E. Sự cố &amp; Bảo trì</span><span class="cnt">4</span></div>
       <div class="mod-bd"><ul class="tbl-list">
-        <li>maintenance_requests</li>
-        <li>maintenance_events</li>
-        <li>maintenance_costs</li>
-        <li>maintenance_schedules</li>
+        <li>maintenance_requests</li><li>maintenance_events</li>
+        <li>maintenance_costs</li><li>maintenance_schedules</li>
       </ul></div>
-      <div class="mod-ft">Gắn theo vị trí phòng/khu/tài sản; tách chi phí sửa thực tế khỏi tiền bồi thường.</div>
+      <div class="mod-ft">Báo hỏng theo vị trí; tách chi phí sửa thật.</div>
     </div>
-
     <div class="mod">
-      <div class="mod-hd m5"><span>F. Chứng từ &amp; Dòng tiền</span><span class="cnt">7 bảng</span></div>
+      <div class="mod-hd m5"><span>F. Hóa đơn &amp; Sổ quỹ</span><span class="cnt">7</span></div>
       <div class="mod-bd"><ul class="tbl-list">
-        <li>billing_documents</li>
-        <li>billing_items</li>
-        <li>cash_accounts</li>
-        <li>cash_transactions</li>
-        <li>fund_accounts</li>
-        <li>fund_entries</li>
-        <li>fund_holds</li>
+        <li>billing_documents</li><li>billing_items</li><li>cash_accounts</li>
+        <li>cash_transactions</li><li>fund_accounts</li><li>fund_entries</li><li>fund_holds</li>
       </ul></div>
-      <div class="mod-ft">Tách chứng từ phải thu khỏi tiền thật (IN/OUT) &amp; quỹ khách (DEPOSIT/ADVANCE).</div>
+      <div class="mod-ft">Tách chứng từ nợ ↔ tiền thật ↔ quỹ khách.</div>
     </div>
-
     <div class="mod">
-      <div class="mod-hd m7"><span>G. Thông báo</span><span class="cnt">2 bảng</span></div>
+      <div class="mod-hd m7"><span>G. Thông báo</span><span class="cnt">2</span></div>
       <div class="mod-bd"><ul class="tbl-list">
-        <li>notifications</li>
-        <li>notification_recipients</li>
+        <li>notifications</li><li>notification_recipients</li>
       </ul></div>
-      <div class="mod-ft">Khóa chống gửi lặp; theo dõi thời điểm đọc <code>read_at</code> theo từng người dùng.</div>
+      <div class="mod-ft">Theo dõi trạng thái đọc từng tài khoản.</div>
     </div>
-
     <div class="mod">
-      <div class="mod-hd m8"><span>H. Tệp &amp; Chứng cứ ảnh</span><span class="cnt">2 bảng</span></div>
+      <div class="mod-hd m8"><span>H. Tệp &amp; Ảnh minh chứng</span><span class="cnt">2</span></div>
       <div class="mod-bd"><ul class="tbl-list">
-        <li>stored_files</li>
-        <li>file_attachments</li>
+        <li>stored_files</li><li>file_attachments</li>
       </ul></div>
-      <div class="mod-ft">10 cột FK đích có CHECK đúng 1 cột khác NULL (không dùng đa hình thiếu FK).</div>
+      <div class="mod-ft">10 cột FK đích (CHECK đúng 1 cột khác NULL).</div>
     </div>
   </div>
-
   <div class="summary-bar">
-    <div class="info-card">
-      <b>10 View dẫn xuất (không lưu trùng số tổng/công nợ/số dư):</b>
-      <code>v_contract_current</code>, <code>v_room_status</code>, <code>v_segments</code>, <code>v_billing_lines</code>, <code>v_fund_movements</code>, <code>v_fund_balances</code>, <code>v_item_applications</code>, <code>v_item_balances</code>, <code>v_document_balances</code>, <code>v_maintenance</code>.
-    </div>
-    <div class="info-card v14box">
-      <b>Mở rộng bổ sung tại Flyway V14:</b><br>
-      • <code>handover_items.original_item_id</code> (FK tự tham chiếu đối chiếu đồ nhận–trả).<br>
-      • <code>contract_terms</code> thêm 5 cột thông tin 2 bên xuất PDF hợp đồng/phụ lục.
-    </div>
+    <div class="info-card"><b>10 View tính tự động (không lưu cột tổng dư thừa):</b> <code>v_contract_current</code>, <code>v_room_status</code>, <code>v_segments</code>, <code>v_billing_lines</code>, <code>v_fund_movements</code>, <code>v_fund_balances</code>, <code>v_item_applications</code>, <code>v_item_balances</code>, <code>v_document_balances</code>, <code>v_maintenance</code>.</div>
+    <div class="info-card v14box"><b>Cập nhật V14:</b> Thêm <code>handover_items.original_item_id</code> (đối chiếu đồ lúc nhận–trả) và 5 cột Bên A/Bên B trên <code>contract_terms</code> để xuất PDF.</div>
   </div>
 </div>
 </body></html>`;
 
-// 4. Core ERD: Contract–Handover (V14) & Billing–Ledger (Print-calibrated SVG)
+// 4. Core ERD (912px SVG -> super crisp large fonts)
 const DIAG_ERD_CORE = `<!doctype html><html lang="vi"><head><meta charset="utf-8"><style>
 ${COMMON_CSS}
-.svg-wrap { width: 100%; }
 </style></head><body>
 <div class="canvas">
   <div class="header">
-    <div class="title">ERD LÕI: HỢP ĐỒNG – BÀN GIAO (V14) &amp; CHỨNG TỪ – SỔ QUỸ TÀI CHÍNH</div>
-    <div class="subtitle">Crow's Foot · Tách Nghĩa vụ chứng từ ↔ Tiền thật ↔ Quỹ tiền khách</div>
+    <div class="title">ERD TRỌNG TÂM: HỢP ĐỒNG – BÀN GIAO (V14) &amp; HÓA ĐƠN – SỔ QUỸ</div>
+    <div class="subtitle">Ký hiệu Crow's Foot · Tách chứng từ phải thu, tiền mặt và quỹ cọc/trả trước</div>
   </div>
-  <div class="svg-wrap">
-    <svg viewBox="0 0 1140 615" width="1140" height="615" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
-      <!-- Helper styles via SVG elements -->
-      <!-- Zone backgrounds -->
-      <rect x="6" y="6" width="535" height="602" rx="6" fill="#F8FAFC" stroke="#CBD5E1"/>
-      <text x="18" y="26" font-size="12" font-weight="700" fill="#1B365D">KHỐI HỢP ĐỒNG, ĐIỀU KHOẢN &amp; BÀN GIAO ĐỐI CHIẾU (V14)</text>
+  <svg viewBox="0 0 912 525" width="912" height="525" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+    <rect x="4" y="8" width="434" height="510" rx="6" fill="#F8FAFC" stroke="#94A3B8" stroke-width="1.4"/>
+    <text x="14" y="27" font-size="12" font-weight="800" fill="#1B365D">HỢP ĐỒNG, PHỤ LỤC &amp; BÀN GIAO ĐỒ ĐẠC (V14)</text>
 
-      <rect x="556" y="6" width="578" height="602" rx="6" fill="#F8FAFC" stroke="#CBD5E1"/>
-      <text x="568" y="26" font-size="12" font-weight="700" fill="#3730A3">KHỐI CHỨNG TỪ PHẢI THU &amp; SỔ QUỸ APPEND-ONLY</text>
+    <rect x="450" y="8" width="458" height="510" rx="6" fill="#F8FAFC" stroke="#94A3B8" stroke-width="1.4"/>
+    <text x="460" y="27" font-size="12" font-weight="800" fill="#3730A3">CHỨNG TỪ PHẢI THU &amp; SỔ QUỸ TÀI CHÍNH</text>
 
-      <!-- Table macro rendered explicitly -->
-      <!-- 1. contracts -->
-      <g transform="translate(22, 42)">
-        <rect width="235" height="148" rx="4" fill="#FFF" stroke="#1B365D" stroke-width="1.5"/>
-        <rect width="235" height="26" rx="3" fill="#1B365D"/>
-        <text x="10" y="18" fill="#FFF" font-size="12.5" font-weight="700">contracts</text>
-        <text x="10" y="45" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#1B365D">PK</tspan> id : bigint</text>
-        <text x="10" y="63" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#475569">FK</tspan> room_id → rooms</text>
-        <text x="10" y="81" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#475569">FK</tspan> previous_contract_id</text>
-        <text x="10" y="99" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#475569">UQ</tspan> contract_code : varchar</text>
-        <text x="10" y="117" font-size="11.2" font-family="Consolas,monospace">   start_date : date</text>
-        <text x="10" y="135" font-size="11.2" font-family="Consolas,monospace">   status : DRAFT|ACTIVE|ENDED</text>
-      </g>
+    <!-- contracts -->
+    <g transform="translate(14, 42)">
+      <rect width="192" height="126" rx="4" fill="#FFF" stroke="#1B365D" stroke-width="1.8"/>
+      <rect width="192" height="25" rx="3" fill="#1B365D"/>
+      <text x="8" y="17" fill="#FFF" font-size="12.5" font-weight="700">contracts</text>
+      <text x="8" y="43" font-size="11.2" font-weight="600" font-family="Consolas,monospace">PK id : bigint</text>
+      <text x="8" y="60" font-size="11.2" font-family="Consolas,monospace">FK room_id → rooms</text>
+      <text x="8" y="77" font-size="11.2" font-family="Consolas,monospace">UQ contract_code</text>
+      <text x="8" y="94" font-size="11.2" font-family="Consolas,monospace">   start_date : date</text>
+      <text x="8" y="111" font-size="11.2" font-family="Consolas,monospace">   status : ACTIVE|ENDED</text>
+    </g>
 
-      <!-- 2. contract_terms (+V14) -->
-      <g transform="translate(285, 42)">
-        <rect width="242" height="196" rx="4" fill="#FFF" stroke="#1B365D" stroke-width="1.5"/>
-        <rect width="242" height="26" rx="3" fill="#1B365D"/>
-        <text x="10" y="18" fill="#FFF" font-size="12.5" font-weight="700">contract_terms</text>
-        <text x="10" y="45" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#1B365D">PK</tspan> id : bigint</text>
-        <text x="10" y="63" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#475569">FK</tspan> contract_id · version_no</text>
-        <text x="10" y="81" font-size="11.2" font-family="Consolas,monospace">   effective_from · lease_end</text>
-        <text x="10" y="99" font-size="11.2" font-family="Consolas,monospace">   rental_price · deposit_req</text>
-        <text x="10" y="117" font-size="11.2" font-family="Consolas,monospace">   payment_day · signed_at</text>
-        <rect x="4" y="126" width="234" height="64" rx="3" fill="#FEF3C7" stroke="#D97706" stroke-width="0.9"/>
-        <text x="10" y="142" font-size="10.5" font-weight="700" fill="#92400E">Mở rộng V14 (xuất PDF hợp đồng/phụ lục):</text>
-        <text x="10" y="158" font-size="10.8" font-family="Consolas,monospace" fill="#78350F">lessor_name, lessor_identity,</text>
-        <text x="10" y="172" font-size="10.8" font-family="Consolas,monospace" fill="#78350F">lessor_phone, lessor_address,</text>
-        <text x="10" y="185" font-size="10.8" font-family="Consolas,monospace" fill="#78350F">tenant_address</text>
-      </g>
+    <!-- contract_terms -->
+    <g transform="translate(228, 42)">
+      <rect width="198" height="170" rx="4" fill="#FFF" stroke="#1B365D" stroke-width="1.8"/>
+      <rect width="198" height="25" rx="3" fill="#1B365D"/>
+      <text x="8" y="17" fill="#FFF" font-size="12.5" font-weight="700">contract_terms</text>
+      <text x="8" y="43" font-size="11.2" font-weight="600" font-family="Consolas,monospace">PK id · FK contract_id</text>
+      <text x="8" y="60" font-size="11.2" font-family="Consolas,monospace">   version_no · lease_end</text>
+      <text x="8" y="77" font-size="11.2" font-family="Consolas,monospace">   rental_price · deposit</text>
+      <text x="8" y="94" font-size="11.2" font-family="Consolas,monospace">   payment_day · signed_at</text>
+      <rect x="4" y="103" width="190" height="61" rx="3" fill="#FEF3C7" stroke="#D97706" stroke-width="1.2"/>
+      <text x="8" y="118" font-size="10.5" font-weight="700" fill="#92400E">+5 cột V14 (xuất PDF):</text>
+      <text x="8" y="133" font-size="10.6" font-family="Consolas,monospace" fill="#78350F">lessor_name, identity,</text>
+      <text x="8" y="146" font-size="10.6" font-family="Consolas,monospace" fill="#78350F">phone, lessor_address,</text>
+      <text x="8" y="159" font-size="10.6" font-family="Consolas,monospace" fill="#78350F">tenant_address</text>
+    </g>
 
-      <!-- 3. handovers -->
-      <g transform="translate(22, 232)">
-        <rect width="235" height="148" rx="4" fill="#FFF" stroke="#0F4C81" stroke-width="1.5"/>
-        <rect width="235" height="26" rx="3" fill="#0F4C81"/>
-        <text x="10" y="18" fill="#FFF" font-size="12.5" font-weight="700">handovers</text>
-        <text x="10" y="45" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#0F4C81">PK</tspan> id : bigint</text>
-        <text x="10" y="63" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#475569">FK</tspan> contract_id → contracts</text>
-        <text x="10" y="81" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#475569">FK</tspan> possession_id (NULL)</text>
-        <text x="10" y="99" font-size="11.2" font-family="Consolas,monospace">   handover_type: MOVE_IN|OUT</text>
-        <text x="10" y="117" font-size="11.2" font-family="Consolas,monospace">   status: DRAFT|CONFIRMED</text>
-        <text x="10" y="135" font-size="11.2" font-family="Consolas,monospace">   confirmed_by · confirmed_at</text>
-      </g>
+    <!-- handovers -->
+    <g transform="translate(14, 202)">
+      <rect width="192" height="126" rx="4" fill="#FFF" stroke="#0F4C81" stroke-width="1.8"/>
+      <rect width="192" height="25" rx="3" fill="#0F4C81"/>
+      <text x="8" y="17" fill="#FFF" font-size="12.5" font-weight="700">handovers</text>
+      <text x="8" y="43" font-size="11.2" font-weight="600" font-family="Consolas,monospace">PK id · FK contract_id</text>
+      <text x="8" y="60" font-size="11.2" font-family="Consolas,monospace">   handover_type: IN|OUT</text>
+      <text x="8" y="77" font-size="11.2" font-family="Consolas,monospace">   status: DRAFT|CONFIRMED</text>
+      <text x="8" y="94" font-size="11.2" font-family="Consolas,monospace">   occurred_at</text>
+      <text x="8" y="111" font-size="11.2" font-family="Consolas,monospace">   confirmed_by</text>
+    </g>
 
-      <!-- 4. handover_items (+V14 self FK) -->
-      <g transform="translate(285, 272)">
-        <rect width="242" height="162" rx="4" fill="#FFF" stroke="#0F4C81" stroke-width="1.5"/>
-        <rect width="242" height="26" rx="3" fill="#0F4C81"/>
-        <text x="10" y="18" fill="#FFF" font-size="12.5" font-weight="700">handover_items</text>
-        <text x="10" y="45" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#0F4C81">PK</tspan> id : bigint</text>
-        <text x="10" y="63" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#475569">FK</tspan> handover_id → handovers</text>
-        <text x="10" y="81" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#475569">FK</tspan> asset_placement_id (NULL)</text>
-        <text x="10" y="99" font-size="11.2" font-family="Consolas,monospace">   item_name_snapshot · qty</text>
-        <text x="10" y="117" font-size="11.2" font-family="Consolas,monospace">   condition_note · note</text>
-        <rect x="4" y="124" width="234" height="32" rx="3" fill="#FEF3C7" stroke="#D97706" stroke-width="0.9"/>
-        <text x="10" y="139" font-size="10.5" font-weight="700" fill="#92400E">V14 Self-FK đối chiếu nhận–trả:</text>
-        <text x="10" y="152" font-size="10.8" font-family="Consolas,monospace" fill="#78350F">FK original_item_id → self.id</text>
-      </g>
+    <!-- handover_items -->
+    <g transform="translate(228, 236)">
+      <rect width="198" height="148" rx="4" fill="#FFF" stroke="#0F4C81" stroke-width="1.8"/>
+      <rect width="198" height="25" rx="3" fill="#0F4C81"/>
+      <text x="8" y="17" fill="#FFF" font-size="12.5" font-weight="700">handover_items</text>
+      <text x="8" y="43" font-size="11.2" font-weight="600" font-family="Consolas,monospace">PK id · FK handover_id</text>
+      <text x="8" y="60" font-size="11.2" font-family="Consolas,monospace">FK asset_placement_id</text>
+      <text x="8" y="77" font-size="11.2" font-family="Consolas,monospace">   item_name_snapshot</text>
+      <text x="8" y="94" font-size="11.2" font-family="Consolas,monospace">   quantity · condition</text>
+      <rect x="4" y="104" width="190" height="38" rx="3" fill="#FEF3C7" stroke="#D97706" stroke-width="1.2"/>
+      <text x="8" y="119" font-size="10.5" font-weight="700" fill="#92400E">V14 đối chiếu nhận–trả:</text>
+      <text x="8" y="135" font-size="10.8" font-weight="600" font-family="Consolas,monospace" fill="#78350F">FK original_item_id</text>
+    </g>
 
-      <!-- 5. checkout_records -->
-      <g transform="translate(22, 430)">
-        <rect width="235" height="148" rx="4" fill="#FFF" stroke="#0F4C81" stroke-width="1.5"/>
-        <rect width="235" height="26" rx="3" fill="#0F4C81"/>
-        <text x="10" y="18" fill="#FFF" font-size="12.5" font-weight="700">checkout_records</text>
-        <text x="10" y="45" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#0F4C81">PK</tspan> id : bigint</text>
-        <text x="10" y="63" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#475569">FK</tspan> contract_id · return_handover</text>
-        <text x="10" y="81" font-size="11.2" font-family="Consolas,monospace">   billing_end · status</text>
-        <text x="10" y="99" font-size="11.2" font-family="Consolas,monospace">   deposit_snapshot : numeric</text>
-        <text x="10" y="117" font-size="11.2" font-family="Consolas,monospace">   advance_snapshot : numeric</text>
-        <text x="10" y="135" font-size="11.2" font-family="Consolas,monospace">   outstanding_snapshot</text>
-      </g>
+    <!-- checkout_records -->
+    <g transform="translate(14, 368)">
+      <rect width="192" height="132" rx="4" fill="#FFF" stroke="#0F4C81" stroke-width="1.8"/>
+      <rect width="192" height="25" rx="3" fill="#0F4C81"/>
+      <text x="8" y="17" fill="#FFF" font-size="12.5" font-weight="700">checkout_records</text>
+      <text x="8" y="43" font-size="11.2" font-weight="600" font-family="Consolas,monospace">PK id · FK contract_id</text>
+      <text x="8" y="60" font-size="11.2" font-family="Consolas,monospace">FK return_handover_id</text>
+      <text x="8" y="77" font-size="11.2" font-family="Consolas,monospace">   billing_end · status</text>
+      <text x="8" y="94" font-size="11.2" font-family="Consolas,monospace">   deposit_snapshot</text>
+      <text x="8" y="111" font-size="11.2" font-family="Consolas,monospace">   outstanding_snapshot</text>
+    </g>
 
-      <!-- 6. billing_documents -->
-      <g transform="translate(574, 42)">
-        <rect width="256" height="162" rx="4" fill="#FFF" stroke="#3730A3" stroke-width="1.5"/>
-        <rect width="256" height="26" rx="3" fill="#3730A3"/>
-        <text x="10" y="18" fill="#FFF" font-size="12.5" font-weight="700">billing_documents</text>
-        <text x="10" y="45" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#3730A3">PK</tspan> id : bigint</text>
-        <text x="10" y="63" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#475569">FK</tspan> contract_id · checkout_id</text>
-        <text x="10" y="81" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#475569">FK</tspan> related_document_id (ADJ)</text>
-        <text x="10" y="99" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#475569">UQ</tspan> document_code : varchar</text>
-        <text x="10" y="117" font-size="11.2" font-family="Consolas,monospace">   document_type: MONTHLY|COMP…</text>
-        <text x="10" y="135" font-size="11.2" font-family="Consolas,monospace">   billing_period · issue/due</text>
-        <text x="10" y="153" font-size="11.2" font-family="Consolas,monospace">   status: DRAFT|ISSUED (khóa)</text>
-      </g>
+    <!-- billing_documents -->
+    <g transform="translate(462, 42)">
+      <rect width="208" height="142" rx="4" fill="#FFF" stroke="#3730A3" stroke-width="1.8"/>
+      <rect width="208" height="25" rx="3" fill="#3730A3"/>
+      <text x="8" y="17" fill="#FFF" font-size="12.5" font-weight="700">billing_documents</text>
+      <text x="8" y="43" font-size="11.2" font-weight="600" font-family="Consolas,monospace">PK id · FK contract_id</text>
+      <text x="8" y="60" font-size="11.2" font-family="Consolas,monospace">UQ document_code</text>
+      <text x="8" y="77" font-size="11.2" font-family="Consolas,monospace">   type: MONTHLY|COMP…</text>
+      <text x="8" y="94" font-size="11.2" font-family="Consolas,monospace">   billing_period · due</text>
+      <text x="8" y="111" font-size="11.2" font-family="Consolas,monospace">   status: DRAFT|ISSUED</text>
+      <text x="8" y="129" font-size="10.6" font-style="italic" fill="#334155">* Trigger khóa khi ISSUED</text>
+    </g>
 
-      <!-- 7. billing_items -->
-      <g transform="translate(856, 42)">
-        <rect width="262" height="178" rx="4" fill="#FFF" stroke="#3730A3" stroke-width="1.5"/>
-        <rect width="262" height="26" rx="3" fill="#3730A3"/>
-        <text x="10" y="18" fill="#FFF" font-size="12.5" font-weight="700">billing_items</text>
-        <text x="10" y="45" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#3730A3">PK</tspan> id : bigint</text>
-        <text x="10" y="63" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#475569">FK</tspan> document_id → billing_docs</text>
-        <text x="10" y="81" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#475569">FK</tspan> segment_id · handover_item_id</text>
-        <text x="10" y="99" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#475569">FK</tspan> contract_term_id · adjusts_id</text>
-        <text x="10" y="117" font-size="11.2" font-family="Consolas,monospace">   item_kind · direction (DR/CR)</text>
-        <text x="10" y="135" font-size="11.2" font-family="Consolas,monospace">   unit_price_snapshot · qty</text>
-        <text x="10" y="153" font-size="11.2" font-family="Consolas,monospace">   service_from · service_to</text>
-        <text x="10" y="170" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#475569">UQ</tspan> source_key (chống lập trùng)</text>
-      </g>
+    <!-- billing_items -->
+    <g transform="translate(690, 42)">
+      <rect width="208" height="156" rx="4" fill="#FFF" stroke="#3730A3" stroke-width="1.8"/>
+      <rect width="208" height="25" rx="3" fill="#3730A3"/>
+      <text x="8" y="17" fill="#FFF" font-size="12.5" font-weight="700">billing_items</text>
+      <text x="8" y="43" font-size="11.2" font-weight="600" font-family="Consolas,monospace">PK id · FK document_id</text>
+      <text x="8" y="60" font-size="11.2" font-family="Consolas,monospace">FK segment_id (công tơ)</text>
+      <text x="8" y="77" font-size="11.2" font-family="Consolas,monospace">FK handover_item_id</text>
+      <text x="8" y="94" font-size="11.2" font-family="Consolas,monospace">   item_kind · DEBIT|CRED</text>
+      <text x="8" y="111" font-size="11.2" font-family="Consolas,monospace">   unit_price_snapshot</text>
+      <text x="8" y="128" font-size="11.2" font-family="Consolas,monospace">   quantity_snapshot</text>
+      <text x="8" y="145" font-size="11.2" font-family="Consolas,monospace">UQ source_key</text>
+    </g>
 
-      <!-- 8. cash_accounts & cash_transactions -->
-      <g transform="translate(574, 250)">
-        <rect width="256" height="156" rx="4" fill="#FFF" stroke="#0F766E" stroke-width="1.5"/>
-        <rect width="256" height="26" rx="3" fill="#0F766E"/>
-        <text x="10" y="18" fill="#FFF" font-size="12.5" font-weight="700">cash_transactions (Tiền thật)</text>
-        <text x="10" y="45" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#0F766E">PK</tspan> id : bigint</text>
-        <text x="10" y="63" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#475569">FK</tspan> cash_account_id → cash_acc</text>
-        <text x="10" y="81" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#475569">FK</tspan> payment_document_id (V13)</text>
-        <text x="10" y="99" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#475569">UQ</tspan> transaction_code · ext_ref</text>
-        <text x="10" y="117" font-size="11.2" font-family="Consolas,monospace">   direction: IN | OUT (&gt; 0)</text>
-        <text x="10" y="135" font-size="11.2" font-family="Consolas,monospace">   amount · method · occurred_at</text>
-        <text x="10" y="149" font-size="11.2" font-family="Consolas,monospace">   status: PENDING | CONFIRMED</text>
-      </g>
+    <!-- cash_transactions -->
+    <g transform="translate(462, 224)">
+      <rect width="208" height="136" rx="4" fill="#FFF" stroke="#0F766E" stroke-width="1.8"/>
+      <rect width="208" height="25" rx="3" fill="#0F766E"/>
+      <text x="8" y="17" fill="#FFF" font-size="12.5" font-weight="700">cash_transactions</text>
+      <text x="8" y="43" font-size="11.2" font-weight="600" font-family="Consolas,monospace">PK id · FK cash_account</text>
+      <text x="8" y="60" font-size="11.2" font-family="Consolas,monospace">FK payment_document_id</text>
+      <text x="8" y="77" font-size="11.2" font-family="Consolas,monospace">UQ transaction_code</text>
+      <text x="8" y="94" font-size="11.2" font-family="Consolas,monospace">   direction: IN | OUT</text>
+      <text x="8" y="111" font-size="11.2" font-family="Consolas,monospace">   amount · method</text>
+      <text x="8" y="127" font-size="10.6" font-style="italic" fill="#0F766E">* Tiền mặt / Ngân hàng thật</text>
+    </g>
 
-      <!-- 9. fund_accounts -->
-      <g transform="translate(574, 444)">
-        <rect width="256" height="146" rx="4" fill="#FFF" stroke="#4338CA" stroke-width="1.5"/>
-        <rect width="256" height="26" rx="3" fill="#4338CA"/>
-        <text x="10" y="18" fill="#FFF" font-size="12.5" font-weight="700">fund_accounts (Quỹ khách)</text>
-        <text x="10" y="45" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#4338CA">PK</tspan> id : bigint</text>
-        <text x="10" y="63" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#475569">FK</tspan> contract_id · reservation_id</text>
-        <text x="10" y="81" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#475569">UQ</tspan> fund_code : varchar</text>
-        <text x="10" y="99" font-size="11.2" font-family="Consolas,monospace">   fund_type: DEPOSIT|ADVANCE|</text>
-        <text x="10" y="115" font-size="11.2" font-family="Consolas,monospace">              RESERVATION|UNAPPL</text>
-        <text x="10" y="135" font-size="10.8" fill="#475569" font-style="italic">* Số dư tính từ v_fund_balances</text>
-      </g>
+    <!-- fund_accounts -->
+    <g transform="translate(462, 384)">
+      <rect width="208" height="122" rx="4" fill="#FFF" stroke="#4338CA" stroke-width="1.8"/>
+      <rect width="208" height="25" rx="3" fill="#4338CA"/>
+      <text x="8" y="17" fill="#FFF" font-size="12.5" font-weight="700">fund_accounts</text>
+      <text x="8" y="43" font-size="11.2" font-weight="600" font-family="Consolas,monospace">PK id · FK contract_id</text>
+      <text x="8" y="60" font-size="11.2" font-family="Consolas,monospace">   DEPOSIT | ADVANCE |</text>
+      <text x="8" y="76" font-size="11.2" font-family="Consolas,monospace">   RESERVATION | UNAPPL</text>
+      <text x="8" y="95" font-size="10.6" font-style="italic" fill="#334155">* Số dư tính qua View</text>
+      <text x="8" y="111" font-size="10.6" font-style="italic" fill="#334155">* Có bảng tạm giữ fund_holds</text>
+    </g>
 
-      <!-- 10. fund_entries -->
-      <g transform="translate(856, 260)">
-        <rect width="262" height="198" rx="4" fill="#FFF" stroke="#4338CA" stroke-width="1.5"/>
-        <rect width="262" height="26" rx="3" fill="#4338CA"/>
-        <text x="10" y="18" fill="#FFF" font-size="12.5" font-weight="700">fund_entries (Sổ cái bất biến)</text>
-        <text x="10" y="45" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#4338CA">PK</tspan> id : bigint</text>
-        <text x="10" y="63" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#475569">UQ</tspan> entry_code : varchar</text>
-        <text x="10" y="81" font-size="11.2" font-family="Consolas,monospace">   entry_type: RECEIVE|PAYMENT|</text>
-        <text x="10" y="96" font-size="11.2" font-family="Consolas,monospace">     TRANSFER|REFUND|REVERSAL…</text>
-        <text x="10" y="114" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#475569">FK</tspan> cash_transaction_id</text>
-        <text x="10" y="132" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#475569">FK</tspan> from_fund_id · to_fund_id</text>
-        <text x="10" y="150" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#475569">FK</tspan> debit_item_id · credit_item</text>
-        <text x="10" y="168" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#475569">FK</tspan> original_entry_id (đảo)</text>
-        <text x="10" y="186" font-size="11.2" font-family="Consolas,monospace">   amount (&gt;0) · posted_at</text>
-      </g>
+    <!-- fund_entries -->
+    <g transform="translate(690, 236)">
+      <rect width="208" height="270" rx="4" fill="#FFF" stroke="#4338CA" stroke-width="1.8"/>
+      <rect width="208" height="25" rx="3" fill="#4338CA"/>
+      <text x="8" y="17" fill="#FFF" font-size="12.5" font-weight="700">fund_entries (Sổ cái)</text>
+      <text x="8" y="45" font-size="11.2" font-weight="600" font-family="Consolas,monospace">PK id · UQ entry_code</text>
+      <text x="8" y="65" font-size="11.2" font-family="Consolas,monospace">entry_type:</text>
+      <text x="8" y="82" font-size="11" font-family="Consolas,monospace"> • RECEIVE (tiền vào quỹ)</text>
+      <text x="8" y="98" font-size="11" font-family="Consolas,monospace"> • PAYMENT (trả/cấn nợ)</text>
+      <text x="8" y="114" font-size="11" font-family="Consolas,monospace"> • TRANSFER (chuyển quỹ)</text>
+      <text x="8" y="130" font-size="11" font-family="Consolas,monospace"> • REFUND (chi hoàn thật)</text>
+      <text x="8" y="146" font-size="11" font-family="Consolas,monospace"> • REVERSAL (đảo sai)</text>
+      <text x="8" y="168" font-size="11.2" font-family="Consolas,monospace">FK cash_transaction_id</text>
+      <text x="8" y="186" font-size="11.2" font-family="Consolas,monospace">FK from_fund · to_fund</text>
+      <text x="8" y="204" font-size="11.2" font-family="Consolas,monospace">FK debit_item_id</text>
+      <text x="8" y="222" font-size="11.2" font-family="Consolas,monospace">   amount (&gt; 0)</text>
+      <text x="8" y="246" font-size="10.6" font-weight="600" fill="#4338CA">* Chỉ ghi thêm (Append-only)</text>
+    </g>
 
-      <!-- 11. fund_holds -->
-      <g transform="translate(856, 488)">
-        <rect width="262" height="102" rx="4" fill="#FFF" stroke="#475569" stroke-width="1.4"/>
-        <rect width="262" height="24" rx="3" fill="#475569"/>
-        <text x="10" y="17" fill="#FFF" font-size="12" font-weight="700">fund_holds (Tạm giữ có căn cứ)</text>
-        <text x="10" y="42" font-size="11.2" font-family="Consolas,monospace"><tspan font-weight="700" fill="#334155">PK</tspan> id · <tspan font-weight="700">FK</tspan> fund_account_id</text>
-        <text x="10" y="60" font-size="11.2" font-family="Consolas,monospace">   amount · review_on · reason</text>
-        <text x="10" y="78" font-size="11.2" font-family="Consolas,monospace">   released_at (NULL = đang giữ)</text>
-        <text x="10" y="94" font-size="10.5" fill="#475569" font-style="italic">Khả dụng = Số dư quỹ − Tạm giữ</text>
-      </g>
+    <!-- Connectors -->
+    <line x1="206" y1="88" x2="228" y2="88" stroke="#1B365D" stroke-width="2"/>
+    <text x="209" y="82" font-size="11" font-weight="800" fill="#1B365D">1:N</text>
 
-      <!-- Relationship connectors with cardinality labels -->
-      <!-- contracts 1--N contract_terms -->
-      <line x1="257" y1="92" x2="285" y2="92" stroke="#1B365D" stroke-width="1.6"/>
-      <text x="261" y="86" font-size="10.5" font-weight="700" fill="#1B365D">1</text>
-      <text x="272" y="106" font-size="10.5" font-weight="700" fill="#1B365D">N</text>
+    <line x1="110" y1="168" x2="110" y2="202" stroke="#0F4C81" stroke-width="2"/>
+    <text x="116" y="190" font-size="11" font-weight="800" fill="#0F4C81">1:N</text>
 
-      <!-- contracts 1--N handovers -->
-      <line x1="138" y1="190" x2="138" y2="232" stroke="#0F4C81" stroke-width="1.6"/>
-      <text x="144" y="205" font-size="10.5" font-weight="700" fill="#0F4C81">1</text>
-      <text x="144" y="226" font-size="10.5" font-weight="700" fill="#0F4C81">0..N</text>
+    <line x1="206" y1="274" x2="228" y2="274" stroke="#0F4C81" stroke-width="2"/>
+    <text x="209" y="268" font-size="11" font-weight="800" fill="#0F4C81">1:N</text>
 
-      <!-- handovers 1--N handover_items -->
-      <path d="M 257 315 L 285 315" fill="none" stroke="#0F4C81" stroke-width="1.6"/>
-      <text x="261" y="309" font-size="10.5" font-weight="700" fill="#0F4C81">1</text>
-      <text x="271" y="330" font-size="10.5" font-weight="700" fill="#0F4C81">N</text>
+    <line x1="110" y1="328" x2="110" y2="368" stroke="#0F4C81" stroke-width="2"/>
+    <text x="116" y="352" font-size="11" font-weight="800" fill="#0F4C81">0..1</text>
 
-      <!-- handover_items self-ref loop -->
-      <path d="M 527 415 L 542 415 L 542 454 L 405 454 L 405 434" fill="none" stroke="#D97706" stroke-width="1.5" stroke-dasharray="4 2"/>
-      <text x="415" y="470" font-size="10.2" font-weight="700" fill="#92400E">0..1 đối chiếu dòng nhận gốc</text>
+    <!-- Self loop on handover_items -->
+    <path d="M 328 384 L 328 408 L 432 408 L 432 362 L 426 362" fill="none" stroke="#D97706" stroke-width="1.8" stroke-dasharray="4 2"/>
+    <text x="242" y="423" font-size="10.8" font-weight="700" fill="#92400E">0..1 trỏ dòng nhận phòng gốc</text>
 
-      <!-- handovers 0..1 -- checkout_records -->
-      <line x1="138" y1="380" x2="138" y2="430" stroke="#0F4C81" stroke-width="1.6"/>
-      <text x="144" y="396" font-size="10.5" font-weight="700" fill="#0F4C81">0..1</text>
-      <text x="144" y="424" font-size="10.5" font-weight="700" fill="#0F4C81">0..1</text>
+    <!-- contracts -> billing_documents -->
+    <path d="M 110 42 L 110 33 L 555 33 L 555 42" fill="none" stroke="#3730A3" stroke-width="1.8"/>
+    <rect x="422" y="22" width="40" height="16" fill="#FFF"/>
+    <text x="442" y="34" text-anchor="middle" font-size="11" font-weight="800" fill="#3730A3">1:N</text>
 
-      <!-- contracts -> billing_documents (routed cleanly ABOVE contract_terms header) -->
-      <path d="M 140 42 L 140 31 L 690 31 L 690 42" fill="none" stroke="#3730A3" stroke-width="1.6"/>
-      <rect x="520" y="21" width="52" height="16" rx="3" fill="#FFFFFF"/>
-      <text x="546" y="33" text-anchor="middle" font-size="10.5" font-weight="700" fill="#3730A3">1 : N</text>
+    <!-- handover_items -> billing_items -->
+    <path d="M 426 254 L 444 254 L 444 208 L 760 208 L 760 198" fill="none" stroke="#D97706" stroke-width="1.7" stroke-dasharray="5 3"/>
+    <text x="605" y="203" text-anchor="middle" font-size="10.8" font-weight="700" fill="#92400E">Căn cứ lập bồi thường hỏng đồ</text>
 
-      <!-- handover_items -> billing_items (COMPENSATION damage link) -->
-      <path d="M 527 290 L 550 290 L 550 228 L 960 228 L 960 220" fill="none" stroke="#D97706" stroke-width="1.4" stroke-dasharray="5 3"/>
-      <text x="760" y="222" text-anchor="middle" font-size="10.2" font-weight="700" fill="#92400E">Căn cứ bồi thường (handover_item_id)</text>
+    <line x1="670" y1="105" x2="690" y2="105" stroke="#3730A3" stroke-width="2"/>
+    <text x="672" y="99" font-size="11" font-weight="800" fill="#3730A3">1:N</text>
 
-      <!-- billing_documents 1--N billing_items -->
-      <line x1="830" y1="108" x2="856" y2="108" stroke="#3730A3" stroke-width="1.6"/>
-      <text x="833" y="102" font-size="10.5" font-weight="700" fill="#3730A3">1</text>
-      <text x="844" y="122" font-size="10.5" font-weight="700" fill="#3730A3">N</text>
+    <line x1="815" y1="198" x2="815" y2="236" stroke="#4338CA" stroke-width="2"/>
+    <text x="821" y="222" font-size="11" font-weight="800" fill="#4338CA">1:N</text>
 
-      <!-- billing_items 1--N fund_entries -->
-      <line x1="990" y1="220" x2="990" y2="260" stroke="#4338CA" stroke-width="1.6"/>
-      <text x="996" y="238" font-size="10.5" font-weight="700" fill="#4338CA">1</text>
-      <text x="996" y="255" font-size="10.5" font-weight="700" fill="#4338CA">0..N (PAYMENT)</text>
+    <line x1="670" y1="295" x2="690" y2="295" stroke="#0F766E" stroke-width="2"/>
+    <text x="672" y="289" font-size="11" font-weight="800" fill="#0F766E">1:N</text>
 
-      <!-- cash_transactions 1--N fund_entries -->
-      <line x1="830" y1="330" x2="856" y2="330" stroke="#0F766E" stroke-width="1.6"/>
-      <text x="833" y="324" font-size="10.5" font-weight="700" fill="#0F766E">1</text>
-      <text x="843" y="344" font-size="10.5" font-weight="700" fill="#0F766E">N</text>
-
-      <!-- fund_accounts 1--N fund_entries -->
-      <path d="M 830 470 L 845 470 L 845 390 L 856 390" fill="none" stroke="#4338CA" stroke-width="1.6"/>
-      <text x="835" y="465" font-size="10.5" font-weight="700" fill="#4338CA">1</text>
-      <text x="845" y="384" font-size="10.5" font-weight="700" fill="#4338CA">N</text>
-
-      <!-- fund_accounts 1--N fund_holds -->
-      <line x1="830" y1="538" x2="856" y2="538" stroke="#475569" stroke-width="1.6"/>
-      <text x="833" y="532" font-size="10.5" font-weight="700" fill="#475569">1</text>
-      <text x="839" y="553" font-size="10.5" font-weight="700" fill="#475569">0..N</text>
-    </svg>
-  </div>
-  <div class="footer-note">
-    <span>Nguồn: Đối chiếu trực tiếp từ <code>docs/quanlytro.sql</code> và <code>V11–V14</code>. Toàn bộ 8 phân hệ chi tiết đầy đủ lưu tại <code>docs/dbdiagram/modules/</code>.</span>
-    <span>ERD Lõi V14</span>
-  </div>
+    <line x1="670" y1="435" x2="690" y2="435" stroke="#4338CA" stroke-width="2"/>
+    <text x="672" y="429" font-size="11" font-weight="800" fill="#4338CA">1:N</text>
+  </svg>
 </div>
 </body></html>`;
 
-// 5. Sequence Diagram 1: Meter -> Alert -> Invoice -> Payment (Overpayment split)
+// 5. Sequence 1: Meter -> Alert -> Invoice -> Payment (912px SVG, crisp bold text)
 const DIAG_SEQ_BILLING = `<!doctype html><html lang="vi"><head><meta charset="utf-8"><style>
 ${COMMON_CSS}
 </style></head><body>
 <div class="canvas">
   <div class="header">
-    <div class="title">TUẦN TỰ: GHI CHỈ SỐ — CẢNH BÁO BẤT THƯỜNG — HÓA ĐƠN — THANH TOÁN</div>
-    <div class="subtitle">Khóa đồng thời (FOR UPDATE) · Chống gửi lặp (Idempotency)</div>
+    <div class="title">LUỒNG GHI CHỈ SỐ — CẢNH BÁO — HÓA ĐƠN — THU TIỀN</div>
+    <div class="subtitle">Khóa dòng FOR UPDATE · Chặn phát hành khi cảnh báo PENDING · Chống thu lặp</div>
   </div>
-  <svg viewBox="0 0 1140 605" width="1140" height="605" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+  <svg viewBox="0 0 912 500" width="912" height="500" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
     <defs>
-      <marker id="mSolid" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
         <path d="M 0 1 L 10 5 L 0 9 z" fill="#1B365D"/>
       </marker>
-      <marker id="mDash" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
-        <path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#475569" stroke-width="1.6"/>
-      </marker>
-      <marker id="mWarn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
-        <path d="M 0 1 L 10 5 L 0 9 z" fill="#B45309"/>
+      <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+        <path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#334155" stroke-width="1.8"/>
       </marker>
     </defs>
 
-    <!-- Lifelines headers -->
-    <g font-size="12.5" font-weight="700" text-anchor="middle">
-      <rect x="20" y="10" width="140" height="40" rx="4" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.6"/>
-      <text x="90" y="28" fill="#1B365D">ADMIN / STAFF</text>
-      <text x="90" y="43" font-size="10.8" font-weight="500" fill="#475569">(Giao diện React)</text>
+    <g font-size="12" font-weight="700" text-anchor="middle">
+      <rect x="12" y="8" width="122" height="36" rx="4" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.8"/>
+      <text x="73" y="30" fill="#1B365D">Quản lý (UI)</text>
 
-      <rect x="235" y="10" width="165" height="40" rx="4" fill="#1B365D"/>
-      <text x="317" y="28" fill="#FFF">Meters49</text>
-      <text x="317" y="43" font-size="10.8" font-weight="400" fill="#CBD5E1">Đo &amp; Cảnh báo</text>
+      <rect x="198" y="8" width="136" height="36" rx="4" fill="#1B365D"/>
+      <text x="266" y="30" fill="#FFF">Meters49</text>
 
-      <rect x="475" y="10" width="165" height="40" rx="4" fill="#1B365D"/>
-      <text x="557" y="28" fill="#FFF">Billing49</text>
-      <text x="557" y="43" font-size="10.8" font-weight="400" fill="#CBD5E1">Hóa đơn bất biến</text>
+      <rect x="394" y="8" width="136" height="36" rx="4" fill="#1B365D"/>
+      <text x="462" y="30" fill="#FFF">Billing49</text>
 
-      <rect x="715" y="10" width="165" height="40" rx="4" fill="#1B365D"/>
-      <text x="797" y="28" fill="#FFF">Finance49</text>
-      <text x="797" y="43" font-size="10.8" font-weight="400" fill="#CBD5E1">Sổ tiền &amp; Quỹ khách</text>
+      <rect x="590" y="8" width="136" height="36" rx="4" fill="#1B365D"/>
+      <text x="658" y="30" fill="#FFF">Finance49</text>
 
-      <rect x="955" y="10" width="165" height="40" rx="4" fill="#1E293B"/>
-      <text x="1037" y="28" fill="#FFF">PostgreSQL 18.6</text>
-      <text x="1037" y="43" font-size="10.8" font-weight="400" fill="#CBD5E1">Trigger · View · Lock</text>
+      <rect x="776" y="8" width="126" height="36" rx="4" fill="#1E293B"/>
+      <text x="839" y="30" fill="#FFF">PostgreSQL</text>
     </g>
 
-    <!-- Vertical dashed lifelines -->
-    <line x1="90" y1="50" x2="90" y2="592" stroke="#94A3B8" stroke-width="1.4" stroke-dasharray="5 4"/>
-    <line x1="317" y1="50" x2="317" y2="592" stroke="#94A3B8" stroke-width="1.4" stroke-dasharray="5 4"/>
-    <line x1="557" y1="50" x2="557" y2="592" stroke="#94A3B8" stroke-width="1.4" stroke-dasharray="5 4"/>
-    <line x1="797" y1="50" x2="797" y2="592" stroke="#94A3B8" stroke-width="1.4" stroke-dasharray="5 4"/>
-    <line x1="1037" y1="50" x2="1037" y2="592" stroke="#94A3B8" stroke-width="1.4" stroke-dasharray="5 4"/>
+    <line x1="73" y1="44" x2="73" y2="490" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <line x1="266" y1="44" x2="266" y2="490" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <line x1="462" y1="44" x2="462" y2="490" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <line x1="658" y1="44" x2="658" y2="490" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <line x1="839" y1="44" x2="839" y2="490" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="5 4"/>
 
-    <!-- Phase 1: Meter reading & Alert -->
-    <rect x="16" y="66" width="1108" height="172" rx="4" fill="#F8FAFC" fill-opacity="0.55" stroke="#CBD5E1"/>
-    <rect x="16" y="66" width="230" height="22" rx="2" fill="#1B365D"/>
-    <text x="26" y="81" font-size="11.2" font-weight="700" fill="#FFF">1. Ghi chỉ số &amp; Đánh giá bất thường</text>
+    <!-- Block 1 -->
+    <rect x="8" y="56" width="896" height="142" rx="4" fill="#F8FAFC" fill-opacity="0.6" stroke="#94A3B8"/>
+    <rect x="8" y="56" width="235" height="20" fill="#1B365D"/>
+    <text x="16" y="70" font-size="11" font-weight="700" fill="#FFF">1. Ghi công tơ &amp; Cảnh báo bất thường</text>
 
-    <line x1="90" y1="108" x2="312" y2="108" stroke="#1B365D" stroke-width="1.6" marker-end="url(#mSolid)"/>
-    <text x="200" y="102" text-anchor="middle" font-size="11.5" font-weight="600">POST /api/meter-readings (oldIndex, newIndex)</text>
+    <line x1="73" y1="96" x2="261" y2="96" stroke="#1B365D" stroke-width="1.8" marker-end="url(#a1)"/>
+    <text x="168" y="90" text-anchor="middle" font-size="11.2" font-weight="700">POST /meter-readings</text>
 
-    <line x1="317" y1="134" x2="1032" y2="134" stroke="#1B365D" stroke-width="1.5" marker-end="url(#mSolid)"/>
-    <text x="675" y="128" text-anchor="middle" font-size="11.3">FOR UPDATE (rooms, contracts, meters) → INSERT meter_readings + consumption_segments</text>
+    <line x1="266" y1="120" x2="834" y2="120" stroke="#1B365D" stroke-width="1.7" marker-end="url(#a1)"/>
+    <text x="550" y="114" text-anchor="middle" font-size="11.3" font-weight="600">FOR UPDATE (rooms, contracts, meters) → lưu điểm đo &amp; đoạn tiêu thụ</text>
 
-    <line x1="317" y1="164" x2="1032" y2="164" stroke="#B45309" stroke-width="1.5" marker-end="url(#mWarn)"/>
-    <text x="675" y="158" text-anchor="middle" font-size="11.3" fill="#92400E" font-weight="600">analyze(): So mức dùng/ngày hiện tại với baseline WEIGHTED_DAILY → lưu consumption_alerts + baseline_sources</text>
+    <line x1="266" y1="150" x2="834" y2="150" stroke="#B45309" stroke-width="1.8" marker-end="url(#a1)"/>
+    <text x="550" y="144" text-anchor="middle" font-size="11.3" font-weight="700" fill="#92400E">analyze(): So mức dùng/ngày với TB lịch sử → tạo cảnh báo PENDING nếu vượt %</text>
 
-    <line x1="317" y1="194" x2="95" y2="194" stroke="#475569" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#mDash)"/>
-    <text x="205" y="188" text-anchor="middle" font-size="11.2" fill="#92400E">Trả segment + cảnh báo PENDING (nếu vượt ngưỡng %)</text>
+    <line x1="73" y1="182" x2="261" y2="182" stroke="#1B365D" stroke-width="1.7" marker-end="url(#a1)"/>
+    <text x="168" y="176" text-anchor="middle" font-size="11.2" font-weight="600">PUT /alerts/{id} (Xác nhận / Bỏ qua)</text>
 
-    <line x1="90" y1="224" x2="312" y2="224" stroke="#1B365D" stroke-width="1.5" marker-end="url(#mSolid)"/>
-    <text x="200" y="218" text-anchor="middle" font-size="11.3">PUT /api/alerts/{id} (CONFIRMED / DISMISSED + ghi chú)</text>
+    <!-- Block 2 -->
+    <rect x="8" y="210" width="896" height="128" rx="4" fill="#F8FAFC" fill-opacity="0.6" stroke="#94A3B8"/>
+    <rect x="8" y="210" width="235" height="20" fill="#0F4C81"/>
+    <text x="16" y="224" font-size="11" font-weight="700" fill="#FFF">2. Lập nháp &amp; Phát hành hóa đơn</text>
 
-    <!-- Phase 2: Invoice Draft & Issue -->
-    <rect x="16" y="250" width="1108" height="156" rx="4" fill="#F8FAFC" fill-opacity="0.55" stroke="#CBD5E1"/>
-    <rect x="16" y="250" width="248" height="22" rx="2" fill="#0F4C81"/>
-    <text x="26" y="265" font-size="11.2" font-weight="700" fill="#FFF">2. Lập nháp &amp; Phát hành hóa đơn khóa</text>
+    <line x1="73" y1="250" x2="457" y2="250" stroke="#1B365D" stroke-width="1.8" marker-end="url(#a1)"/>
+    <text x="265" y="244" text-anchor="middle" font-size="11.3" font-weight="700">POST /invoices (contractId, period)</text>
 
-    <line x1="90" y1="292" x2="552" y2="292" stroke="#1B365D" stroke-width="1.6" marker-end="url(#mSolid)"/>
-    <text x="320" y="286" text-anchor="middle" font-size="11.5" font-weight="600">POST /api/invoices (contractId, period)</text>
+    <line x1="462" y1="274" x2="834" y2="274" stroke="#1B365D" stroke-width="1.7" marker-end="url(#a1)"/>
+    <text x="648" y="268" text-anchor="middle" font-size="11.2" font-weight="600">Chụp snapshot giá, ngày ở, chỉ số → DRAFT</text>
 
-    <line x1="557" y1="318" x2="1032" y2="318" stroke="#1B365D" stroke-width="1.5" marker-end="url(#mSolid)"/>
-    <text x="795" y="312" text-anchor="middle" font-size="11.3">Khóa hợp đồng → Snapshot đơn giá/ngày-người/chỉ số → DRAFT</text>
+    <line x1="73" y1="302" x2="457" y2="302" stroke="#1B365D" stroke-width="1.8" marker-end="url(#a1)"/>
+    <text x="265" y="296" text-anchor="middle" font-size="11.3" font-weight="700">POST /billing-documents/{id}/issue</text>
 
-    <line x1="90" y1="348" x2="552" y2="348" stroke="#1B365D" stroke-width="1.6" marker-end="url(#mSolid)"/>
-    <text x="320" y="342" text-anchor="middle" font-size="11.5" font-weight="600">POST /api/billing-documents/{id}/issue</text>
+    <line x1="462" y1="324" x2="834" y2="324" stroke="#1B365D" stroke-width="1.7" marker-end="url(#a1)"/>
+    <text x="648" y="318" text-anchor="middle" font-size="11.2" font-weight="600">Kiểm hết PENDING → ISSUED (Trigger khóa cứng)</text>
 
-    <line x1="557" y1="376" x2="1032" y2="376" stroke="#1B365D" stroke-width="1.5" marker-end="url(#mSolid)"/>
-    <text x="795" y="370" text-anchor="middle" font-size="11.3">Kiểm tra không còn alert PENDING → UPDATE status='ISSUED' (Trigger khóa sửa/xóa)</text>
+    <!-- Block 3 -->
+    <rect x="8" y="350" width="896" height="136" rx="4" fill="#F8FAFC" fill-opacity="0.6" stroke="#94A3B8"/>
+    <rect x="8" y="350" width="255" height="20" fill="#3730A3"/>
+    <text x="16" y="364" font-size="11" font-weight="700" fill="#FFF">3. Thu tiền &amp; Tách tiền thừa vào ADVANCE</text>
 
-    <line x1="557" y1="396" x2="95" y2="396" stroke="#475569" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#mDash)"/>
-    <text x="320" y="391" text-anchor="middle" font-size="11.1" fill="#475569">200 OK (hoặc 409 nếu còn cảnh báo PENDING chưa xác nhận)</text>
+    <line x1="73" y1="392" x2="653" y2="392" stroke="#1B365D" stroke-width="1.8" marker-end="url(#a1)"/>
+    <text x="363" y="386" text-anchor="middle" font-size="11.3" font-weight="700">POST /invoices/{id}/payments (code, amount, cashAccountId)</text>
 
-    <!-- Phase 3: Payment & Overpayment Split -->
-    <rect x="16" y="418" width="1108" height="168" rx="4" fill="#F8FAFC" fill-opacity="0.55" stroke="#CBD5E1"/>
-    <rect x="16" y="418" width="290" height="22" rx="2" fill="#3730A3"/>
-    <text x="26" y="433" font-size="11.2" font-weight="700" fill="#FFF">3. Thu tiền, Idempotency &amp; Tách tiền thừa</text>
+    <line x1="658" y1="420" x2="834" y2="420" stroke="#1B365D" stroke-width="1.7" marker-end="url(#a1)"/>
+    <text x="746" y="414" text-anchor="middle" font-size="10.8" font-weight="600">1× cash_transactions (IN)</text>
 
-    <line x1="90" y1="462" x2="792" y2="462" stroke="#1B365D" stroke-width="1.6" marker-end="url(#mSolid)"/>
-    <text x="440" y="456" text-anchor="middle" font-size="11.5" font-weight="600">POST /api/invoices/{id}/payments (code, amount, cashAccountId, occurredAt, externalReference)</text>
+    <line x1="658" y1="448" x2="834" y2="448" stroke="#1B365D" stroke-width="1.7" marker-end="url(#a1)"/>
+    <text x="746" y="442" text-anchor="middle" font-size="10.8" font-weight="600">PAYMENT ≤ nợ; dư → ADVANCE</text>
 
-    <line x1="797" y1="490" x2="1032" y2="490" stroke="#1B365D" stroke-width="1.5" marker-end="url(#mSolid)"/>
-    <text x="915" y="484" text-anchor="middle" font-size="11">Khóa advisory + kiểm mã trùng</text>
-
-    <line x1="797" y1="520" x2="1032" y2="520" stroke="#1B365D" stroke-width="1.5" marker-end="url(#mSolid)"/>
-    <text x="915" y="514" text-anchor="middle" font-size="11">1× cash_transactions (IN)</text>
-
-    <line x1="797" y1="548" x2="1032" y2="548" stroke="#1B365D" stroke-width="1.5" marker-end="url(#mSolid)"/>
-    <text x="915" y="542" text-anchor="middle" font-size="10.3">RECEIVE → PAYMENT (≤ nợ); dư → ADVANCE</text>
-
-    <line x1="797" y1="574" x2="95" y2="574" stroke="#475569" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#mDash)"/>
-    <text x="445" y="568" text-anchor="middle" font-size="11.2" fill="#0F766E" font-weight="600">Trả kết quả thu &amp; số dư công nợ mới từ v_document_balances (gửi lại cùng code trả bản gốc, không thu trùng)</text>
+    <line x1="658" y1="474" x2="78" y2="474" stroke="#334155" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#a2)"/>
+    <text x="368" y="468" text-anchor="middle" font-size="11.2" font-weight="700" fill="#0F766E">Cập nhật nợ qua v_document_balances (bấm gửi lặp cùng code không thu 2 lần)</text>
   </svg>
-  <div class="footer-note">
-    <span>Nguồn: Hiện thực thực tế tại <code>Meters49.java</code>, <code>Billing49.java</code> và <code>Finance49.java</code>.</span>
-    <span>UML Sequence Diagram</span>
-  </div>
 </div>
 </body></html>`;
 
-// 6. Sequence Diagram 2: Checkout -> Move-out Handover Comparison -> Damage Compensation -> Settlement -> Refund
+// 6. Sequence 2: Checkout -> Handover Comparison -> Compensation -> Settlement -> Refund
 const DIAG_SEQ_CHECKOUT = `<!doctype html><html lang="vi"><head><meta charset="utf-8"><style>
 ${COMMON_CSS}
 </style></head><body>
 <div class="canvas">
   <div class="header">
-    <div class="title">TUẦN TỰ: TRẢ PHÒNG — ĐỐI CHIẾU ĐỒ ĐẠC — BỒI THƯỜNG — QUYẾT TOÁN</div>
-    <div class="subtitle">4 bước tách biệt: Kiểm kê → Bồi thường → Duyệt quyết toán → Chi hoàn thật</div>
+    <div class="title">LUỒNG TRẢ PHÒNG — ĐỐI CHIẾU ĐỒ ĐẠC — BỒI THƯỜNG — HOÀN CỌC</div>
+    <div class="subtitle">Ví dụ phòng P201: Cọc giữ 3.800.000 ₫ − Bồi thường hỏng điều hòa 350.000 ₫ = Hoàn 3.450.000 ₫</div>
   </div>
-  <svg viewBox="0 0 1140 580" width="1140" height="580" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+  <svg viewBox="0 0 912 485" width="912" height="485" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
     <defs>
-      <marker id="sSolid" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <marker id="b1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
         <path d="M 0 1 L 10 5 L 0 9 z" fill="#1B365D"/>
       </marker>
-      <marker id="sDash" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
-        <path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#475569" stroke-width="1.6"/>
+      <marker id="b2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+        <path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#334155" stroke-width="1.8"/>
       </marker>
     </defs>
 
-    <!-- Lifelines -->
-    <g font-size="12.5" font-weight="700" text-anchor="middle">
-      <rect x="20" y="10" width="140" height="40" rx="4" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.6"/>
-      <text x="90" y="28" fill="#1B365D">ADMIN / STAFF</text>
-      <text x="90" y="43" font-size="10.8" font-weight="500" fill="#475569">(Màn hình Hợp đồng)</text>
+    <g font-size="12" font-weight="700" text-anchor="middle">
+      <rect x="12" y="8" width="122" height="36" rx="4" fill="#EFF6FF" stroke="#1B365D" stroke-width="1.8"/>
+      <text x="73" y="30" fill="#1B365D">Quản lý (UI)</text>
 
-      <rect x="235" y="10" width="165" height="40" rx="4" fill="#0F4C81"/>
-      <text x="317" y="28" fill="#FFF">Api49 &amp; Files49</text>
-      <text x="317" y="43" font-size="10.8" font-weight="400" fill="#CBD5E1">Bàn giao &amp; Bồi thường</text>
+      <rect x="198" y="8" width="136" height="36" rx="4" fill="#0F4C81"/>
+      <text x="266" y="30" fill="#FFF">Api49 &amp; Files49</text>
 
-      <rect x="475" y="10" width="165" height="40" rx="4" fill="#1B365D"/>
-      <text x="557" y="28" fill="#FFF">Settlements49</text>
-      <text x="557" y="43" font-size="10.8" font-weight="400" fill="#CBD5E1">Trả phòng &amp; Quyết toán</text>
+      <rect x="394" y="8" width="136" height="36" rx="4" fill="#1B365D"/>
+      <text x="462" y="30" fill="#FFF">Settlements49</text>
 
-      <rect x="715" y="10" width="165" height="40" rx="4" fill="#3730A3"/>
-      <text x="797" y="28" fill="#FFF">Finance49</text>
-      <text x="797" y="43" font-size="10.8" font-weight="400" fill="#CBD5E1">Cấn cọc &amp; Chi hoàn</text>
+      <rect x="590" y="8" width="136" height="36" rx="4" fill="#3730A3"/>
+      <text x="658" y="30" fill="#FFF">Finance49</text>
 
-      <rect x="955" y="10" width="165" height="40" rx="4" fill="#1E293B"/>
-      <text x="1037" y="28" fill="#FFF">PostgreSQL 18.6</text>
-      <text x="1037" y="43" font-size="10.8" font-weight="400" fill="#CBD5E1">V14 · ACID Tx</text>
+      <rect x="776" y="8" width="126" height="36" rx="4" fill="#1E293B"/>
+      <text x="839" y="30" fill="#FFF">PostgreSQL</text>
     </g>
 
-    <line x1="90" y1="50" x2="90" y2="565" stroke="#94A3B8" stroke-width="1.4" stroke-dasharray="5 4"/>
-    <line x1="317" y1="50" x2="317" y2="565" stroke="#94A3B8" stroke-width="1.4" stroke-dasharray="5 4"/>
-    <line x1="557" y1="50" x2="557" y2="565" stroke="#94A3B8" stroke-width="1.4" stroke-dasharray="5 4"/>
-    <line x1="797" y1="50" x2="797" y2="565" stroke="#94A3B8" stroke-width="1.4" stroke-dasharray="5 4"/>
-    <line x1="1037" y1="50" x2="1037" y2="565" stroke="#94A3B8" stroke-width="1.4" stroke-dasharray="5 4"/>
+    <line x1="73" y1="44" x2="73" y2="476" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <line x1="266" y1="44" x2="266" y2="476" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <line x1="462" y1="44" x2="462" y2="476" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <line x1="658" y1="44" x2="658" y2="476" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <line x1="839" y1="44" x2="839" y2="476" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="5 4"/>
 
-    <!-- Step 1: Move-out handover & comparison -->
-    <rect x="16" y="66" width="1108" height="190" rx="4" fill="#F8FAFC" fill-opacity="0.55" stroke="#CBD5E1"/>
-    <rect x="16" y="66" width="335" height="22" rx="2" fill="#0F4C81"/>
-    <text x="26" y="81" font-size="11.2" font-weight="700" fill="#FFF">1. Lập biên bản trả phòng &amp; Đối chiếu đồ đạc (V14)</text>
+    <!-- Step 1 -->
+    <rect x="8" y="56" width="896" height="156" rx="4" fill="#F8FAFC" fill-opacity="0.6" stroke="#94A3B8"/>
+    <rect x="8" y="56" width="285" height="20" fill="#0F4C81"/>
+    <text x="16" y="70" font-size="11" font-weight="700" fill="#FFF">1. Biên bản trả phòng &amp; Bồi thường hỏng đồ (V14)</text>
 
-    <line x1="90" y1="108" x2="312" y2="108" stroke="#1B365D" stroke-width="1.6" marker-end="url(#sSolid)"/>
-    <text x="200" y="102" text-anchor="middle" font-size="11.4" font-weight="600">POST /contracts/{id}/handovers (MOVE_OUT)</text>
+    <line x1="73" y1="96" x2="261" y2="96" stroke="#1B365D" stroke-width="1.8" marker-end="url(#b1)"/>
+    <text x="168" y="90" text-anchor="middle" font-size="11.2" font-weight="700">POST /handovers (MOVE_OUT)</text>
 
-    <line x1="317" y1="132" x2="1032" y2="132" stroke="#1B365D" stroke-width="1.5" marker-end="url(#sSolid)"/>
-    <text x="675" y="126" text-anchor="middle" font-size="11.3">Tự nạp hạng mục từ biên bản MOVE_IN đã xác nhận và gắn FK original_item_id</text>
+    <line x1="266" y1="118" x2="834" y2="118" stroke="#1B365D" stroke-width="1.7" marker-end="url(#b1)"/>
+    <text x="550" y="112" text-anchor="middle" font-size="11.2" font-weight="600">Nạp danh sách đồ từ biên bản nhận MOVE_IN (gắn FK original_item_id)</text>
 
-    <line x1="90" y1="160" x2="312" y2="160" stroke="#1B365D" stroke-width="1.5" marker-end="url(#sSolid)"/>
-    <text x="200" y="154" text-anchor="middle" font-size="11.3">PUT items + POST /files/handover-item/{id} (ảnh hỏng)</text>
+    <line x1="73" y1="146" x2="261" y2="146" stroke="#1B365D" stroke-width="1.7" marker-end="url(#b1)"/>
+    <text x="168" y="140" text-anchor="middle" font-size="11.1" font-weight="600">Ghi hiện trạng + ảnh hỏng + confirm</text>
 
-    <line x1="90" y1="190" x2="312" y2="190" stroke="#1B365D" stroke-width="1.6" marker-end="url(#sSolid)"/>
-    <text x="200" y="184" text-anchor="middle" font-size="11.4" font-weight="600">POST /handovers/{id}/confirm (khóa kiểm kê)</text>
+    <line x1="73" y1="176" x2="261" y2="176" stroke="#1B365D" stroke-width="1.8" marker-end="url(#b1)"/>
+    <text x="168" y="170" text-anchor="middle" font-size="11.1" font-weight="700">POST /damage-compensation (350k)</text>
 
-    <line x1="90" y1="220" x2="312" y2="220" stroke="#1B365D" stroke-width="1.6" marker-end="url(#sSolid)"/>
-    <text x="200" y="214" text-anchor="middle" font-size="11.2" font-weight="600">POST /handovers/{id}/damage-compensation (350k)</text>
+    <line x1="266" y1="198" x2="834" y2="198" stroke="#1B365D" stroke-width="1.7" marker-end="url(#b1)"/>
+    <text x="550" y="192" text-anchor="middle" font-size="11.2" font-weight="600">Phát hành chứng từ COMPENSATION (dòng DAMAGE gắn handover_item_id)</text>
 
-    <line x1="317" y1="244" x2="1032" y2="244" stroke="#1B365D" stroke-width="1.4" marker-end="url(#sSolid)"/>
-    <text x="675" y="238" text-anchor="middle" font-size="11.2">Tạo &amp; phát hành chứng từ COMPENSATION (dòng DAMAGE gắn handover_item_id)</text>
+    <!-- Step 2 -->
+    <rect x="8" y="224" width="896" height="140" rx="4" fill="#F8FAFC" fill-opacity="0.6" stroke="#94A3B8"/>
+    <rect x="8" y="224" width="265" height="20" fill="#1B365D"/>
+    <text x="16" y="238" font-size="11" font-weight="700" fill="#FFF">2. Trả phòng vật lý &amp; Duyệt quyết toán</text>
 
-    <!-- Step 2: Physical Checkout & Settlement Approval -->
-    <rect x="16" y="268" width="1108" height="162" rx="4" fill="#F8FAFC" fill-opacity="0.55" stroke="#CBD5E1"/>
-    <rect x="16" y="268" width="320" height="22" rx="2" fill="#1B365D"/>
-    <text x="26" y="283" font-size="11.2" font-weight="700" fill="#FFF">2. Trả phòng vật lý &amp; Duyệt quyết toán tài chính</text>
+    <line x1="73" y1="264" x2="457" y2="264" stroke="#1B365D" stroke-width="1.8" marker-end="url(#b1)"/>
+    <text x="265" y="258" text-anchor="middle" font-size="11.3" font-weight="700">POST /contracts/{id}/checkout</text>
 
-    <line x1="90" y1="308" x2="552" y2="308" stroke="#1B365D" stroke-width="1.6" marker-end="url(#sSolid)"/>
-    <text x="320" y="302" text-anchor="middle" font-size="11.4" font-weight="600">POST /contracts/{id}/checkout (billingEnd, returnedAt, returnHandoverId)</text>
+    <line x1="462" y1="288" x2="834" y2="288" stroke="#1B365D" stroke-width="1.7" marker-end="url(#b1)"/>
+    <text x="648" y="282" text-anchor="middle" font-size="11.2" font-weight="600">Đóng room_possessions, đổi phòng → TURNOVER, tạo checkout DRAFT</text>
 
-    <line x1="557" y1="334" x2="1032" y2="334" stroke="#1B365D" stroke-width="1.5" marker-end="url(#sSolid)"/>
-    <text x="795" y="328" text-anchor="middle" font-size="11.2">Đóng room_possessions, chuyển phòng → TURNOVER, tạo checkout_records (DRAFT)</text>
+    <line x1="73" y1="318" x2="457" y2="318" stroke="#1B365D" stroke-width="1.8" marker-end="url(#b1)"/>
+    <text x="265" y="312" text-anchor="middle" font-size="11.3" font-weight="700">POST /contracts/{id}/checkout/approve</text>
 
-    <line x1="90" y1="364" x2="552" y2="364" stroke="#1B365D" stroke-width="1.6" marker-end="url(#sSolid)"/>
-    <text x="320" y="358" text-anchor="middle" font-size="11.4" font-weight="600">POST /contracts/{id}/checkout/approve (useDeposit=true, applyAdvance=true)</text>
+    <line x1="462" y1="346" x2="834" y2="346" stroke="#1B365D" stroke-width="1.7" marker-end="url(#b1)"/>
+    <text x="648" y="340" text-anchor="middle" font-size="11.2" font-weight="600">Cấn nợ 350.000 ₫ từ quỹ DEPOSIT + lưu snapshot quyết toán</text>
 
-    <line x1="557" y1="392" x2="792" y2="392" stroke="#1B365D" stroke-width="1.5" marker-end="url(#sSolid)"/>
-    <text x="675" y="386" text-anchor="middle" font-size="11">Điều chỉnh trả sớm + chốt điện cuối + cấn nợ</text>
+    <!-- Step 3 -->
+    <rect x="8" y="376" width="896" height="98" rx="4" fill="#F8FAFC" fill-opacity="0.6" stroke="#94A3B8"/>
+    <rect x="8" y="376" width="255" height="20" fill="#3730A3"/>
+    <text x="16" y="390" font-size="11" font-weight="700" fill="#FFF">3. Chi hoàn tiền cọc thực tế (OUT)</text>
 
-    <line x1="797" y1="418" x2="1032" y2="418" stroke="#1B365D" stroke-width="1.5" marker-end="url(#sSolid)"/>
-    <text x="915" y="412" text-anchor="middle" font-size="11">Ghi bút toán PAYMENT + snapshot</text>
+    <line x1="73" y1="416" x2="653" y2="416" stroke="#1B365D" stroke-width="1.8" marker-end="url(#b1)"/>
+    <text x="363" y="410" text-anchor="middle" font-size="11.3" font-weight="700">POST /fund-accounts/{id}/refund (3.450.000 ₫, paid=true)</text>
 
-    <!-- Step 3: Actual Refund Outflow -->
-    <rect x="16" y="442" width="1108" height="114" rx="4" fill="#F8FAFC" fill-opacity="0.55" stroke="#CBD5E1"/>
-    <rect x="16" y="442" width="320" height="22" rx="2" fill="#3730A3"/>
-    <text x="26" y="457" font-size="11.2" font-weight="700" fill="#FFF">3. Xác nhận chi hoàn thực tế cho khách (OUT)</text>
+    <line x1="658" y1="440" x2="834" y2="440" stroke="#1B365D" stroke-width="1.7" marker-end="url(#b1)"/>
+    <text x="746" y="434" text-anchor="middle" font-size="10.8" font-weight="600">cash_transactions OUT + REFUND</text>
 
-    <line x1="90" y1="488" x2="792" y2="488" stroke="#1B365D" stroke-width="1.6" marker-end="url(#sSolid)"/>
-    <text x="440" y="482" text-anchor="middle" font-size="11.4" font-weight="600">POST /fund-accounts/{id}/refund (cashAccountId, code, amount=3.450.000đ, paid=true)</text>
-
-    <line x1="797" y1="516" x2="1032" y2="516" stroke="#1B365D" stroke-width="1.5" marker-end="url(#sSolid)"/>
-    <text x="915" y="510" text-anchor="middle" font-size="11">cash_transactions (OUT) + REFUND</text>
-
-    <line x1="797" y1="544" x2="95" y2="544" stroke="#475569" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#sDash)"/>
-    <text x="445" y="538" text-anchor="middle" font-size="11.2" fill="#0F766E" font-weight="600">Số dư quỹ cọc về 0 ₫; báo cáo dòng tiền phản ánh đúng khoản Hoàn quỹ (OUT)</text>
+    <line x1="658" y1="462" x2="78" y2="462" stroke="#334155" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#b2)"/>
+    <text x="368" y="456" text-anchor="middle" font-size="11.2" font-weight="700" fill="#0F766E">Quỹ cọc về 0 ₫ · Cột Hoàn quỹ trên báo cáo ghi nhận đúng 3.450.000 ₫</text>
   </svg>
-  <div class="footer-note">
-    <span>Ví dụ minh họa theo dữ liệu demo P201: Cọc giữ 3.800.000 ₫ − Bồi thường kính nứt 350.000 ₫ = Hoàn thực tế 3.450.000 ₫.</span>
-    <span>UML Sequence Diagram</span>
+</div>
+</body></html>`;
+
+// Helper for crisp compact horizontal Actor Use Case diagrams (960px × ~250px -> 1920x500px sharp)
+function buildActorUseCaseHtml(title, subtitle, actorName, actorCode, accent, fill, items) {
+  const cols = 2;
+  const rows = Math.ceil(items.length / cols);
+  const svgH = Math.max(200, rows * 44 + 46);
+  const actorY = Math.round(svgH / 2) - 18;
+  let ellipses = '';
+  let lines = '';
+  items.forEach((label, idx) => {
+    const col = idx % cols;
+    const row = Math.floor(idx / cols);
+    const cx = col === 0 ? 356 : 716;
+    const cy = 54 + row * 44;
+    const rx = 156;
+    const ry = 16;
+    ellipses += `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${fill}" stroke="${accent}" stroke-width="1.7"/>`;
+    ellipses += `<text x="${cx}" y="${cy + 4.5}" text-anchor="middle" font-size="12.2" font-weight="700" fill="#0F172A">${label}</text>`;
+    if (col === 0) {
+      lines += `<line x1="112" y1="${actorY + 8}" x2="${cx - rx}" y2="${cy}" stroke="${accent}" stroke-width="1.5"/>`;
+    } else {
+      lines += `<path d="M 112 ${actorY + 8} L 154 ${actorY + 8} L 154 ${svgH - 12} L 538 ${svgH - 12} L 538 ${cy} L ${cx - rx} ${cy}" fill="none" stroke="${accent}" stroke-width="1.35" stroke-opacity="0.82"/>`;
+    }
+  });
+  return `<!doctype html><html lang="vi"><head><meta charset="utf-8"><style>${COMMON_CSS}</style></head><body>
+<div class="canvas">
+  <div class="header">
+    <div class="title">${title}</div>
+    <div class="subtitle">${subtitle}</div>
   </div>
+  <svg viewBox="0 0 912 ${svgH}" width="912" height="${svgH}" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+    <rect x="174" y="8" width="730" height="${svgH - 16}" rx="7" fill="#F8FAFC" stroke="${accent}" stroke-width="2"/>
+    <text x="539" y="27" text-anchor="middle" font-size="13" font-weight="800" fill="${accent}">CHỨC NĂNG CỦA ${actorName.toUpperCase()} (${actorCode})</text>
+    <g transform="translate(74, ${actorY})">
+      <circle cx="0" cy="-22" r="13" fill="${fill}" stroke="${accent}" stroke-width="2.4"/>
+      <line x1="0" y1="-9" x2="0" y2="22" stroke="${accent}" stroke-width="2.4"/>
+      <line x1="-20" y1="2" x2="20" y2="2" stroke="${accent}" stroke-width="2.4"/>
+      <line x1="0" y1="22" x2="-16" y2="44" stroke="${accent}" stroke-width="2.4"/>
+      <line x1="0" y1="22" x2="16" y2="44" stroke="${accent}" stroke-width="2.4"/>
+      <text x="0" y="62" text-anchor="middle" font-size="13" font-weight="800" fill="${accent}">${actorName}</text>
+      <text x="0" y="78" text-anchor="middle" font-size="11.5" font-weight="700" fill="#334155">(${actorCode})</text>
+    </g>
+    ${lines}
+    ${ellipses}
+  </svg>
+</div></body></html>`;
+}
+
+const DIAG_UC_ADMIN = buildActorUseCaseHtml(
+  'BIỂU ĐỒ USE CASE MỨC ĐỈNH — CHỦ NHÀ (ADMIN)',
+  'Toàn quyền quản trị khu phòng, cấu hình, hợp đồng, tài chính và báo cáo',
+  'Chủ nhà', 'ADMIN', '#1B365D', '#EFF6FF',
+  [
+    'Quản lý tài khoản & đặt lại mật khẩu',
+    'Phân công nhân viên & cấp hạn mức',
+    'Quản lý khu nhà, phòng & đồ đạc',
+    'Lập, ký, gia hạn hợp đồng & xuất PDF',
+    'Cấu hình giá dịch vụ & ngưỡng cảnh báo',
+    'Ghi chỉ số công tơ & duyệt cảnh báo',
+    'Lập, phát hành & điều chỉnh hóa đơn',
+    'Ghi thu tiền, cấn cọc & chi hoàn cọc',
+    'Đối chiếu bàn giao & quyết toán trả phòng',
+    'Theo dõi sự cố, báo cáo & công nợ',
+  ]
+);
+
+const DIAG_UC_STAFF = buildActorUseCaseHtml(
+  'BIỂU ĐỒ USE CASE MỨC ĐỈNH — NHÂN VIÊN (STAFF)',
+  'Thao tác trong phạm vi khu/phòng được phân công và hạn mức ủy quyền',
+  'Nhân viên', 'STAFF', '#1E40AF', '#EFF6FF',
+  [
+    'Xem khu nhà, phòng & đồ đạc được giao',
+    'Quản lý hồ sơ người thuê & cư trú',
+    'Lập hợp đồng & biên bản bàn giao phòng',
+    'Ghi chỉ số điện nước & kiểm tra cảnh báo',
+    'Lập và phát hành hóa đơn trong phạm vi',
+    'Ghi nhận thu tiền vào quỹ tiền mặt/NH',
+    'Tiếp nhận, xử lý sự cố & ghi chi phí',
+    'Xem báo cáo & công nợ khu được giao',
+    'Hoàn tiền / điều chỉnh (khi được ủy quyền)',
+  ]
+);
+
+const DIAG_UC_TENANT = buildActorUseCaseHtml(
+  'BIỂU ĐỒ USE CASE MỨC ĐỈNH — NGƯỜI THUÊ (TENANT)',
+  'Chỉ truy cập hợp đồng, hóa đơn, tài sản và sự cố gắn với nơi đang cư trú',
+  'Người thuê', 'TENANT', '#166534', '#F0FDF4',
+  [
+    'Đăng nhập JWT & đổi mật khẩu',
+    'Xem hợp đồng, phụ lục & đồ đạc phòng',
+    'Xem hóa đơn đã phát hành (ISSUED)',
+    'Theo dõi lịch sử thanh toán & số dư quỹ',
+    'Xem và tải ảnh/tệp chứng từ được phép',
+    'Gửi báo hỏng sự cố kèm ảnh tại phòng ở',
+    'Theo dõi tiến độ xử lý sự cố của mình',
+    'Đọc thông báo từ chủ nhà / quản lý',
+  ]
+);
+
+// 7. MVC Class & Component Diagram (crisp 960px -> 1920px exact, zero cramped labels!)
+const DIAG_MVC_CLASSES = `<!doctype html><html lang="vi"><head><meta charset="utf-8"><style>
+${COMMON_CSS}
+.mvc-stack { display: flex; flex-direction: column; gap: 10px; }
+.tier {
+  border: 1.8px solid #64748B;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #F8FAFC;
+}
+.tier-hd {
+  background: #1B365D;
+  color: #FFF;
+  padding: 5px 12px;
+  font-size: 12.6px;
+  font-weight: 800;
+  display: flex;
+  justify-content: space-between;
+}
+.tier-hd.ctrl { background: #1E40AF; }
+.tier-hd.mdl { background: #0F5257; }
+.tier-hd.db { background: #1E293B; }
+.tier-bd { padding: 9px 10px; display: grid; gap: 8px; }
+.c3 { grid-template-columns: repeat(3, 1fr); }
+.c4 { grid-template-columns: repeat(4, 1fr); }
+.c2 { grid-template-columns: 1.35fr 1fr; }
+.cls {
+  background: #FFFFFF;
+  border: 1.5px solid #64748B;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.cls-name {
+  background: #EFF6FF;
+  border-bottom: 1.3px solid #94A3B8;
+  padding: 4px 8px;
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 11.8px;
+  font-weight: 700;
+  color: #1B365D;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.cls-name.teal { background: #F0FDFA; color: #0F5257; }
+.cls-name.slate { background: #F1F5F9; color: #0F172A; }
+.badge {
+  display: inline-block;
+  width: 16px; height: 16px; line-height: 15px; text-align: center;
+  border-radius: 50%; background: #1B365D; color: #FFF;
+  font-size: 10px; font-weight: 800; font-family: 'Segoe UI', Arial, sans-serif;
+}
+.badge.t { background: #0F766E; }
+.badge.d { background: #334155; }
+.cls-body { padding: 5px 8px; font-family: Consolas, 'Courier New', monospace; font-size: 10.9px; color: #0F172A; line-height: 1.42; }
+.cls-note { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10.6px; color: #475569; margin-top: 2px; }
+.conn {
+  display: flex; justify-content: center; align-items: center; gap: 10px;
+  margin: -3px 0; font-size: 11.2px; font-weight: 700; color: #1B365D;
+}
+.pill { background: #EFF6FF; border: 1.4px solid #60A5FA; border-radius: 10px; padding: 1.5px 11px; }
+</style></head><body>
+<div class="canvas">
+  <div class="header">
+    <div class="title">BIỂU ĐỒ LỚP VÀ THÀNH PHẦN THEO KIẾN TRÚC MVC (PHIÊN BẢN V14)</div>
+    <div class="subtitle">Đối chiếu trực tiếp mã nguồn frontend/src và package com.hostel.model49</div>
+  </div>
+  <div class="mvc-stack">
+    <div class="tier">
+      <div class="tier-hd"><span>VIEW — GIAO DIỆN REACT 19 SPA (frontend/src)</span><span>Chạy trên trình duyệt</span></div>
+      <div class="tier-bd c3">
+        <div class="cls">
+          <div class="cls-name"><span class="badge">V</span>App (main.jsx)</div>
+          <div class="cls-body">+render()<br>+loadOverview()<div class="cls-note">Điều hướng 13 màn hình &amp; trạng thái phiên</div></div>
+        </div>
+        <div class="cls">
+          <div class="cls-name"><span class="badge">V</span>Model49Panels.jsx</div>
+          <div class="cls-body">+ReportsPanel()<br>+DebtsPanel() · +HandoverPanel()<div class="cls-note">Đồ đạc, bàn giao nhận–trả, báo cáo &amp; công nợ</div></div>
+        </div>
+        <div class="cls">
+          <div class="cls-name"><span class="badge">V</span>api.js</div>
+          <div class="cls-body">+api(path, method, data)<br>+saveSession(value)<div class="cls-note">Gắn Bearer JWT, tự refresh 401 một lần</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="conn"><span>▼</span><span class="pill">REST JSON (/api/**) · Bearer JWT · Multipart · PDF Stream</span><span>▲</span></div>
+
+    <div class="tier">
+      <div class="tier-hd ctrl"><span>CONTROLLER &amp; BẢO MẬT — SPRING WEB MVC + SECURITY</span><span>Kiểm tra quyền &amp; điều phối</span></div>
+      <div class="tier-bd c4">
+        <div class="cls">
+          <div class="cls-name"><span class="badge">C</span>AuthController</div>
+          <div class="cls-body">+login(LoginReq)<br>+refresh(RefreshReq)<br>+resetPassword()</div>
+        </div>
+        <div class="cls">
+          <div class="cls-name"><span class="badge">C</span>Api49</div>
+          <div class="cls-body">+handovers() · +pay()<br>+checkout() · +contractPdf()<br>+damageCompensation()</div>
+        </div>
+        <div class="cls">
+          <div class="cls-name"><span class="badge">C</span>Reports49</div>
+          <div class="cls-body">+overview(month|quarter)<br>+revenue(M|Q|Y) · +debts()<br>+revenuePdf()</div>
+        </div>
+        <div class="cls">
+          <div class="cls-name"><span class="badge">S</span>Access49 &amp; ApiErrors</div>
+          <div class="cls-body">+requireAdmin/Staff/Tenant()<br>+requireGrantLimit()<br>+translateDatabaseError()</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="conn"><span>▼</span><span class="pill">Gọi dịch vụ @Transactional · Kiểm soát phạm vi khu/phòng &amp; hạn mức</span><span>▲</span></div>
+
+    <div class="tier">
+      <div class="tier-hd mdl"><span>MODEL NGHIỆP VỤ — CÁC LỚP SERVICE (com.hostel.model49)</span><span>Tách biệt theo phân hệ</span></div>
+      <div class="tier-bd c4">
+        <div class="cls">
+          <div class="cls-name teal"><span class="badge t">M</span>Leases49 &amp; Catalog49</div>
+          <div class="cls-body">+createContract() · +renew()<br>+handoverIn/Out() · +confirm()<br>+roomAssets()</div>
+        </div>
+        <div class="cls">
+          <div class="cls-name teal"><span class="badge t">M</span>Meters49 &amp; Billing49</div>
+          <div class="cls-body">+recordReading() · +analyze()<br>+monthly() · +pay(id, data)<br>+adjust()</div>
+        </div>
+        <div class="cls">
+          <div class="cls-name teal"><span class="badge t">M</span>Finance49 &amp; Settlements49</div>
+          <div class="cls-body">+issue() · +receive()<br>+checkout() · +approve()<br>+refund(fund, data)</div>
+        </div>
+        <div class="cls">
+          <div class="cls-name teal"><span class="badge t">M</span>Operations49, Files49, PDF</div>
+          <div class="cls-body">+create/progress/cost()<br>+upload/download(key)<br>+ContractPdf.render(lease)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="conn"><span>▼</span><span class="pill">PreparedStatement · SELECT FOR UPDATE · pg_advisory_xact_lock</span><span>▲</span></div>
+
+    <div class="tier">
+      <div class="tier-hd db"><span>TẦNG TRUY CẬP DỮ LIỆU &amp; LƯU TRỮ (PERSISTENCE)</span><span>PostgreSQL 18.6 / Flyway V1–V14</span></div>
+      <div class="tier-bd c2">
+        <div class="cls">
+          <div class="cls-name slate"><span class="badge d">D</span>Database (bọc JdbcTemplate)</div>
+          <div class="cls-body">+rows(sql, args) · +one(sql, args) · +insert(table, cols, args) · +lock(sql)<div class="cls-note">Tuyến truy vấn chính cho toàn bộ service nghiệp vụ &amp; 10 View tài chính</div></div>
+        </div>
+        <div class="cls">
+          <div class="cls-name slate"><span class="badge d">E</span>49 JPA Entities &amp; Snapshot Repositories</div>
+          <div class="cls-body">com.hostel.model49.entity.* (49 lớp Entity)<div class="cls-note">Dùng Hibernate ddl-auto=validate để đối soát khớp 100% lược đồ DB</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="footer-note">
+    <span>Các lớp nghiệp vụ đều đi qua Access49 để kiểm tra phạm vi và Events49 để ghi audit_events.</span>
+    <span>MVC + Service Layer</span>
+  </div>
+</div>
+</body></html>`;
+
+// 8. Deployment Diagram (crisp 960px SVG -> 1920px exact, ZERO overlapping arrows!)
+const DIAG_DEPLOYMENT = `<!doctype html><html lang="vi"><head><meta charset="utf-8"><style>
+${COMMON_CSS}
+</style></head><body>
+<div class="canvas">
+  <div class="header">
+    <div class="title">BIỂU ĐỒ TRIỂN KHAI HỆ THỐNG (DEPLOYMENT — THEO COMPOSE.YML)</div>
+    <div class="subtitle">Đóng gói Docker Compose · Tương thích PostgreSQL 16 (compose.yml) &amp; 18.6 (môi trường kiểm chứng)</div>
+  </div>
+  <svg viewBox="0 0 912 470" width="912" height="470" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+    <defs>
+      <marker id="depArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+        <path d="M 0 1 L 10 5 L 0 9 z" fill="#1B365D"/>
+      </marker>
+    </defs>
+
+    <!-- Client Node -->
+    <g transform="translate(276, 10)">
+      <polygon points="0,12 12,0 360,0 348,12" fill="#E2E8F0" stroke="#1B365D" stroke-width="1.8"/>
+      <polygon points="348,12 360,0 360,66 348,78" fill="#CBD5E1" stroke="#1B365D" stroke-width="1.8"/>
+      <rect x="0" y="12" width="348" height="66" fill="#FFFFFF" stroke="#1B365D" stroke-width="1.8"/>
+      <text x="174" y="32" text-anchor="middle" font-size="13" font-weight="800" fill="#1B365D">«device» Máy người dùng (Desktop / Mobile)</text>
+      <rect x="24" y="40" width="300" height="28" rx="4" fill="#EFF6FF" stroke="#60A5FA" stroke-width="1.3"/>
+      <text x="174" y="58" text-anchor="middle" font-size="11.6" font-weight="600" fill="#0F172A">Trình duyệt Web · React 19 SPA + sessionStorage</text>
+    </g>
+
+    <!-- HTTP Arrow -->
+    <line x1="450" y1="88" x2="450" y2="128" stroke="#1B365D" stroke-width="2" marker-end="url(#depArr)"/>
+    <rect x="462" y="96" width="210" height="22" rx="4" fill="#EFF6FF" stroke="#93C5FD"/>
+    <text x="567" y="111" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1B365D">HTTP/HTTPS cổng 8080 (cùng origin)</text>
+
+    <!-- Docker Host Node -->
+    <g transform="translate(18, 128)">
+      <polygon points="0,14 14,0 876,0 862,14" fill="#E2E8F0" stroke="#1E293B" stroke-width="2"/>
+      <polygon points="862,14 876,0 876,318 862,332" fill="#CBD5E1" stroke="#1E293B" stroke-width="2"/>
+      <rect x="0" y="14" width="862" height="318" fill="#F8FAFC" stroke="#1E293B" stroke-width="2"/>
+      <text x="16" y="36" font-size="13.2" font-weight="800" fill="#1E293B">«executionEnvironment» Máy chủ Docker (compose.yml — mạng nội bộ Docker)</text>
+
+      <!-- Container app -->
+      <g transform="translate(260, 50)">
+        <polygon points="0,10 10,0 352,0 342,10" fill="#DBEAFE" stroke="#1E40AF" stroke-width="1.8"/>
+        <polygon points="342,10 352,0 352,86 342,96" fill="#BFDBFE" stroke="#1E40AF" stroke-width="1.8"/>
+        <rect x="0" y="10" width="342" height="86" fill="#FFFFFF" stroke="#1E40AF" stroke-width="1.8"/>
+        <text x="171" y="29" text-anchor="middle" font-size="12.6" font-weight="800" fill="#1E40AF">«container» app (Java 21 JRE)</text>
+        <rect x="16" y="38" width="310" height="46" rx="4" fill="#EFF6FF" stroke="#60A5FA" stroke-width="1.3"/>
+        <text x="171" y="56" text-anchor="middle" font-size="11.6" font-weight="700" fill="#0F172A">«artifact» Spring Boot 4.1.1 JAR (:8080)</text>
+        <text x="171" y="74" text-anchor="middle" font-size="11" fill="#334155">Static React SPA + REST API + Flyway V1–V14</text>
+      </g>
+
+      <!-- Volume hostel-images (Left) -->
+      <g transform="translate(22, 166)">
+        <rect x="0" y="0" width="208" height="86" rx="5" fill="#FFFFFF" stroke="#0F766E" stroke-width="1.8"/>
+        <rect x="0" y="0" width="208" height="24" rx="4" fill="#0F766E"/>
+        <text x="104" y="16" text-anchor="middle" font-size="11.6" font-weight="700" fill="#FFF">«volume» hostel-images</text>
+        <text x="104" y="46" text-anchor="middle" font-size="11.3" font-weight="600" fill="#0F172A">Thư mục /app/uploads</text>
+        <text x="104" y="64" text-anchor="middle" font-size="10.8" fill="#334155">Ảnh hiện trạng, bàn giao, sự cố</text>
+        <text x="104" y="79" text-anchor="middle" font-size="10.5" fill="#0F766E">(Kiểm tra quyền qua Files49)</text>
+      </g>
+
+      <!-- Arrow app -> hostel-images -->
+      <path d="M 260 105 L 126 105 L 126 162" fill="none" stroke="#0F766E" stroke-width="1.8" marker-end="url(#depArr)"/>
+      <text x="192" y="99" text-anchor="middle" font-size="10.8" font-weight="700" fill="#0F766E">Đọc/ghi có kiểm tra</text>
+
+      <!-- Container db (Center bottom) -->
+      <g transform="translate(260, 180)">
+        <polygon points="0,10 10,0 352,0 342,10" fill="#E0E7FF" stroke="#3730A3" stroke-width="1.8"/>
+        <polygon points="342,10 352,0 352,112 342,122" fill="#C7D2FE" stroke="#3730A3" stroke-width="1.8"/>
+        <rect x="0" y="10" width="342" height="112" fill="#FFFFFF" stroke="#3730A3" stroke-width="1.8"/>
+        <text x="171" y="29" text-anchor="middle" font-size="12.5" font-weight="800" fill="#3730A3">«container» db (postgres:16-alpine)</text>
+        <text x="171" y="46" text-anchor="middle" font-size="10.6" font-style="italic" fill="#475569">Tương thích PostgreSQL 16 &amp; 18.6 (cổng nội bộ 5432)</text>
+        <rect x="16" y="55" width="310" height="54" rx="4" fill="#EEF2FF" stroke="#818CF8" stroke-width="1.3"/>
+        <text x="171" y="74" text-anchor="middle" font-size="11.5" font-weight="700" fill="#0F172A">«database» Lược đồ V14 (49 bảng · 461 cột)</text>
+        <text x="171" y="92" text-anchor="middle" font-size="10.8" fill="#334155">152 FK · 133 CHECK · 7 GiST EXCLUDE · 10 View</text>
+      </g>
+
+      <!-- Arrow app -> db -->
+      <line x1="431" y1="146" x2="431" y2="177" stroke="#1B365D" stroke-width="2" marker-end="url(#depArr)"/>
+      <text x="518" y="166" font-size="11" font-weight="700" fill="#1B365D">JDBC nội bộ db:5432</text>
+
+      <!-- Volume hostel-data (Right bottom) -->
+      <g transform="translate(636, 200)">
+        <rect x="0" y="0" width="206" height="86" rx="5" fill="#FFFFFF" stroke="#334155" stroke-width="1.8"/>
+        <rect x="0" y="0" width="206" height="24" rx="4" fill="#334155"/>
+        <text x="103" y="16" text-anchor="middle" font-size="11.6" font-weight="700" fill="#FFF">«volume» hostel-data</text>
+        <text x="103" y="46" text-anchor="middle" font-size="11.1" font-weight="600" fill="#0F172A">/var/lib/postgresql/data</text>
+        <text x="103" y="64" text-anchor="middle" font-size="10.8" fill="#334155">Dữ liệu bền vững PostgreSQL</text>
+        <text x="103" y="79" text-anchor="middle" font-size="10.5" fill="#475569">Tách khỏi vòng đời container</text>
+      </g>
+
+      <!-- Arrow db -> hostel-data -->
+      <line x1="612" y1="244" x2="633" y2="244" stroke="#334155" stroke-width="1.9" marker-end="url(#depArr)"/>
+
+      <!-- Notes box (Right top) -->
+      <g transform="translate(636, 56)">
+        <rect x="0" y="0" width="206" height="106" rx="4" fill="#FFFBEB" stroke="#D97706" stroke-width="1.5"/>
+        <text x="10" y="20" font-size="11.4" font-weight="800" fill="#92400E">Cấu hình &amp; Lưu ý vận hành</text>
+        <text x="10" y="38" font-size="10.8" fill="#78350F">• Bí mật nạp qua biến môi trường</text>
+        <text x="10" y="54" font-size="10.8" fill="#78350F">  (JWT_SECRET, DB_PASSWORD)</text>
+        <text x="10" y="70" font-size="10.8" fill="#78350F">• Flyway tự nâng cấp V1→V14</text>
+        <text x="10" y="86" font-size="10.8" fill="#78350F">• Phiên &amp; đếm sai lưu trên RAM</text>
+        <text x="10" y="100" font-size="10.6" font-style="italic" fill="#92400E">  (Cần HTTPS + sao lưu khi mở public)</text>
+      </g>
+      <line x1="612" y1="98" x2="636" y2="98" stroke="#D97706" stroke-width="1.4" stroke-dasharray="4 3"/>
+    </g>
+  </svg>
 </div>
 </body></html>`;
 
@@ -1041,22 +1216,26 @@ const DIAGRAMS = [
   ['diag-04-erd-core-finance.png', DIAG_ERD_CORE],
   ['diag-05-seq-billing-alert.png', DIAG_SEQ_BILLING],
   ['diag-06-seq-checkout-handover.png', DIAG_SEQ_CHECKOUT],
+  ['diag-uc-admin.png', DIAG_UC_ADMIN],
+  ['diag-uc-staff.png', DIAG_UC_STAFF],
+  ['diag-uc-tenant.png', DIAG_UC_TENANT],
+  ['diag-mvc-classes.png', DIAG_MVC_CLASSES],
+  ['diag-deployment-v14.png', DIAG_DEPLOYMENT],
 ];
 
 async function run() {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   try {
     const page = await browser.newPage({
-      viewport: { width: 1260, height: 900 },
-      deviceScaleFactor: 2,
+      viewport: { width: 1000, height: 800 },
+      deviceScaleFactor: 2, // 960 * 2 = 1920px exact (< 2048px Google Docs CDN cap!)
     });
     for (const [filename, html] of DIAGRAMS) {
       await page.setContent(html, { waitUntil: 'load' });
       await page.evaluate(() => document.fonts.ready);
       const box = page.locator('.canvas');
-      const outPath = path.join(OUT_DIR, filename);
-      await box.screenshot({ path: outPath });
-      console.log('Generated', filename);
+      await box.screenshot({ path: path.join(OUT_DIR, filename) });
+      console.log('Generated sharp', filename);
     }
   } finally {
     await browser.close();

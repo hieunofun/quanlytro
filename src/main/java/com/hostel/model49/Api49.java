@@ -1132,21 +1132,24 @@ public class Api49 {
             @PathVariable long id, @RequestParam(required = false) Integer version)
             throws java.io.IOException {
         access.contract(id);
-        var t =
+        var termsList =
                 version == null
-                        ? db.one(
+                        ? db.rows(
                                 "select * from contract_terms where contract_id=? order by"
                                         + " version_no desc limit 1",
                                 id)
-                        : db.one(
+                        : db.rows(
                                 "select * from contract_terms where contract_id=? and version_no=?",
                                 id,
                                 version);
+        var t = termsList.isEmpty() ? new HashMap<String, Object>() : new HashMap<>(termsList.getFirst());
         var c = db.one(
                 "select c.*, r.room_code, r.floor_number, r.area_sqm, r.property_id, p.name property_name, p.address property_address "
-                        + "from contracts c join rooms r on r.id=c.room_id join properties p on p.id=r.property_id where c.id=?",
+                        + "from v_contract_current c join rooms r on r.id=c.room_id join properties p on p.id=r.property_id where c.id=?",
                 id);
-        var tenant = db.one("select * from tenant_profiles where id=?", c.get("primary_tenant_id"));
+        Object tenantId = c.get("primary_tenant_id");
+        var tenantRows = tenantId != null ? db.rows("select * from tenant_profiles where id=?", tenantId) : List.<Map<String, Object>>of();
+        var tenant = tenantRows.isEmpty() ? Map.<String, Object>of("full_name", "Khách thuê", "identity_number", "—", "phone", "—", "email", "—") : tenantRows.getFirst();
         var residents = db.rows(
                 "select cr.*, tp.full_name, tp.identity_number, tp.phone from contract_residencies cr join tenant_profiles tp on tp.id=cr.tenant_id "
                         + "where cr.contract_id=? and (cr.effective_to is null or cr.effective_to > current_date)",
@@ -1163,7 +1166,7 @@ public class Api49 {
         lines.add("---------------o0o---------------");
         lines.add("");
         lines.add("HỢP ĐỒNG THUÊ NHÀ TRỌ");
-        lines.add("Mã hợp đồng: " + c.get("contract_code") + "  ·  Phiên bản điều khoản: Số " + t.get("version_no"));
+        lines.add("Mã hợp đồng: " + c.get("contract_code") + "  ·  Phiên bản điều khoản: Số " + (t.get("version_no") != null ? t.get("version_no") : "1"));
         lines.add("Ngày lập / ký: " + (t.get("signed_at") != null ? t.get("signed_at").toString().substring(0, 10) : LocalDate.now().toString()));
         lines.add("");
         lines.add("I. BÊN CHO THUÊ (BÊN A):");
@@ -1186,13 +1189,19 @@ public class Api49 {
         lines.add("- Mục đích thuê: Dùng để ở và sinh hoạt hợp pháp, chấp hành nghiêm chỉnh nội quy và quy định pháp luật.");
         lines.add("");
         lines.add("ĐIỀU 2: THỜI HẠN THUÊ");
-        lines.add("- Thời hạn thuê phòng: Từ ngày " + t.get("effective_from") + " đến hết ngày " + t.get("lease_end") + ".");
+        Object effFrom = t.get("effective_from") != null ? t.get("effective_from") : c.get("start_date");
+        Object effTo = t.get("lease_end") != null ? t.get("lease_end") : c.get("end_date");
+        lines.add("- Thời hạn thuê phòng: Từ ngày " + effFrom + " đến hết ngày " + effTo + ".");
         lines.add("- Khi hết hạn hợp đồng, nếu Bên B có nhu cầu tiếp tục thuê và chấp hành tốt các quy định thì hai bên sẽ ký phụ lục gia hạn hợp đồng.");
         lines.add("");
         lines.add("ĐIỀU 3: GIÁ THUÊ, TIỀN CỌC VÀ PHƯƠNG THỨC THANH TOÁN");
-        lines.add("- Giá thuê phòng: " + String.format("%,.0f", new BigDecimal(t.get("rental_price").toString())) + " VNĐ/tháng.");
-        lines.add("- Tiền đặt cọc bảo đảm: " + String.format("%,.0f", new BigDecimal(t.get("deposit_required").toString())) + " VNĐ.");
-        lines.add("- Ngày thanh toán định kỳ hàng tháng: Ngày " + t.get("payment_day") + " hàng tháng. Hình thức: " + ("IN_ADVANCE".equals(t.get("collection_timing")) ? "Thu đầu kỳ (Trả trước)" : "Thu cuối kỳ (Trả sau)") + ".");
+        Object rentVal = t.get("rental_price") != null ? t.get("rental_price") : (c.get("rental_price") != null ? c.get("rental_price") : 0);
+        Object depVal = t.get("deposit_required") != null ? t.get("deposit_required") : (c.get("deposit_amount") != null ? c.get("deposit_amount") : 0);
+        Object payDay = t.get("payment_day") != null ? t.get("payment_day") : (c.get("payment_cycle_day") != null ? c.get("payment_cycle_day") : 5);
+        Object timing = t.get("collection_timing") != null ? t.get("collection_timing") : (c.get("collection_timing") != null ? c.get("collection_timing") : "IN_ADVANCE");
+        lines.add("- Giá thuê phòng: " + String.format("%,.0f", new BigDecimal(rentVal.toString())) + " VNĐ/tháng.");
+        lines.add("- Tiền đặt cọc bảo đảm: " + String.format("%,.0f", new BigDecimal(depVal.toString())) + " VNĐ.");
+        lines.add("- Ngày thanh toán định kỳ hàng tháng: Ngày " + payDay + " hàng tháng. Hình thức: " + ("IN_ADVANCE".equals(timing) ? "Thu đầu kỳ (Trả trước)" : "Thu cuối kỳ (Trả sau)") + ".");
         lines.add("- Tiền điện, nước, dịch vụ phát sinh được lập hóa đơn và đối soát theo chỉ số công tơ định kỳ hàng tháng.");
         lines.add("");
         lines.add("ĐIỀU 4: TRANG THIẾT BỊ VÀ TÀI SẢN BÀN GIAO TRONG PHÒNG");
@@ -1222,7 +1231,8 @@ public class Api49 {
         lines.add("- Bên B: Sử dụng phòng đúng mục đích, thanh toán tiền thuê và dịch vụ đúng thời hạn; giữ gìn vệ sinh và an ninh trật tự chung; giữ gìn đồ đạc tài sản. Khi kết thúc hợp đồng phải bàn giao lại đầy đủ tài sản nguyên vẹn; nếu có hư hỏng phải chịu trách nhiệm bồi thường theo biên bản bàn giao (MOVE_OUT).");
         lines.add("");
         lines.add("ĐIỀU 7: ĐIỀU KHOẢN BỔ SUNG & CAM KẾT CHUNG");
-        lines.add(t.get("terms") != null && !t.get("terms").toString().isBlank() ? t.get("terms").toString() : "- Các thỏa thuận khác thực hiện theo quy chế quản lý nhà trọ và quy định hiện hành của pháp luật.");
+        Object termsText = t.get("terms") != null ? t.get("terms") : c.get("terms");
+        lines.add(termsText != null && !termsText.toString().isBlank() ? termsText.toString() : "- Các thỏa thuận khác thực hiện theo quy chế quản lý nhà trọ và quy định hiện hành của pháp luật.");
         lines.add("");
         lines.add("Hợp đồng được lập thành 02 bản có giá trị pháp lý như nhau, mỗi bên giữ 01 bản.");
         lines.add("");

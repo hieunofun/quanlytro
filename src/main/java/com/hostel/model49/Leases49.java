@@ -38,6 +38,8 @@ public class Leases49 {
                 c.put("rental_price", t.getFirst().get("rental_price"));
                 c.put("deposit_amount", t.getFirst().get("deposit_required"));
                 c.put("end_date", t.getFirst().get("lease_end"));
+                c.put("payment_cycle_day", t.getFirst().get("payment_day"));
+                c.put("collection_timing", t.getFirst().get("collection_timing"));
             }
         }
         c.put(

@@ -1,10 +1,10 @@
 {
-  "validated_on": "2026-11-01",
-  "schema": "V13-model49",
+  "validated_on": "2026-11-24",
+  "schema": "V14-model49",
   "suites": [
     {
       "name": "com.hostel.BusinessIntegrityTests",
-      "tests": 32,
+      "tests": 35,
       "failures": 0,
       "errors": 0,
       "skipped": 0
@@ -74,7 +74,7 @@
     },
     {
       "name": "com.hostel.Model49Tests",
-      "tests": 20,
+      "tests": 21,
       "failures": 0,
       "errors": 0,
       "skipped": 0
@@ -88,24 +88,24 @@
     },
     {
       "name": "com.hostel.PdfTests",
-      "tests": 1,
+      "tests": 2,
       "failures": 0,
       "errors": 0,
       "skipped": 0
     }
   ],
-  "tests": 126,
+  "tests": 131,
   "failures": 0,
   "errors": 0,
   "scope_notes": [
-    "BusinessIntegrityTests, Model49Tests, Model49HttpTests and OpenKosWorkflowTests exercise V13.",
-    "Migration suites separately verify V9/V10/V11/V13 transitions; the remaining application suites retain V10 regressions.",
+    "BusinessIntegrityTests, Model49Tests, Model49HttpTests and OpenKosWorkflowTests exercise V14.",
+    "Migration suites separately verify V9/V10/V11/V14 transitions; the remaining application suites retain V10 regressions.",
     "Database-only DDL checks are in database-validation.json.",
     "Browser results from previous runs are not included as current evidence.",
     "These results do not certify production deployment, all real-world policies or migration of the user live database."
   ],
-  "current_model_tests": 64,
+  "current_model_tests": 68,
   "migration_tests": 8,
-  "historical_and_unit_tests": 54,
+  "historical_and_unit_tests": 55,
   "all_passed": true
 }

@@ -1,10 +1,10 @@
-// QUẢN LÝ NHÀ TRỌ · CSDL đang triển khai · model49 / V13
+// QUẢN LÝ NHÀ TRỌ · CSDL đang triển khai · model49 / V14
 // Sinh từ pg_catalog; không thêm bảng, cột, khóa ngoại hay enum giả định.
 // Màu và TableGroup chỉ phục vụ trình bày, không phải SQL schema mới.
 // Không dùng DBML này thay migration để tạo lại đầy đủ trigger PostgreSQL.
 Project QuanLyNhaTro {
   database_type: 'PostgreSQL'
-  Note: '49 bảng nghiệp vụ · 455 cột · 151 FK.\n132 CHECK được giữ trong checks; 7 EXCLUDE và chỉ mục có điều kiện được ghi nguyên SQL trong Note từng bảng.\nNguồn chuẩn khi triển khai: src/main/resources/db/migration/V1–V13.\nKhông đưa bảng kỹ thuật flyway_schema_history vào sơ đồ nghiệp vụ.\n10 SQL view hiện có (không vẽ thành bảng): v_billing_lines, v_contract_current, v_document_balances, v_fund_balances, v_fund_movements, v_item_applications, v_item_balances, v_maintenance, v_room_status, v_segments'
+  Note: '49 bảng nghiệp vụ · 461 cột · 152 FK.\n133 CHECK được giữ trong checks; 7 EXCLUDE và chỉ mục có điều kiện được ghi nguyên SQL trong Note từng bảng.\nNguồn chuẩn khi triển khai: src/main/resources/db/migration/V1–V14.\nKhông đưa bảng kỹ thuật flyway_schema_history vào sơ đồ nghiệp vụ.\n10 SQL view hiện có (không vẽ thành bảng): v_billing_lines, v_contract_current, v_document_balances, v_fund_balances, v_fund_movements, v_item_applications, v_item_balances, v_maintenance, v_room_status, v_segments'
 }
 
 // #region 01 · Tài khoản và phân quyền
@@ -377,6 +377,11 @@ Table contract_terms [headercolor: #2563EB] {
   origin varchar(20) [not null, default: 'NATIVE']
   status varchar(20) [not null, default: 'DRAFT']
   created_at timestamptz [not null, default: `clock_timestamp()`]
+  lessor_name varchar(150) [not null, default: '']
+  lessor_identity varchar(40) [not null, default: '']
+  lessor_phone varchar(30) [not null, default: '']
+  lessor_address varchar(350) [not null, default: '']
+  tenant_address varchar(350) [not null, default: '']
 
   indexes {
     (contract_id, version_no) [name: 'contract_terms_contract_id_version_no_key', unique, type: btree]
@@ -457,6 +462,7 @@ Table handover_items [headercolor: #2563EB] {
   id bigint [pk, not null, increment]
   handover_id bigint [not null]
   asset_placement_id bigint
+  original_item_id bigint
   line_no integer [not null]
   item_name_snapshot varchar(150) [not null]
   quantity numeric(12,2) [not null]
@@ -468,11 +474,12 @@ Table handover_items [headercolor: #2563EB] {
   }
 
   checks {
+    `(original_item_id IS DISTINCT FROM id)` [name: 'handover_item_distinct_original']
     `(line_no > 0)` [name: 'handover_items_line_no_check']
     `(quantity >= (0)::numeric)` [name: 'handover_items_quantity_check']
   }
 
-  Note: 'Snapshot đồ vật và tình trạng lúc giao'
+  Note: 'Snapshot đồ vật và tình trạng lúc giao\n\nCREATE UNIQUE INDEX uq_handover_item_original ON public.handover_items USING btree (handover_id, original_item_id) WHERE (original_item_id IS NOT NULL)'
 }
 
 Table contract_violations [headercolor: #2563EB] {
@@ -1174,6 +1181,7 @@ Ref fund_holds_fund_account_id_fkey: fund_holds.fund_account_id > fund_accounts.
 Ref fund_holds_related_billing_item_id_fkey: fund_holds.related_billing_item_id >? billing_items.id [delete: no action, update: no action]
 Ref handover_items_asset_placement_id_fkey: handover_items.asset_placement_id >? asset_placements.id [delete: no action, update: no action]
 Ref handover_items_handover_id_fkey: handover_items.handover_id > handovers.id [delete: no action, update: no action]
+Ref handover_items_original_item_id_fkey: handover_items.original_item_id >? handover_items.id [delete: no action, update: no action]
 Ref handovers_confirmed_by_fkey: handovers.confirmed_by >? users.id [delete: no action, update: no action]
 Ref handovers_contract_id_fkey: handovers.contract_id > contracts.id [delete: no action, update: no action]
 Ref handovers_given_by_fkey: handovers.given_by >? users.id [delete: no action, update: no action]

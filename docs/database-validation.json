@@ -1,11 +1,11 @@
 {
-  "schema": "V13-model49",
-  "validated_on": "2026-11-01",
+  "schema": "V14-model49",
+  "validated_on": "2026-11-24",
   "tables": 49,
-  "columns": 455,
+  "columns": 461,
   "primary_keys": 49,
-  "foreign_keys": 151,
-  "check_constraints": 132,
+  "foreign_keys": 152,
+  "check_constraints": 133,
   "exclusion_constraints": 7,
   "views": [
     "v_billing_lines",

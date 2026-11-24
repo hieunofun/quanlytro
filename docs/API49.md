@@ -23,8 +23,9 @@ Tiền tố `/api`. Xác thực Bearer như trước; tài khoản ADMIN/STAFF/T
 | GET | `/contracts/{id}/pdf?version=1` | Bản điều kiện theo phiên bản; ngày ký do người vận hành ghi nhận |
 | POST | `/contracts/{id}/handovers` | Tạo biên bản nhận hoặc trả phòng, nạp tài sản hoặc dòng gốc của biên bản nhận |
 | PUT | `/handovers/{id}/items/{itemId}` | Nhập `quantity,conditionNote,note?` trước khi xác nhận |
-| POST | `/handovers/{id}/confirm` | Khóa nội dung kiểm kê |
+| POST | `/handovers/{id}/confirm` | Kiểm tra đủ hiện trạng và khóa nội dung kiểm kê (không xác nhận tắt qua `/catalog/handovers`) |
 | POST | `/handovers/{id}/damage-compensation` | Phát hành chứng từ `COMPENSATION` theo `handoverItemId,amount,issueDate,dueDate,note` |
+| GET/POST | `/rooms/{id}/assets`, `POST /rooms/{id}/assets/{placementId}/remove` | Xem danh mục đồ đạc bố trí trong phòng; ADMIN thêm tài sản mới và quản lý gỡ bố trí |
 | GET/POST | `/files/{kind}/{id}` | Liệt kê hoặc tải lên multipart field `file` cho `contract-term` và `handover-item` |
 
 Lập hợp đồng và gia hạn nhận thông tin tùy chọn `lessorName,lessorIdentity,lessorPhone,lessorAddress,tenantAddress`. Mỗi phiên bản giữ thông tin riêng khi in PDF.

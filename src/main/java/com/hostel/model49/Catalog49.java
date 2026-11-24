@@ -406,7 +406,9 @@ public class Catalog49 {
             }
         }
         if (resource.equals("handovers") && "CONFIRMED".equals(values.get("status"))) {
-            values.put("confirmed_by", access.user());
+            require(
+                    false,
+                    "Xác nhận biên bản phải thực hiện qua API /api/handovers/{id}/confirm sau khi kiểm tra hiện trạng");
         }
         var casts = new ArrayList<String>();
         var args = new ArrayList<Object>();

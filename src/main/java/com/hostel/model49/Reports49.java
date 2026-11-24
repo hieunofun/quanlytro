@@ -54,6 +54,29 @@ public class Reports49 {
              ) receipt
             """;
 
+    private static final String ITEM_CLASSIFICATION = """
+             left join v_segments seg on seg.id=i.segment_id
+             left join service_items si on si.id=seg.service_item_id
+             cross join lateral (
+                 select case
+                     when i.item_kind='ROOM_RENT' then 'ROOM_RENT'
+                     when si.service_code in ('ELEC','ELECTRICITY')
+                          or (i.item_kind='UTILITY' and (
+                              i.item_name_snapshot like '%Điện%'
+                              or lower(i.item_name_snapshot) like '%điện%'
+                              or lower(i.item_name_snapshot) like '%elec%'
+                          )) then 'ELECTRICITY'
+                     when si.service_code='WATER'
+                          or (i.item_kind='UTILITY' and (
+                              i.item_name_snapshot like '%Nước%'
+                              or lower(i.item_name_snapshot) like '%nước%'
+                              or lower(i.item_name_snapshot) like '%water%'
+                          )) then 'WATER'
+                     else 'OTHER'
+                 end as bucket
+             ) cls
+            """;
+
     private List<String> billingPeriods() {
         return db.rows(
                         "select distinct to_char(coalesce(d.billing_period,d.issue_date),'YYYY-MM') p"
@@ -148,12 +171,13 @@ public class Reports49 {
 
         result.putAll(
                 db.one(
-                        "select coalesce(sum(case when (exists(select 1 from v_segments seg join service_items si on si.id=seg.service_item_id where seg.id=i.segment_id and (si.service_code in ('ELEC','ELECTRICITY') or lower(si.name) like '%điện%')) or lower(i.item_name_snapshot) like '%điện%') then i.charge_amount else 0 end),0) electricity,"
-                                + "coalesce(sum(case when (exists(select 1 from v_segments seg join service_items si on si.id=seg.service_item_id where seg.id=i.segment_id and (si.service_code in ('WATER') or lower(si.name) like '%nước%')) or lower(i.item_name_snapshot) like '%nước%') then i.charge_amount else 0 end),0) water,"
-                                + "coalesce(sum(case when i.item_kind='ROOM_RENT' then i.charge_amount else 0 end),0) room_rent,"
-                                + "coalesce(sum(case when i.item_kind not in ('ROOM_RENT') and not (lower(i.item_name_snapshot) like '%điện%' or lower(i.item_name_snapshot) like '%nước%') then i.charge_amount else 0 end),0) services_other "
+                        "select coalesce(sum(i.charge_amount) filter(where cls.bucket='ELECTRICITY'),0) electricity,"
+                                + "coalesce(sum(i.charge_amount) filter(where cls.bucket='WATER'),0) water,"
+                                + "coalesce(sum(i.charge_amount) filter(where cls.bucket='ROOM_RENT'),0) room_rent,"
+                                + "coalesce(sum(i.charge_amount) filter(where cls.bucket='OTHER'),0) services_other "
                                 + "from v_item_balances i join contracts c on c.id=i.contract_id "
                                 + "join billing_documents d on d.id=i.document_id "
+                                + ITEM_CLASSIFICATION
                                 + "where i.document_status='ISSUED' "
                                 + "and coalesce(d.billing_period,date_trunc('month',d.issue_date)::date)>=? "
                                 + "and coalesce(d.billing_period,date_trunc('month',d.issue_date)::date)<? "
@@ -194,7 +218,8 @@ public class Reports49 {
                 db.rows(
                         "select c.*,r.room_code from v_contract_current c join rooms r on"
                                 + " r.id=c.room_id where c.status='ACTIVE' and c.end_date between"
-                                + " current_date and current_date+30 and "
+                                + " (now() at time zone 'Asia/Ho_Chi_Minh')::date and"
+                                + " ((now() at time zone 'Asia/Ho_Chi_Minh')::date + 30) and "
                                 + access.contractScope("c", true)));
         result.put(
                 "open_maintenance",
@@ -311,12 +336,13 @@ public class Reports49 {
                                 + "sum(i.charge_amount) as billed,"
                                 + "sum(i.paid_amount) as collected,"
                                 + "sum(i.balance_due) as outstanding,"
-                                + "sum(case when (exists(select 1 from v_segments seg join service_items si on si.id=seg.service_item_id where seg.id=i.segment_id and (si.service_code in ('ELEC','ELECTRICITY') or lower(si.name) like '%điện%')) or lower(i.item_name_snapshot) like '%điện%') then i.charge_amount else 0 end) as electricity,"
-                                + "sum(case when (exists(select 1 from v_segments seg join service_items si on si.id=seg.service_item_id where seg.id=i.segment_id and (si.service_code in ('WATER') or lower(si.name) like '%nước%')) or lower(i.item_name_snapshot) like '%nước%') then i.charge_amount else 0 end) as water,"
-                                + "sum(case when i.item_kind='ROOM_RENT' then i.charge_amount else 0 end) as room_rent "
+                                + "coalesce(sum(i.charge_amount) filter(where cls.bucket='ELECTRICITY'), 0) as electricity,"
+                                + "coalesce(sum(i.charge_amount) filter(where cls.bucket='WATER'), 0) as water,"
+                                + "coalesce(sum(i.charge_amount) filter(where cls.bucket='ROOM_RENT'), 0) as room_rent "
                                 + "from v_item_balances i "
                                 + "join billing_documents d on d.id=i.document_id "
                                 + "join contracts c on c.id=i.contract_id "
+                                + ITEM_CLASSIFICATION
                                 + "where i.document_status='ISSUED' and "
                                 + access.contractScope("c", true)
                                 + " group by period"
@@ -599,6 +625,8 @@ public class Reports49 {
                     + " đ   |   Còn nợ: " + number.format(row.get("outstanding")) + " đ");
             lines.add("Điện: " + number.format(row.get("electricity"))
                     + " đ   |   Nước: " + number.format(row.get("water")) + " đ");
+            lines.add("Dòng tiền quỹ — Thực vào: " + number.format(row.get("cash_in"))
+                    + " đ   |   Hoàn quỹ: " + number.format(row.get("cash_out")) + " đ");
             lines.add("");
         }
         if (lines.isEmpty()) lines.add("Chưa có số liệu cho báo cáo.");

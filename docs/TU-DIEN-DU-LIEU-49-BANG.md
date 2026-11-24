@@ -1,6 +1,6 @@
-# Từ điển dữ liệu — 49 bảng V13
+# Từ điển dữ liệu — 49 bảng V14
 
-Ngày cập nhật: 30/10/2026. Sinh từ metadata PostgreSQL đã thực thi; không tính bảng lịch sử Flyway. Xem [luồng triển khai và kiểm chứng](TRIEN-KHAI-MO-HINH-49-BANG.md).
+Ngày cập nhật: 2026-11-24. Sinh từ metadata PostgreSQL đã thực thi; không tính bảng lịch sử Flyway. Xem [luồng triển khai và kiểm chứng](TRIEN-KHAI-MO-HINH-49-BANG.md).
 
 Quy ước khoảng thời gian: `[từ, đến)`, ngày/thời điểm kết thúc không thuộc khoảng. Tất cả tiền dùng `numeric`; tiền giao dịch dương, chiều tiền nằm ở loại bút toán. Thời điểm dùng `timestamptz`, hiển thị theo Asia/Ho_Chi_Minh.
 
@@ -292,6 +292,11 @@ Bản điều kiện và phụ lục đã duyệt có hiệu lực, không sửa
 | `origin` | `character varying(20)` | Có | — |
 | `status` | `character varying(20)` | Có | — |
 | `created_at` | `timestamp with time zone` | Có | — |
+| `lessor_name` | `character varying(150)` | Có | — |
+| `lessor_identity` | `character varying(40)` | Có | — |
+| `lessor_phone` | `character varying(30)` | Có | — |
+| `lessor_address` | `character varying(350)` | Có | — |
+| `tenant_address` | `character varying(350)` | Có | — |
 
 ## 20. `room_possessions`
 
@@ -349,6 +354,7 @@ Snapshot đồ vật và tình trạng lúc giao
 | `id` | `bigint` | Có | PK |
 | `handover_id` | `bigint` | Có | → `handovers.id`; UNIQUE ghép |
 | `asset_placement_id` | `bigint` | Không | → `asset_placements.id` |
+| `original_item_id` | `bigint` | Không | → `handover_items.id` |
 | `line_no` | `integer` | Có | UNIQUE ghép |
 | `item_name_snapshot` | `character varying(150)` | Có | — |
 | `quantity` | `numeric(12,2)` | Có | — |

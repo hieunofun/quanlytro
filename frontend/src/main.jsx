@@ -60,6 +60,24 @@ const date = () => {
   return `${parts.year}-${parts.month}-${parts.day}`;
 };
 const period = () => date().slice(0, 7);
+const localDateTime = () =>
+  new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  })
+    .format(new Date())
+    .replace(" ", "T");
+const formatDailyBaseline = (a) =>
+  a?.baseline_average == null
+    ? "—"
+    : `${Number(a.baseline_average).toLocaleString("vi-VN", { maximumFractionDigits: 2 })} ${
+        a.meter_type === "WATER" ? "m³" : "kWh"
+      }/ngày`;
 const labels = {
   OPEN: "Chưa xử lý",
   HANDLING: "Đang xử lý",
@@ -129,6 +147,7 @@ const routes = {
   "meter-readings": ["Điện nước", Gauge],
   invoices: ["Hóa đơn", Receipt],
   "maintenance-requests": ["Sự cố", Wrench],
+  notifications: ["Thông báo", Bell],
   settings: ["Thiết lập", Settings],
   operations: ["Vận hành", Wrench],
 };
@@ -179,8 +198,14 @@ const columns = {
       (v, r) =>
         v || r?.alert_status === "PENDING" ? (
           <span className="badge badge-anomaly">
-            <AlertTriangle size={12} /> Cần kiểm tra (+{r?.percentage_increase || 50}%)
+            <AlertTriangle size={12} /> Cần kiểm tra (+{r?.percentage_increase ?? 50}%)
           </span>
+        ) : r?.alert_status === "CONFIRMED" ? (
+          <span className="badge success">Đã xác nhận (+{r?.percentage_increase ?? 0}%)</span>
+        ) : r?.alert_status === "DISMISSED" ? (
+          <span className="badge">Đã loại bỏ</span>
+        ) : r?.alert_status === "INSUFFICIENT_HISTORY" || r?.alert_status === "INCOMPARABLE" ? (
+          <span className="badge">{labels[r.alert_status]}</span>
         ) : (
           <span className="badge">Bình thường</span>
         ),
@@ -796,7 +821,7 @@ function App() {
                           <span>
                             Phòng {a.room_code} · {labels[a.meter_type] || a.meter_type} kỳ{" "}
                             {a.billing_period}: tăng {a.percentage_increase}% so
-                            với trung bình {a.baseline_average}
+                            với mức TB {formatDailyBaseline(a)}
                           </span>
                           <button
                             onClick={() =>
@@ -1179,7 +1204,7 @@ function Dashboard({
                       +{a.percentage_increase}%
                     </span>
                     <small style={{ display: "block", color: "var(--muted)" }}>
-                      TB: {a.baseline_average}
+                      TB: {formatDailyBaseline(a)}
                     </small>
                   </div>
                 </div>
@@ -1358,29 +1383,40 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate, refreshDe
             <button
               className="primary"
               onClick={() =>
-                showForm(
-                  "Ghi nhận thanh toán",
-                  [
-                    f("code", "Mã giao dịch"),
-                    f("amount", "Số tiền thực nhận (phần dư giữ trả trước)", "number"),
-                    f("occurredAt", "Thời điểm thực nhận (giờ Việt Nam)", "datetime-local"),
-                    f("method", "Phương thức", "select", {
-                      options: [
-                        ["CASH", "Tiền mặt"],
-                        ["BANK_TRANSFER_MANUAL", "Chuyển khoản"],
-                        ["OTHER", "Khác"],
-                      ],
-                    }),
-                    f("notes", "Ghi chú", "textarea", { optional: true }),
-                  ],
-                  "/invoices/" + d.id + "/payments",
-                  "POST",
-                  {
-                    code: "PAY-" + Date.now(),
-                    amount: d.balance_due,
-                    method: "CASH",
-                  },
-                )
+                run(async () => {
+                  const accounts = (await api("/cash-accounts")).filter((a) => a.is_active);
+                  showForm(
+                    "Ghi nhận thanh toán",
+                    [
+                      f("code", "Mã giao dịch"),
+                      f("cashAccountId", "Quỹ hoặc tài khoản nhận", "select", {
+                        options: accounts.map((a) => [
+                          a.id,
+                          `${a.name} (${a.account_type === "BANK" ? "Ngân hàng" : "Tiền mặt"})`,
+                        ]),
+                      }),
+                      f("amount", "Số tiền thực nhận (phần dư giữ trả trước)", "number"),
+                      f("occurredAt", "Thời điểm thực nhận (giờ Việt Nam)", "datetime-local"),
+                      f("method", "Phương thức", "select", {
+                        options: [
+                          ["CASH", "Tiền mặt"],
+                          ["BANK_TRANSFER_MANUAL", "Chuyển khoản"],
+                          ["OTHER", "Khác"],
+                        ],
+                      }),
+                      f("notes", "Ghi chú", "textarea", { optional: true }),
+                    ],
+                    "/invoices/" + d.id + "/payments",
+                    "POST",
+                    {
+                      code: "PAY-" + Date.now(),
+                      cashAccountId: accounts[0]?.id || "",
+                      amount: d.balance_due,
+                      occurredAt: localDateTime(),
+                      method: accounts[0]?.account_type === "BANK" ? "BANK_TRANSFER_MANUAL" : "CASH",
+                    },
+                  );
+                })
               }
             >
               Thu tiền
@@ -1430,6 +1466,7 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate, refreshDe
       {route === "rooms" && (
         <RoomAssetsPanel
           roomId={d.id}
+          tenant={tenant}
           showForm={showForm}
           run={run}
           reload={() => refreshDetail(d.id)}
@@ -1462,8 +1499,18 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate, refreshDe
           <h2>Quyết toán trả phòng</h2>
           <dl>
             <div><dt>Ngày trả phòng</dt><dd>{d.checkout.checkout_date}</dd></div>
-            <div><dt>Tiền cọc ban đầu</dt><dd>{money(d.checkout.initial_deposit)}</dd></div>
-            <div><dt>Công nợ trước cấn cọc</dt><dd>{money(d.checkout.unpaid_invoices_amount)}</dd></div>
+            {d.checkout.status === "DRAFT" ? (
+              <>
+                <div><dt>Tiền cọc hiện giữ</dt><dd>{money(d.funds?.find(x => x.fund_type === "DEPOSIT")?.balance ?? 0)}</dd></div>
+                <div><dt>Công nợ hiện tại</dt><dd>{money(d.checkout.debt_remaining)}</dd></div>
+              </>
+            ) : (
+              <>
+                <div><dt>Tiền cọc lúc chốt</dt><dd>{money(d.checkout.initial_deposit)}</dd></div>
+                <div><dt>Công nợ trước cấn cọc</dt><dd>{money(d.checkout.unpaid_invoices_amount)}</dd></div>
+                <div><dt>Công nợ còn lại</dt><dd>{money(d.checkout.debt_remaining)}</dd></div>
+              </>
+            )}
             {d.checkout.return_handover_id && (
               <div><dt>Biên bản trả phòng</dt><dd><a href={"#handover-" + d.checkout.return_handover_id}>
                 {d.handovers?.find(h => h.id === d.checkout.return_handover_id)?.handover_code || d.checkout.return_handover_id}
@@ -1472,6 +1519,7 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate, refreshDe
             <div><dt>Khấu trừ thiệt hại</dt><dd>{money(d.checkout.damage_amount)}</dd></div>
             <div><dt>Trạng thái quyết toán</dt><dd><Badge value={d.checkout.status}/></dd></div>
             <div><dt>Số dư quỹ hiện còn giữ</dt><dd><strong>{money(d.checkout.held_balance)}</strong></dd></div>
+            <div><dt>Dự kiến còn phải hoàn</dt><dd><strong>{d.checkout.refund_due == null ? "Chờ đối soát quỹ" : money(d.checkout.refund_due)}</strong></dd></div>
             <div><dt>Tiền đã hoàn thực tế</dt><dd>{money(d.checkout.actual_refund_amount)}</dd></div>
           </dl>
           <p className="muted">Số dư còn giữ chưa phải tiền đã hoàn. Chốt số điện nước và các khoản còn thiếu trước khi duyệt; hoàn tiền phải có phiếu chi thực tế.</p>

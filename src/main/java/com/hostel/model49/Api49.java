@@ -258,12 +258,14 @@ public class Api49 {
     @PostMapping("/rooms/{id}/assets")
     public Object addRoomAsset(@PathVariable long id, @RequestBody Map<String, Object> m) {
         access.manager();
-        access.room(id);
+        access.action(id, "MANAGE", BigDecimal.ZERO);
         Long assetId = optionalId(m, "assetId");
         if (assetId == null) {
+            access.admin();
             Long typeId = keyId(m, "assetTypeId");
             String code = text(m, "AST-" + id + "-" + (System.currentTimeMillis() % 100000), "assetCode");
             BigDecimal qty = amount(m, "1", "quantity");
+            require(qty.signum() > 0, "Số lượng đồ đạc phải lớn hơn 0");
             String note = text(m, "", "note");
             assetId = db.insert("assets", "asset_type_id,asset_code,quantity,status,note", typeId, code, qty, "ACTIVE", note);
         }
@@ -280,7 +282,7 @@ public class Api49 {
     @PostMapping("/rooms/{id}/assets/{placementId}/remove")
     public Object removeRoomAsset(@PathVariable long id, @PathVariable long placementId, @RequestBody(required = false) Map<String, Object> m) {
         access.manager();
-        access.room(id);
+        access.action(id, "MANAGE", BigDecimal.ZERO);
         var old = db.one("select * from asset_placements where id=? and room_id=? and valid_to is null", placementId, id);
         db.jdbc.update("update asset_placements set valid_to=clock_timestamp() where id=?", placementId);
         events.audit("REMOVE_ASSET", "asset_placements", placementId, old, m, "Asset removed from room " + id);
@@ -507,9 +509,9 @@ public class Api49 {
                         from handover_items i where i.handover_id=(
                             select h.id from handovers h where h.contract_id=? and h.occurred_at<=?
                             and h.handover_type='MOVE_IN' and h.status='CONFIRMED'
-                            and (h.possession_id is null or h.possession_id=?)
+                            and (?::bigint is null or h.possession_id is null or h.possession_id=?)
                             order by h.occurred_at desc,h.id desc limit 1)
-                        """, handoverId, id, occurred, possessionId);
+                        """, handoverId, id, occurred, possessionId, possessionId);
             } else {
                 db.jdbc.update("""
                         insert into handover_items (handover_id,asset_placement_id,line_no,
@@ -1207,9 +1209,10 @@ public class Api49 {
         LocalDate end = date(terms.get("lease_end"));
         var residents = db.rows("""
                 select t.full_name from contract_residencies r join tenant_profiles t on t.id=r.tenant_id
-                where r.contract_id=? and r.effective_from<=? and (r.effective_to is null or r.effective_to>?)
-                order by r.effective_from,r.id
-                """, id, start, start).stream().map(row -> row.get("full_name").toString()).toList();
+                where r.contract_id=? and r.effective_from<? and (r.effective_to is null or r.effective_to>?)
+                group by t.id, t.full_name
+                order by min(r.effective_from), min(r.id)
+                """, id, end, start).stream().map(row -> row.get("full_name").toString()).toList();
         var handovers = db.rows("""
                 select id,handover_code,occurred_at from handovers
                 where contract_id=? and handover_type='MOVE_IN' and status='CONFIRMED'

@@ -717,6 +717,8 @@ tr.row-anomaly:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
   margin-bottom: 12px;
 }
 .period-metrics-title h3 {
@@ -898,6 +900,8 @@ tr.row-anomaly:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
   margin-bottom: 12px;
 }
 .item-badge {

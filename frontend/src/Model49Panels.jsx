@@ -252,8 +252,13 @@ export function Contract49Panel({ contract: c, tenant, showForm, run, reload }) 
           <div>
             <h2>Điều khoản hợp đồng & Văn bản</h2>
             <p className="muted">
-              Ngày đóng tiền định kỳ: <strong>Ngày {c.payment_day || 5} hàng tháng</strong> · Hình thức:{" "}
-              <strong>{c.collection_timing === "IN_ARREARS" ? "Thu cuối kỳ (Trả sau)" : "Thu đầu kỳ (Trả trước)"}</strong>
+              Ngày đóng tiền định kỳ:{" "}
+              <strong>Ngày {c.payment_cycle_day ?? c.versions?.at(-1)?.payment_day ?? 5} hàng tháng</strong> · Hình thức:{" "}
+              <strong>
+                {(c.collection_timing || c.versions?.at(-1)?.collection_timing) === "IN_ARREARS"
+                  ? "Thu cuối kỳ (Trả sau)"
+                  : "Thu đầu kỳ (Trả trước)"}
+              </strong>
             </p>
           </div>
           <div className="actions">
@@ -607,17 +612,20 @@ export function Contract49Panel({ contract: c, tenant, showForm, run, reload }) 
   );
 }
 
-export function RoomAssetsPanel({ roomId, showForm, run, reload }) {
+export function RoomAssetsPanel({ roomId, tenant, showForm, run, reload }) {
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const admin = getSession()?.user.role === "ADMIN";
 
   const load = async () => {
     setLoading(true);
+    setError("");
     try {
       const data = await api("/rooms/" + roomId + "/assets");
       setAssets(data);
     } catch (e) {
-      console.error(e);
+      setError(e.message);
     } finally {
       setLoading(false);
     }
@@ -673,11 +681,14 @@ export function RoomAssetsPanel({ roomId, showForm, run, reload }) {
             Quản lý trang thiết bị, số lượng và hiện trạng đồ đạc bố trí trong phòng phục vụ bàn giao và kiểm kê.
           </p>
         </div>
-        <button onClick={addAsset} className="primary">
-          <Plus size={16} /> Thêm đồ đạc
-        </button>
+        {!tenant && admin && (
+          <button onClick={addAsset} className="primary">
+            <Plus size={16} /> Thêm đồ đạc
+          </button>
+        )}
       </div>
 
+      {error && <p className="banner error" role="alert">{error}</p>}
       {loading ? (
         <p className="muted">Đang tải danh mục đồ đạc...</p>
       ) : assets.length === 0 ? (
@@ -695,7 +706,7 @@ export function RoomAssetsPanel({ roomId, showForm, run, reload }) {
                 <th>Đơn vị</th>
                 <th>Ngày bố trí</th>
                 <th>Hiện trạng / Ghi chú</th>
-                <th>Thao tác</th>
+                {!tenant && <th>Thao tác</th>}
               </tr>
             </thead>
             <tbody>
@@ -707,14 +718,16 @@ export function RoomAssetsPanel({ roomId, showForm, run, reload }) {
                   <td>{a.unit_name || "Cái"}</td>
                   <td>{a.valid_from ? new Date(a.valid_from).toLocaleDateString("vi-VN") : "—"}</td>
                   <td>{a.asset_note || "Hoạt động tốt"}</td>
-                  <td>
-                    <button
-                      className="danger"
-                      onClick={() => removeAsset(a.placement_id, a.asset_type_name)}
-                    >
-                      Gỡ bỏ
-                    </button>
-                  </td>
+                  {!tenant && (
+                    <td>
+                      <button
+                        className="danger"
+                        onClick={() => removeAsset(a.placement_id, a.asset_type_name)}
+                      >
+                        Gỡ bỏ
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -728,17 +741,19 @@ export function RoomAssetsPanel({ roomId, showForm, run, reload }) {
 export function DebtsPanel({ showForm, run, navigate }) {
   const [debts, setDebts] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [expanded, setExpanded] = useState({});
 
   const load = async () => {
     setLoading(true);
+    setError("");
     try {
       const data = await api("/reports/tenant-debts");
       setDebts(data);
     } catch (e) {
-      console.error(e);
+      setError(e.message);
     } finally {
       setLoading(false);
     }
@@ -782,6 +797,7 @@ export function DebtsPanel({ showForm, run, navigate }) {
         </div>
       </div>
 
+      {error && <p className="banner error" role="alert">{error}</p>}
       <div className="stats" style={{ marginBottom: 20 }}>
         <div className="card stat">
           <div><span className="muted">Tổng dư nợ toàn hệ thống</span></div>
@@ -911,30 +927,41 @@ export function DebtsPanel({ showForm, run, navigate }) {
                                     <button
                                       className="primary"
                                       onClick={() =>
-                                        showForm(
-                                          "Thu tiền hóa đơn " + inv.invoice_code,
-                                          [
-                                            field("code", "Mã giao dịch"),
-                                            field("amount", "Số tiền thực nhận", "number"),
-                                            field("occurredAt", "Thời điểm thực nhận", "datetime-local"),
-                                            field("method", "Phương thức", "select", {
-                                              options: [
-                                                ["CASH", "Tiền mặt"],
-                                                ["BANK_TRANSFER_MANUAL", "Chuyển khoản"],
-                                                ["OTHER", "Khác"],
-                                              ],
-                                            }),
-                                            field("notes", "Ghi chú", "textarea", { optional: true }),
-                                          ],
-                                          "/invoices/" + inv.id + "/payments",
-                                          "POST",
-                                          {
-                                            code: "PAY-" + Date.now(),
-                                            amount: inv.balance_due,
-                                            method: "CASH",
-                                          },
-                                          load
-                                        )
+                                        run(async () => {
+                                          const accounts = (await api("/cash-accounts")).filter((a) => a.is_active);
+                                          showForm(
+                                            "Thu tiền hóa đơn " + inv.invoice_code,
+                                            [
+                                              field("code", "Mã giao dịch"),
+                                              field("cashAccountId", "Quỹ hoặc tài khoản nhận", "select", {
+                                                options: accounts.map((a) => [
+                                                  a.id,
+                                                  `${a.name} (${a.account_type === "BANK" ? "Ngân hàng" : "Tiền mặt"})`,
+                                                ]),
+                                              }),
+                                              field("amount", "Số tiền thực nhận", "number"),
+                                              field("occurredAt", "Thời điểm thực nhận (giờ Việt Nam)", "datetime-local"),
+                                              field("method", "Phương thức", "select", {
+                                                options: [
+                                                  ["CASH", "Tiền mặt"],
+                                                  ["BANK_TRANSFER_MANUAL", "Chuyển khoản"],
+                                                  ["OTHER", "Khác"],
+                                                ],
+                                              }),
+                                              field("notes", "Ghi chú", "textarea", { optional: true }),
+                                            ],
+                                            "/invoices/" + inv.id + "/payments",
+                                            "POST",
+                                            {
+                                              code: "PAY-" + Date.now(),
+                                              cashAccountId: accounts[0]?.id || "",
+                                              amount: inv.balance_due,
+                                              occurredAt: localDateTime(),
+                                              method: accounts[0]?.account_type === "BANK" ? "BANK_TRANSFER_MANUAL" : "CASH",
+                                            },
+                                            load
+                                          );
+                                        })
                                       }
                                     >
                                       Thu tiền
@@ -962,9 +989,11 @@ export function ReportsPanel({ run }) {
   const [tab, setTab] = useState("month");
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const load = async () => {
     setLoading(true);
+    setError("");
     try {
       const endpoint =
         tab === "quarter"
@@ -975,7 +1004,7 @@ export function ReportsPanel({ run }) {
       const rows = await api(endpoint);
       setData(rows);
     } catch (e) {
-      console.error(e);
+      setError(e.message);
     } finally {
       setLoading(false);
     }
@@ -1019,6 +1048,7 @@ export function ReportsPanel({ run }) {
         </div>
       </div>
 
+      {error && <p className="banner error" role="alert">{error}</p>}
       <div className="stats" style={{ marginBottom: 20 }}>
         <div className="card stat">
           <div><span className="muted">Tổng hóa đơn phát hành</span></div>
@@ -1093,6 +1123,8 @@ export function ReportsPanel({ run }) {
               <th>Thu sau hạn</th>
               <th>Tổng thực thu</th>
               <th>Còn nợ</th>
+              <th>Tiền vào quỹ</th>
+              <th>Hoàn quỹ</th>
               <th>Tỷ lệ thu</th>
             </tr>
           </thead>
@@ -1111,6 +1143,8 @@ export function ReportsPanel({ run }) {
                 <td style={{ color: Number(r.outstanding) > 0 ? "#dc2626" : "inherit" }}>
                   {money(r.outstanding)}
                 </td>
+                <td>{money(r.cash_in)}</td>
+                <td>{money(r.cash_out)}</td>
                 <td>
                   <span className="badge" style={{ fontWeight: 600 }}>
                     {r.collection_rate ?? 0}%
@@ -1135,6 +1169,7 @@ const schemas = {
   "maintenance-schedules": ["Lịch bảo trì", [["roomId", "Phòng", "rooms", true], ["propertyId", "Khu vực chung", "properties", true], ["title", "Nội dung"], ["intervalDays", "Lặp sau số ngày", "number"], ["nextDue", "Lần đến hạn", "date"]]],
   handovers: ["Biên bản bàn giao", [["contractId", "Hợp đồng", "contracts"], ["handoverCode", "Mã biên bản"], ["handoverType", "Loại: MOVE_IN / MOVE_OUT / RESPONSIBILITY"], ["occurredAt", "Thời điểm thực tế (giờ Việt Nam)", "datetime-local"], ["note", "Nội dung", "textarea"]]],
   "handover-items": ["Chi tiết bàn giao", [["handoverId", "Biên bản", "handovers"], ["lineNo", "Số thứ tự", "number"], ["itemNameSnapshot", "Tên tài sản tại lúc giao"], ["quantity", "Số lượng", "number"], ["conditionNote", "Hiện trạng ghi nhận", "textarea"]]],
+  "cash-accounts": ["Quỹ & Tài khoản thu chi", [["propertyId", "Khu nhà (để trống nếu dùng chung)", "properties", true], ["accountCode", "Mã tài khoản"], ["name", "Tên quỹ / tài khoản ngân hàng"], ["accountType", "Loại: CASH / BANK"]]],
   "staff-permissions": ["Ủy quyền nhân viên", [["assignmentId", "Phân công", "assignments"], ["actionCode", "Quyền: REFUND / TRANSFER / ADJUST / DEPOSIT_OFFSET / WAIVE_DEPOSIT"], ["amountLimit", "Hạn mức mỗi thao tác", "number", true], ["expiresAt", "Hết hạn ủy quyền", "datetime-local", true]]],
 };
 
@@ -1187,7 +1222,7 @@ export function Workflow49Panel({ showForm, run }) {
           Nhóm nghiệp vụ{" "}
           <select value={resource} onChange={(e) => setResource(e.target.value)}>
             {Object.entries(schemas)
-              .filter(([key]) => admin || !["asset-types", "assets", "staff-permissions"].includes(key))
+              .filter(([key]) => admin || !["asset-types", "assets", "cash-accounts", "staff-permissions"].includes(key))
               .map(([key, [name]]) => (
                 <option key={key} value={key}>
                   {name}
@@ -1255,13 +1290,10 @@ export function Workflow49Panel({ showForm, run }) {
                         onClick={() =>
                           showForm(
                             "Xác nhận biên bản",
-                            [
-                              field("confirmedAt", "Thời điểm xác nhận", "datetime-local"),
-                              field("reason", "Căn cứ xác nhận", "textarea"),
-                            ],
-                            "/catalog/handovers/" + r.id,
-                            "PUT",
-                            { status: "CONFIRMED" },
+                            [field("note", "Ghi chú xác nhận", "textarea", { optional: true })],
+                            "/handovers/" + r.id + "/confirm",
+                            "POST",
+                            {},
                             load
                           )
                         }

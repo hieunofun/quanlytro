@@ -26,6 +26,7 @@ class PdfTests {
             assertTrue(doc.getNumberOfPages() > 1);
             assertEquals(595.28f, doc.getPage(0).getMediaBox().getWidth(), 0.1f);
             assertTrue(text.contains("PHỤ LỤC HỢP ĐỒNG THUÊ PHÒNG TRỌ"));
+            assertTrue(text.contains("PHỤ LỤC HỢP ĐỒNG THUÊ PHÒNG TRỌ  /  HD-P101"));
             assertTrue(text.contains("đến trước ngày 01/06/2027"));
             assertTrue(text.contains("Điều hòa"));
             assertTrue(text.contains("Ký và ghi rõ họ tên"));

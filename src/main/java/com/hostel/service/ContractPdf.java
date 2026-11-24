@@ -45,7 +45,7 @@ public final class ContractPdf {
                     ? "HỢP ĐỒNG THUÊ PHÒNG TRỌ"
                     : "PHỤ LỤC HỢP ĐỒNG THUÊ PHÒNG TRỌ";
             document.getDocumentInformation().setTitle(title + " " + lease.code());
-            try (var page = new Layout(document, font, lease.code())) {
+            try (var page = new Layout(document, font, title, lease.code())) {
                 page.cover(title, lease);
                 page.parties(lease.lessor(), lease.tenant());
 
@@ -113,13 +113,15 @@ public final class ContractPdf {
     private static final class Layout implements AutoCloseable {
         private final PDDocument doc;
         private final PDType0Font font;
+        private final String title;
         private final String code;
         private PDPageContentStream stream;
         private float y;
 
-        Layout(PDDocument doc, PDType0Font font, String code) throws IOException {
+        Layout(PDDocument doc, PDType0Font font, String title, String code) throws IOException {
             this.doc = doc;
             this.font = font;
+            this.title = title;
             this.code = code;
             newPage();
         }
@@ -131,7 +133,7 @@ public final class ContractPdf {
             stream = new PDPageContentStream(doc, page);
             y = TOP;
             if (doc.getNumberOfPages() > 1) {
-                text("HỢP ĐỒNG THUÊ PHÒNG TRỌ  /  " + code, LEFT, y, 9, SECONDARY, true);
+                text(title + "  /  " + code, LEFT, y, 9, SECONDARY, true);
                 rule(stream, LEFT, y - 9, WIDTH);
                 y -= 32;
             }

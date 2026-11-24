@@ -1781,6 +1781,56 @@
       "note": null
     },
     {
+      "table_name": "contract_terms",
+      "name": "lessor_name",
+      "position": 16,
+      "type": "character varying(150)",
+      "not_null": true,
+      "identity": "",
+      "default_value": "''::character varying",
+      "note": null
+    },
+    {
+      "table_name": "contract_terms",
+      "name": "lessor_identity",
+      "position": 17,
+      "type": "character varying(40)",
+      "not_null": true,
+      "identity": "",
+      "default_value": "''::character varying",
+      "note": null
+    },
+    {
+      "table_name": "contract_terms",
+      "name": "lessor_phone",
+      "position": 18,
+      "type": "character varying(30)",
+      "not_null": true,
+      "identity": "",
+      "default_value": "''::character varying",
+      "note": null
+    },
+    {
+      "table_name": "contract_terms",
+      "name": "lessor_address",
+      "position": 19,
+      "type": "character varying(350)",
+      "not_null": true,
+      "identity": "",
+      "default_value": "''::character varying",
+      "note": null
+    },
+    {
+      "table_name": "contract_terms",
+      "name": "tenant_address",
+      "position": 20,
+      "type": "character varying(350)",
+      "not_null": true,
+      "identity": "",
+      "default_value": "''::character varying",
+      "note": null
+    },
+    {
       "table_name": "contract_violations",
       "name": "id",
       "position": 1,
@@ -2542,8 +2592,18 @@
     },
     {
       "table_name": "handover_items",
-      "name": "line_no",
+      "name": "original_item_id",
       "position": 4,
+      "type": "bigint",
+      "not_null": false,
+      "identity": "",
+      "default_value": null,
+      "note": null
+    },
+    {
+      "table_name": "handover_items",
+      "name": "line_no",
+      "position": 5,
       "type": "integer",
       "not_null": true,
       "identity": "",
@@ -2553,7 +2613,7 @@
     {
       "table_name": "handover_items",
       "name": "item_name_snapshot",
-      "position": 5,
+      "position": 6,
       "type": "character varying(150)",
       "not_null": true,
       "identity": "",
@@ -2563,7 +2623,7 @@
     {
       "table_name": "handover_items",
       "name": "quantity",
-      "position": 6,
+      "position": 7,
       "type": "numeric(12,2)",
       "not_null": true,
       "identity": "",
@@ -2573,7 +2633,7 @@
     {
       "table_name": "handover_items",
       "name": "condition_note",
-      "position": 7,
+      "position": 8,
       "type": "text",
       "not_null": true,
       "identity": "",
@@ -2583,7 +2643,7 @@
     {
       "table_name": "handover_items",
       "name": "note",
-      "position": 8,
+      "position": 9,
       "type": "text",
       "not_null": false,
       "identity": "",
@@ -7944,6 +8004,21 @@
     },
     {
       "table_name": "handover_items",
+      "name": "handover_item_distinct_original",
+      "kind": "c",
+      "columns": [
+        "original_item_id",
+        "id"
+      ],
+      "parent_table": null,
+      "parent_columns": [],
+      "on_delete": " ",
+      "on_update": " ",
+      "check_expression": "(original_item_id IS DISTINCT FROM id)",
+      "definition": "CHECK ((original_item_id IS DISTINCT FROM id))"
+    },
+    {
+      "table_name": "handover_items",
       "name": "handover_items_asset_placement_id_fkey",
       "kind": "f",
       "columns": [
@@ -8002,6 +8077,22 @@
       "on_update": " ",
       "check_expression": "(line_no > 0)",
       "definition": "CHECK ((line_no > 0))"
+    },
+    {
+      "table_name": "handover_items",
+      "name": "handover_items_original_item_id_fkey",
+      "kind": "f",
+      "columns": [
+        "original_item_id"
+      ],
+      "parent_table": "handover_items",
+      "parent_columns": [
+        "id"
+      ],
+      "on_delete": "a",
+      "on_update": "a",
+      "check_expression": null,
+      "definition": "FOREIGN KEY (original_item_id) REFERENCES handover_items(id)"
     },
     {
       "table_name": "handover_items",
@@ -11184,6 +11275,20 @@
       "predicate": null,
       "definition": "CREATE UNIQUE INDEX handover_items_pkey ON public.handover_items USING btree (id)",
       "constraint_kind": "p",
+      "access_method": "btree"
+    },
+    {
+      "table_name": "handover_items",
+      "name": "uq_handover_item_original",
+      "is_unique": true,
+      "is_primary": false,
+      "columns": [
+        "handover_id",
+        "original_item_id"
+      ],
+      "predicate": "(original_item_id IS NOT NULL)",
+      "definition": "CREATE UNIQUE INDEX uq_handover_item_original ON public.handover_items USING btree (handover_id, original_item_id) WHERE (original_item_id IS NOT NULL)",
+      "constraint_kind": null,
       "access_method": "btree"
     },
     {

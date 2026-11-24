@@ -70,7 +70,17 @@ await call('Cấu hình ngày chốt và phát hành', `/properties/${property.i
 }, 'PUT');
 
 const accounts = await call('Lấy tài khoản quỹ', '/cash-accounts');
-const cashAccount = accounts.find((a) => a.property_id === property.id) || accounts[0];
+const cashAccount = accounts.find((a) => a.property_id === property.id && a.account_type === 'CASH') || accounts[0];
+let bankAccount = accounts.find((a) => a.property_id === property.id && a.account_type === 'BANK');
+if (!bankAccount) {
+  bankAccount = await call('Tạo tài khoản ngân hàng khu nhà', '/catalog/cash-accounts', {
+    propertyId: property.id,
+    accountCode: 'BANK-SKYHOME',
+    name: 'Tài khoản ngân hàng Tòa nhà SkyHome Central',
+    accountType: 'BANK',
+    isActive: true,
+  });
+}
 
 // Thiết lập giá dịch vụ
 const defaultServices = await call('Danh mục dịch vụ', '/catalog/services');
@@ -233,7 +243,7 @@ async function ensureContract(code, roomId, fullName, phone, cccd, rent, dep, st
     });
     // Thu tiền cọc
     await call(`Thu cọc ${code}`, '/cash-transactions', {
-      cashAccountId: cashAccount.id,
+      cashAccountId: bankAccount.id,
       contractId: c.id,
       fundType: 'DEPOSIT',
       code: `DEP-${code}`,
@@ -396,12 +406,13 @@ async function ensureMonthlyInvoice(contract, period, payCase) {
     UNPAID: [],
   };
   for (const [label, date, amount] of payments[payCase]) {
+    const isBank = label === 'EARLY' || label === 'LATE';
     await call(`Thanh toán ${label} ${invoice.invoice_code}`, `/invoices/${invoice.id}/payments`, {
       code: `PAY-${label}-${invoice.id}`,
       amount,
-      cashAccountId: cashAccount.id,
+      cashAccountId: isBank ? bankAccount.id : cashAccount.id,
       occurredAt: `${period}-${date}T10:00:00+07:00`,
-      method: label === 'EARLY' || label === 'LATE' ? 'BANK_TRANSFER_MANUAL' : 'CASH',
+      method: isBank ? 'BANK_TRANSFER_MANUAL' : 'CASH',
     });
   }
   return invoice;
@@ -501,6 +512,12 @@ assert.equal(
   Math.round(dashboard.billed * 100),
   'Tổng các ô thu và chưa thu phải bằng tiền lập hóa đơn',
 );
+assert.equal(
+  Math.round((dashboard.room_rent + dashboard.electricity + dashboard.water + dashboard.services_other) * 100),
+  Math.round(dashboard.billed * 100),
+  'Tổng tiền phòng, điện, nước và dịch vụ khác phải khớp tổng lập hóa đơn',
+);
+assert.equal(contract101.payment_cycle_day, 8, 'Phụ lục P101 phải có ngày thanh toán kỳ 8');
 const quarter = await call('Dashboard quý 4/2025', '/dashboard?quarter=2025-Q4');
 assert.equal(quarter.period, '2025-Q4');
 assert.ok(quarter.billed > 0);

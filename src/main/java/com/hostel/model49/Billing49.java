@@ -450,6 +450,9 @@ public class Billing49 {
                 receipt.put(field, value(m, field));
             }
         }
+        if (!receipt.containsKey("note") && value(m, "notes") != null) {
+            receipt.put("note", value(m, "notes"));
+        }
         finance.receive(receipt);
         if (prior) {
             return finance.document(document);

@@ -356,4 +356,107 @@ class BusinessIntegrityTests {
         money("5570000",db.jdbc.queryForObject("select sum(case direction when 'IN' then amount else -amount end) from cash_transactions where cash_account_id=? and status='CONFIRMED'",BigDecimal.class,account));
         assertEquals(0,db.jdbc.queryForObject("select count(*) from billing_items where segment_id=?",Integer.class,owner.get("id")));
     }
+
+    @Test void v14RoomAssetsHandoverComparisonCompensationAndContractPdf()throws Exception{
+        long assetType=id(post("/catalog/asset-types",Map.of("code","AT-"+suffix,"name","Điều hòa Inverter","unitName","Bộ")));
+        assertEquals(200,send("/rooms/"+room+"/assets","POST",Map.of("assetTypeId",assetType,"assetCode","AST-"+suffix,"quantity",1,"note","Mới lắp","validFrom","2025-12-31T08:00:00+07:00"),token).statusCode());
+        String assignedStaff=staff(true);
+        assertEquals(403,send("/rooms/"+room+"/assets","POST",Map.of("assetTypeId",assetType,"assetCode","AST-STF-"+suffix,"quantity",1),assignedStaff).statusCode());
+        long laterResident=id(post("/tenants",Map.of("fullName","Người ở bổ sung "+suffix)));
+        post("/contracts/"+contract+"/members",Map.of("tenantId",laterResident,"effectiveFrom","2026-01-15"));
+        possess();
+        var moveInDetail=post("/contracts/"+contract+"/handovers",Map.of("handoverType","MOVE_IN","handoverCode","HO-IN-"+suffix,"occurredAt","2026-01-01T10:00:00+07:00","autoPopulateItems",true));
+        @SuppressWarnings("unchecked") var handovers=(List<Map<String,Object>>)moveInDetail.get("handovers");
+        long moveInId=id(handovers.getFirst());
+        @SuppressWarnings("unchecked") var moveInItems=(List<Map<String,Object>>)handovers.getFirst().get("items");
+        assertEquals(1,moveInItems.size());
+        long moveInItemId=id(moveInItems.getFirst());
+        assertEquals(400,send("/handovers/"+moveInId+"/confirm","POST",Map.of(),token).statusCode());
+        assertEquals(400,send("/catalog/handovers/"+moveInId,"PUT",Map.of("status","CONFIRMED","reason","Attempt bypass"),token).statusCode());
+        ok(send("/handovers/"+moveInId+"/items/"+moveInItemId,"PUT",Map.of("quantity",1,"conditionNote","Hoạt động tốt"),token));
+        post("/handovers/"+moveInId+"/confirm",Map.of("note","Đã đối chiếu nhận phòng"));
+
+        var moveOutDetail=post("/contracts/"+contract+"/handovers",Map.of("handoverType","MOVE_OUT","handoverCode","HO-OUT-"+suffix,"occurredAt","2026-01-20T10:00:00+07:00","autoPopulateItems",true));
+        @SuppressWarnings("unchecked") var outList=(List<Map<String,Object>>)moveOutDetail.get("handovers");
+        var moveOut=outList.stream().filter(h->"MOVE_OUT".equals(h.get("handover_type"))).findFirst().orElseThrow();
+        long moveOutId=id(moveOut);
+        @SuppressWarnings("unchecked") var moveOutItems=(List<Map<String,Object>>)moveOut.get("items");
+        assertEquals(1,moveOutItems.size());
+        long moveOutItemId=id(moveOutItems.getFirst());
+        assertEquals(moveInItemId,((Number)moveOutItems.getFirst().get("original_item_id")).longValue());
+        ok(send("/handovers/"+moveOutId+"/items/"+moveOutItemId,"PUT",Map.of("quantity",1,"conditionNote","Hư điều khiển"),token));
+        post("/handovers/"+moveOutId+"/confirm",Map.of("note","Đã đối chiếu trả phòng"));
+
+        var checkout=post("/contracts/"+contract+"/checkout",Map.of("billingEnd","2026-01-20","returnedAt","2026-01-20T10:00:00+07:00","returnHandoverId",moveOutId));
+        assertEquals(moveOutId,((Number)checkout.get("return_handover_id")).longValue());
+        var compBody=Map.of("handoverItemId",moveOutItemId,"amount",350000,"issueDate","2026-01-20","dueDate","2026-01-23","note","Thay điều khiển điều hòa");
+        var comp1=post("/handovers/"+moveOutId+"/damage-compensation",compBody);
+        var comp2=post("/handovers/"+moveOutId+"/damage-compensation",compBody);
+        assertEquals(id(comp1),id(comp2));
+        assertEquals("ISSUED",comp1.get("status"));
+        assertEquals(id(checkout),((Number)comp1.get("checkout_id")).longValue());
+
+        var pdfRes=client.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:"+port+"/api/contracts/"+contract+"/pdf")).header("Authorization","Bearer "+token).GET().build(),HttpResponse.BodyHandlers.ofByteArray());
+        assertEquals(200,pdfRes.statusCode());
+        try(var doc=org.apache.pdfbox.Loader.loadPDF(pdfRes.body())){
+            String text=new org.apache.pdfbox.text.PDFTextStripper().getText(doc);
+            assertTrue(text.contains("Người ở bổ sung "+suffix));
+            assertTrue(text.contains("Điều hòa Inverter"));
+        }
+    }
+
+    @Test void v14ReportsClassifyUtilitiesWithoutDoubleCountingAndExportPdf()throws Exception{
+        var before=get("/dashboard?period=2026-01");
+        ok(send("/properties/"+property+"/billing-policy","PUT",Map.of("meterCutoffDay",31,"invoiceIssueDay",1),token));
+        long elecId=((Number)db.one("select id from service_items where service_code='ELEC'").get("id")).longValue();
+        long waterId=((Number)db.one("select id from service_items where service_code='WATER'").get("id")).longValue();
+        db.jdbc.update("insert into service_price_configs(property_id,service_item_id,effective_from,unit_price) values(?,?,?,?) on conflict do nothing",property,elecId,LocalDate.of(2025,1,1),3500);
+        db.jdbc.update("insert into service_price_configs(property_id,service_item_id,effective_from,unit_price) values(?,?,?,?) on conflict do nothing",property,waterId,LocalDate.of(2025,1,1),25000);
+        long elecMeter=id(post("/catalog/meters",Map.of("roomId",room,"serviceItemId",elecId,"meterCode","EL-"+suffix,"installedAt",START)));
+        long waterMeter=id(post("/catalog/meters",Map.of("roomId",room,"serviceItemId",waterId,"meterCode","WA-"+suffix,"installedAt",START)));
+        post("/catalog/subscriptions",Map.of("contractId",contract,"serviceItemId",elecId,"effectiveFrom","2026-01-01"));
+        post("/catalog/subscriptions",Map.of("contractId",contract,"serviceItemId",waterId,"effectiveFrom","2026-01-01"));
+        possess();
+        post("/meter-readings",Map.of("meterId",elecMeter,"contractId",contract,"startAt","2026-01-01T00:00:00+07:00","endAt","2026-01-31T23:59:59+07:00","oldIndex",100,"newIndex",110));
+        post("/meter-readings",Map.of("meterId",waterMeter,"contractId",contract,"startAt","2026-01-01T00:00:00+07:00","endAt","2026-01-31T23:59:59+07:00","oldIndex",50,"newIndex",52));
+        long inv=id(post("/invoices",Map.of("contractId",contract,"period","2026-01","issueDate","2026-02-01","dueDate","2026-02-05")));
+        post("/invoices/"+inv+"/issue",Map.of());
+        // Compensation item whose name contains both 'điện' and 'nước' must stay in services_other, not utilities.
+        long dmg=id(post("/billing-documents",Map.of("contractId",contract,"code","DMG-"+suffix,"documentType","COMPENSATION","period","2026-01","issueDate","2026-01-25","dueDate","2026-01-28",
+                "items",List.of(Map.of("name","Bồi thường: Quạt điện và bình nước nóng","itemKind","DAMAGE","unitPrice",150000)))));
+        post("/billing-documents/"+dmg+"/issue",Map.of());
+
+        var dash=get("/dashboard?period=2026-01");
+        BigDecimal billed=new BigDecimal(dash.get("billed").toString());
+        BigDecimal sum=new BigDecimal(dash.get("room_rent").toString())
+                .add(new BigDecimal(dash.get("electricity").toString()))
+                .add(new BigDecimal(dash.get("water").toString()))
+                .add(new BigDecimal(dash.get("services_other").toString()));
+        assertEquals(0,billed.compareTo(sum),"Expected bucket sum "+sum+" to equal billed "+billed);
+        money("35000",new BigDecimal(dash.get("electricity").toString()).subtract(new BigDecimal(before.get("electricity").toString())));
+        money("50000",new BigDecimal(dash.get("water").toString()).subtract(new BigDecimal(before.get("water").toString())));
+        money("150000",new BigDecimal(dash.get("services_other").toString()).subtract(new BigDecimal(before.get("services_other").toString())));
+
+        assertEquals(200,send("/reports/revenue-quarterly","GET",null,token).statusCode());
+        assertEquals(200,send("/reports/revenue-yearly","GET",null,token).statusCode());
+        var pdfRes=client.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:"+port+"/api/reports/revenue/pdf?group=quarter")).header("Authorization","Bearer "+token).GET().build(),HttpResponse.BodyHandlers.ofByteArray());
+        assertEquals(200,pdfRes.statusCode());
+        assertEquals("%PDF-",new String(pdfRes.body(),0,5,java.nio.charset.StandardCharsets.US_ASCII));
+    }
+
+    @Test void v14ConflictErrorReturnsClearVietnameseMessageForPendingAlert()throws Exception{
+        possess();
+        long meter=device();
+        long service=((Number)db.one("select service_item_id from meters where id=?",meter).get("service_item_id")).longValue();
+        db.insert("alert_policies","room_id,service_item_id,effective_from,history_months,minimum_days,threshold_percentage",room,service,LocalDate.of(2026,1,1),3,7,50);
+        post("/meter-readings",Map.of("meterId",meter,"contractId",contract,"startAt","2026-01-01T00:00:00+07:00","endAt","2026-02-01T00:00:00+07:00","oldIndex",0,"newIndex",31));
+        post("/meter-readings",Map.of("meterId",meter,"contractId",contract,"startAt","2026-02-01T00:00:00+07:00","endAt","2026-03-01T00:00:00+07:00","oldIndex",31,"newIndex",59));
+        post("/meter-readings",Map.of("meterId",meter,"contractId",contract,"startAt","2026-03-01T00:00:00+07:00","endAt","2026-04-01T00:00:00+07:00","oldIndex",59,"newIndex",90));
+        var spike=post("/meter-readings",Map.of("meterId",meter,"contractId",contract,"startAt","2026-04-01T00:00:00+07:00","endAt","2026-04-16T00:00:00+07:00","oldIndex",90,"newIndex",150));
+        long doc=id(post("/billing-documents",Map.of("contractId",contract,"code","SPIKE-"+suffix,"documentType","FINAL_CHARGE",
+                "items",List.of(Map.of("name","Electricity","itemKind","UTILITY","unit","kWh","unitPrice",3500,"calculationBasis","METER","segmentId",spike.get("id"),"serviceFrom","2026-04-01","serviceTo","2026-04-16")))));
+        var blocked=send("/billing-documents/"+doc+"/issue","POST",Map.of(),token);
+        assertEquals(409,blocked.statusCode());
+        assertTrue(blocked.body().contains("cảnh báo điện nước"),blocked.body());
+    }
 }

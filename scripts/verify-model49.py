@@ -16,9 +16,10 @@ def main():
         meta=json.loads(call('psql','-X','-At','-d',name,'-c',module.METADATA_SQL))
         output=call('psql','-X','-At','-v','ON_ERROR_STOP=1','-d',name,'-f',str(ROOT/'docs/database-cases49.sql'))
         passed=int(next(line.split('|')[1] for line in output.splitlines() if line.startswith('MODEL49_CASES_PASSED|')))
-        c=meta['constraints'];report={'schema':'V13-model49','validated_on':args.date,'tables':len({x['table_name'] for x in meta['columns']}),'columns':len(meta['columns']),'primary_keys':sum(x['kind']=='p' for x in c),'foreign_keys':sum(x['kind']=='f' for x in c),'check_constraints':sum(x['kind']=='c' for x in c),'exclusion_constraints':sum(x['kind']=='x' for x in c),'views':meta['views'],'database_cases_passed':passed,'postgresql':meta['server_version'],'all_passed':True,'scope':'DDL/rules only; Java, HTTP, migration and concurrency results are separate in implementation-validation49.json'}
+        c=meta['constraints'];report={'schema':'V14-model49','validated_on':args.date,'tables':len({x['table_name'] for x in meta['columns']}),'columns':len(meta['columns']),'primary_keys':sum(x['kind']=='p' for x in c),'foreign_keys':sum(x['kind']=='f' for x in c),'check_constraints':sum(x['kind']=='c' for x in c),'exclusion_constraints':sum(x['kind']=='x' for x in c),'views':meta['views'],'database_cases_passed':passed,'postgresql':meta['server_version'],'all_passed':True,'scope':'DDL/rules only; Java, HTTP, migration and concurrency results are separate in implementation-validation49.json'}
         assert report['tables']==49 and passed>=20
         (ROOT/'docs/database-validation.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+        (ROOT/'docs/design-schema.json').write_text(json.dumps(meta,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
         evidence=ROOT/'.runtime/schema-review';evidence.mkdir(exist_ok=True);(evidence/'metadata.json').write_text(json.dumps(meta,ensure_ascii=False,indent=2),encoding='utf-8')
         print(json.dumps(report,ensure_ascii=False))
     finally:

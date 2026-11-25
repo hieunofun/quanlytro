@@ -148,8 +148,11 @@ public class Operations49 {
                             default -> false;
                         };
         require(valid, "Invalid maintenance state transition");
-        Long assigned = optionalId(m, "assignedTo");
-        if (assigned != null) {
+        Long assigned =
+                m.containsKey("assignedTo")
+                        ? optionalId(m, "assignedTo")
+                        : optionalId(old, "assigned_to");
+        if (m.containsKey("assignedTo") && assigned != null) {
             boolean allowed =
                     old.get("resolved_room_id") != null
                             ? Boolean.TRUE.equals(

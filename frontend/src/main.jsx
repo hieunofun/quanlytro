@@ -60,6 +60,23 @@ const date = () => {
   return `${parts.year}-${parts.month}-${parts.day}`;
 };
 const period = () => date().slice(0, 7);
+const fmtVnDate = (iso) => {
+  const m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : iso || "";
+};
+const formatBillingPeriod = (value, row) => {
+  if (row?.period_from && row?.period_to) {
+    return `${fmtVnDate(row.period_from)} – ${fmtVnDate(row.period_to)}`;
+  }
+  const m = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) {
+    const next = new Date(Date.UTC(Number(m[1]), Number(m[2]), 1))
+      .toISOString()
+      .slice(0, 10);
+    return `${fmtVnDate(value)} – ${fmtVnDate(next)}`;
+  }
+  return value || "—";
+};
 const localDateTime = () =>
   new Intl.DateTimeFormat("sv-SE", {
     timeZone: "Asia/Ho_Chi_Minh",
@@ -179,7 +196,7 @@ const columns = {
   invoices: [
     ["invoice_code", "Hóa đơn"],
     ["room_code", "Phòng"],
-    ["billing_period", "Kỳ"],
+    ["billing_period", "Kỳ", formatBillingPeriod],
     ["total_amount", "Tổng tiền", money],
     ["balance_due", "Còn nợ", money],
     ["status", "Phát hành"],
@@ -889,13 +906,18 @@ function App() {
                           return 0;
                         })
                     : Array.isArray(rows)
-                    ? rows.filter((r) =>
-                        Object.values(r).some((v) =>
-                          String(v ?? "")
-                            .toLowerCase()
-                            .includes(search.toLowerCase()),
-                        ),
-                      )
+                    ? rows.filter((r) => {
+                        const q = search.toLowerCase();
+                        return (
+                          Object.values(r).some((v) =>
+                            String(v ?? "").toLowerCase().includes(q),
+                          ) ||
+                          (route === "invoices" &&
+                            formatBillingPeriod(r.billing_period, r)
+                              .toLowerCase()
+                              .includes(q))
+                        );
+                      })
                     : []
                 }
                 onOpen={open}
@@ -1384,7 +1406,11 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate, refreshDe
               className="primary"
               onClick={() =>
                 run(async () => {
-                  const accounts = (await api("/cash-accounts")).filter((a) => a.is_active);
+                  const accounts = (await api("/cash-accounts")).filter(
+                    (a) =>
+                      a.is_active &&
+                      (!a.property_id || !d.property_id || a.property_id === d.property_id),
+                  );
                   showForm(
                     "Ghi nhận thanh toán",
                     [
@@ -1440,7 +1466,9 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate, refreshDe
               <div key={key}>
                 <dt>{label}</dt>
                 <dd>
-                  {key.includes("amount") ||
+                  {key === "billing_period" && route === "invoices"
+                    ? formatBillingPeriod(d[key], d)
+                    : key.includes("amount") ||
                   [
                     "rental_price",
                     "base_price",
@@ -1588,7 +1616,18 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate, refreshDe
                 <div className="metric" key={p.id}>
                   <span>
                     {p.transaction_code} · {labels[p.payment_method]}
-                    <small>{p.notes}</small>
+                    <small>
+                      {[
+                        p.payment_date
+                          ? new Date(p.payment_date).toLocaleString("vi-VN", {
+                              timeZone: "Asia/Ho_Chi_Minh",
+                            })
+                          : "",
+                        p.notes,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </small>
                   </span>
                   <strong>{money(p.amount)}</strong>
                 </div>
@@ -1762,6 +1801,7 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate, refreshDe
                 "/maintenance-requests/" + d.id,
                 "PUT",
                 {
+                  assignedTo: d.assigned_to ?? "",
                   expectedDate: d.expected_date,
                   actualCost: d.actual_cost || 0,
                 },
@@ -1804,7 +1844,7 @@ function Detail({ route, data: d, tenant, back, showForm, run, mutate, refreshDe
           >
             Sửa phòng / giá
           </button>
-          <button onClick={()=>showForm("Tình trạng khai thác",[f("status","Tình trạng","select",{options:[["AVAILABLE","Sẵn sàng"],["MAINTENANCE","Bảo trì"]]})],"/rooms/"+d.id+"/status","PUT",{status:d.operational_status})}>Tình trạng khai thác</button>
+          <button onClick={()=>showForm("Tình trạng khai thác",[f("status","Tình trạng","select",{options:[["AVAILABLE","Sẵn sàng"],["MAINTENANCE","Bảo trì"]]})],"/rooms/"+d.id+"/status","PUT",{status:d.operational_status==="MAINTENANCE"?"MAINTENANCE":"AVAILABLE"})}>Tình trạng khai thác</button>
         </div>
       )}
       {getSession().user.role === "ADMIN" && route === "tenants" && (
@@ -1878,7 +1918,7 @@ function SettingsPanel({ data: d, admin, showForm, run, mutate }) {
       </div>}
       <div className="table-wrap"><table><thead><tr><th>Khu</th><th>Dịch vụ</th><th>Đơn giá</th><th>Áp dụng từ</th></tr></thead><tbody>{d.prices.map(p=><tr key={p.id}><td>{d.properties.find(x=>x.id===p.property_id)?.name}</td><td>{p.name}</td><td>{money(p.unit_price)}</td><td>{p.effective_from}</td></tr>)}</tbody></table></div>
     </section>
-    <section className="card"><h2>Chính sách tính tiền</h2>{d.properties.map(p=><div className="metric" key={p.id}><div><strong>{p.name}</strong><p>Chốt số: ngày {p.meter_cutoff_day} · Phát hành: ngày {p.invoice_issue_day} tháng sau · Cảnh báo: tăng trên {p.alert_threshold_percentage}% so với {p.alert_history_months} tháng trước</p></div>{admin&&<button onClick={()=>showForm("Lịch tính tiền",[f("meterCutoffDay","Ngày chốt số (1–31)","number"),f("invoiceIssueDay","Ngày phát hành (1–28)","number")],"/properties/"+p.id+"/billing-policy","PUT",{meterCutoffDay:p.meter_cutoff_day,invoiceIssueDay:p.invoice_issue_day})}>Cập nhật</button>}</div>)}</section>
+    <section className="card"><h2>Chính sách tính tiền</h2>{d.properties.map(p=><div className="metric" key={p.id}><div><strong>{p.name}</strong><p>Chốt số: ngày {p.meter_cutoff_day} · Phát hành: ngày {p.invoice_issue_day} tháng sau · Cảnh báo: tăng trên {p.alert_threshold_percentage}% so với {p.alert_history_months} tháng trước</p></div>{admin&&<button onClick={()=>showForm("Lịch tính tiền",[f("meterCutoffDay","Ngày chốt số (1–31)","number",{min:1,max:31,step:1}),f("invoiceIssueDay","Ngày phát hành (1–31)","number",{min:1,max:31,step:1})],"/properties/"+p.id+"/billing-policy","PUT",{meterCutoffDay:p.meter_cutoff_day,invoiceIssueDay:p.invoice_issue_day})}>Cập nhật</button>}</div>)}</section>
     {admin&&<section className="card"><h2>Tài khoản và phân công</h2><div className="actions">
       <button onClick={()=>showForm("Tạo tài khoản",[f("username","Tên đăng nhập"),f("password","Mật khẩu (tối thiểu 12 ký tự)","password"),f("role","Vai trò","select",{options:[["STAFF","Nhân viên"],["TENANT","Người thuê"],["ADMIN","Chủ nhà"]]})],"/users")}>Tạo tài khoản</button>
       <button onClick={()=>showForm("Phân công nhân viên",[f("userId","Nhân viên","select",{options:d.users.filter(u=>u.role==="STAFF").map(u=>[u.id,u.username])}),f("propertyId","Khu nhà","select",{options:prop})],"/assignments")}>Phân công theo khu</button>

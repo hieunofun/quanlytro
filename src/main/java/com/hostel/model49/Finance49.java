@@ -48,6 +48,23 @@ public class Finance49 {
     public Map<String, Object> document(long id) {
         var d = new LinkedHashMap<>(access.document(id));
         d.put("invoice_code", d.get("document_code"));
+        if (d.get("contract_id") != null) {
+            d.put(
+                    "property_id",
+                    db.one(
+                                    "select r.property_id from contracts c join rooms r on"
+                                            + " r.id=c.room_id where c.id=?",
+                                    d.get("contract_id"))
+                            .get("property_id"));
+        } else if (d.get("reservation_id") != null) {
+            d.put(
+                    "property_id",
+                    db.one(
+                                    "select r.property_id from reservations s join rooms r on"
+                                            + " r.id=s.room_id where s.id=?",
+                                    d.get("reservation_id"))
+                            .get("property_id"));
+        }
         var lines =
                 db.rows("select * from v_billing_lines where document_id=? order by line_no", id);
         for (var l : lines) {
@@ -97,6 +114,27 @@ public class Finance49 {
                                         : money(line, "subtotal"));
             }
             d.put("total_amount", signed);
+        }
+        LocalDate periodFrom = null, periodTo = null;
+        for (var l : lines) {
+            if ("ROOM_RENT".equals(l.get("item_kind")) && l.get("adjusts_item_id") == null) {
+                LocalDate sf = l.get("service_from") == null ? null : date(l.get("service_from"));
+                LocalDate st = l.get("service_to") == null ? null : date(l.get("service_to"));
+                if (sf != null && (periodFrom == null || sf.isBefore(periodFrom))) {
+                    periodFrom = sf;
+                }
+                if (st != null && (periodTo == null || st.isAfter(periodTo))) {
+                    periodTo = st;
+                }
+            }
+        }
+        if (periodFrom == null && d.get("billing_period") != null) {
+            periodFrom = date(d.get("billing_period"));
+            periodTo = periodFrom.plusMonths(1);
+        }
+        if (periodFrom != null && periodTo != null) {
+            d.put("period_from", periodFrom);
+            d.put("period_to", periodTo);
         }
         d.put("items", lines);
         d.put(

@@ -435,9 +435,11 @@ public class Leases49 {
                         residency,
                         contract);
         require(old.get("effective_to") == null, "Residency already ended");
+        LocalDate to = day(m, null, "effectiveTo");
+        require(to != null, "Departure date is required");
         db.jdbc.update(
                 "update contract_residencies set effective_to=? where id=?",
-                day(m, null, "effectiveTo"),
+                to,
                 residency);
         events.audit(
                 "DEPART",

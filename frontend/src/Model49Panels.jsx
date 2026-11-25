@@ -28,6 +28,23 @@ const money = (n) =>
     currency: "VND",
     maximumFractionDigits: 0,
   }).format(n || 0);
+const fmtVnDate = (iso) => {
+  const m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : iso || "";
+};
+const formatBillingPeriod = (value, row) => {
+  if (row?.period_from && row?.period_to) {
+    return `${fmtVnDate(row.period_from)} – ${fmtVnDate(row.period_to)}`;
+  }
+  const m = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) {
+    const next = new Date(Date.UTC(Number(m[1]), Number(m[2]), 1))
+      .toISOString()
+      .slice(0, 10);
+    return `${fmtVnDate(value)} – ${fmtVnDate(next)}`;
+  }
+  return value || "—";
+};
 const label = (r) =>
   r.full_name ||
   r.name ||
@@ -910,7 +927,7 @@ export function DebtsPanel({ showForm, run, navigate }) {
                               {t.invoices?.map((inv) => (
                                 <tr key={inv.id}>
                                   <td><strong>{inv.invoice_code}</strong></td>
-                                  <td>{inv.billing_period || "—"}</td>
+                                  <td>{formatBillingPeriod(inv.billing_period, inv)}</td>
                                   <td>{inv.room_code}</td>
                                   <td>{inv.due_date}</td>
                                   <td>{money(inv.total_amount)}</td>
@@ -928,7 +945,11 @@ export function DebtsPanel({ showForm, run, navigate }) {
                                       className="primary"
                                       onClick={() =>
                                         run(async () => {
-                                          const accounts = (await api("/cash-accounts")).filter((a) => a.is_active);
+                                          const accounts = (await api("/cash-accounts")).filter(
+                                            (a) =>
+                                              a.is_active &&
+                                              (!a.property_id || !inv.property_id || a.property_id === inv.property_id),
+                                          );
                                           showForm(
                                             "Thu tiền hóa đơn " + inv.invoice_code,
                                             [

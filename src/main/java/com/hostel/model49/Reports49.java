@@ -261,7 +261,12 @@ public class Reports49 {
     private List<Map<String, Object>> openTenantInvoices(Long tenantId) {
         return db.rows("""
                 select d.id,d.document_code as invoice_code,d.billing_period,d.due_date,d.issue_date,
-                       r.room_code,c.contract_code,t.id as tenant_id,t.full_name,t.phone,t.identity_number,
+                       coalesce((select min(i.service_from) from billing_items i where i.document_id=d.id
+                                 and i.item_kind='ROOM_RENT' and i.adjusts_item_id is null), d.billing_period) as period_from,
+                       coalesce((select max(i.service_to) from billing_items i where i.document_id=d.id
+                                 and i.item_kind='ROOM_RENT' and i.adjusts_item_id is null),
+                                (d.billing_period + interval '1 month')::date) as period_to,
+                       r.property_id,r.room_code,c.contract_code,t.id as tenant_id,t.full_name,t.phone,t.identity_number,
                        d.total_amount,d.paid_amount,d.balance_due,
                        greatest(0, (now() at time zone 'Asia/Ho_Chi_Minh')::date-d.due_date) as overdue_days
                 from v_document_balances d

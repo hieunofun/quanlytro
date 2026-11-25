@@ -712,7 +712,14 @@ public class Api49 {
     public Object invoices() {
         var rows =
                 db.rows(
-                        "select d.*,d.document_code invoice_code,r.room_code,t.full_name from"
+                        "select d.*,d.document_code invoice_code,r.room_code,t.full_name,"
+                                + " coalesce((select min(i.service_from) from billing_items i where"
+                                + " i.document_id=d.id and i.item_kind='ROOM_RENT' and"
+                                + " i.adjusts_item_id is null),d.billing_period) period_from,"
+                                + " coalesce((select max(i.service_to) from billing_items i where"
+                                + " i.document_id=d.id and i.item_kind='ROOM_RENT' and"
+                                + " i.adjusts_item_id is null),(d.billing_period+interval '1"
+                                + " month')::date) period_to from"
                                 + " v_document_balances d join v_contract_current c on"
                                 + " c.id=d.contract_id join rooms r on r.id=c.room_id left join"
                                 + " tenant_profiles t on t.id=c.primary_tenant_id where "
@@ -1162,7 +1169,14 @@ public class Api49 {
     public ResponseEntity<byte[]> invoicePdf(@PathVariable long id) throws java.io.IOException {
         var d = finance.document(id);
         var lines = new ArrayList<String>();
-        lines.add("Kỳ nhãn: " + d.get("billing_period"));
+        var dateFmt = java.time.format.DateTimeFormatter.ofPattern("dd/MM/uuuu");
+        String periodText =
+                d.get("period_from") != null && d.get("period_to") != null
+                        ? date(d.get("period_from")).format(dateFmt)
+                                + " – "
+                                + date(d.get("period_to")).format(dateFmt)
+                        : Objects.toString(d.get("billing_period"), "—");
+        lines.add("Kỳ tính: " + periodText);
         @SuppressWarnings("unchecked")
         var items = (List<Map<String, Object>>) d.get("items");
         for (var i : items) {
